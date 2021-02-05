@@ -15,6 +15,7 @@
 #include "drm_object_crtc.h"
 #include "abstract_egl_backend.h"
 #include "logging.h"
+#include "drm_output.h"
 
 #if HAVE_GBM
 #include "egl_gbm_backend.h"
@@ -202,13 +203,15 @@ bool DrmGpu::updateOutputs()
     }
 
     for (DrmConnector *con : qAsConst(pendingConnectors)) {
-        DrmScopedPointer<drmModeConnector> connector(drmModeGetConnector(m_fd, con->id()));
+        bool force = false;
+        DrmScopedPointer<drmModeConnector> connector(DrmOutput::getAddNewMode(m_fd, con->id(), force));
         if (!connector) {
             continue;
         }
         if (connector->count_modes == 0) {
             continue;
         }
+
         bool outputDone = false;
 
         QVector<uint32_t> encoders = con->encoders();
@@ -245,10 +248,18 @@ bool DrmGpu::updateOutputs()
                 crtc->setOutput(output);
                 output->m_crtc = crtc;
 
-                if (modeCrtc->mode_valid) {
-                    output->m_mode = modeCrtc->mode;
+                if (force) {
+                    output->setCurMode(connector->modes[connector->count_modes - 1]);
                 } else {
-                    output->m_mode = connector->modes[0];
+                    if (modeCrtc->mode_valid) {
+
+                        // jing_kwin for surface resolution
+                        output->setCurMode(modeCrtc->mode);
+                    } else {
+
+                        // jing_kwin for surface resolution
+                        output->setCurMode(connector->modes[0]);
+                    }
                 }
                 qCDebug(KWIN_DRM) << "For new output use mode " << output->m_mode.name;
                 if (!output->init(connector.data())) {

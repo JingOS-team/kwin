@@ -59,6 +59,8 @@ enum class BuiltInEffect
     TrackMouse,
     WindowGeometry,
     WobblyWindows,
+    SwitchWindows,
+    ShowSysInfo,
     Zoom
 };
 

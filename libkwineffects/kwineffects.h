@@ -664,6 +664,9 @@ public:
     static void setPositionTransformations(WindowPaintData& data, QRect& region, EffectWindow* w,
                                            const QRect& r, Qt::AspectRatioMode aspect);
 
+
+    virtual void onHideTaskManager();
+    virtual void onBottomGestureToggled();
 public Q_SLOTS:
     virtual bool borderActivated(ElectricBorder border);
 
@@ -943,6 +946,7 @@ public:
 
     // functions that allow controlling windows/desktop
     virtual void activateWindow(KWin::EffectWindow* c) = 0;
+    virtual void activateWindowWhithoutAnimation(KWin::EffectWindow* c) = 0;
     virtual KWin::EffectWindow* activeWindow() const = 0 ;
     Q_SCRIPTABLE virtual void moveWindow(KWin::EffectWindow* w, const QPoint& pos, bool snap = false, double snapAdjust = 1.0) = 0;
 
@@ -964,6 +968,7 @@ public:
     Q_SCRIPTABLE virtual void windowToScreen(KWin::EffectWindow* w, int screen) = 0;
     virtual void setShowingDesktop(bool showing) = 0;
 
+     Q_SCRIPTABLE void closeWindow(KWin::EffectWindow* w);
     // Activities
     /**
      * @returns The ID of the current activity.
@@ -1367,12 +1372,21 @@ public:
      * @since 5.18
      */
     virtual void renderEffectQuickView(EffectQuickView *effectQuickView) const = 0;
-
     /**
      * The status of the session i.e if the user is logging out
      * @since 5.18
      */
     virtual SessionState sessionState() const = 0;
+
+    virtual void onTaskSwipe(bool toRight) = 0;
+    virtual QSize screenSize(int screen) const = 0;
+
+    virtual bool showingDesktop() = 0;
+    virtual bool showCloseNotice() = 0;
+    virtual void setShowCloseNotice(bool show) = 0;
+
+    virtual void setShowingTaskMgr(bool showing) = 0;
+    virtual bool isShowingTaskMgr() = 0;
 Q_SIGNALS:
     /**
      * Signal emitted when the current desktop changed.
@@ -1818,6 +1832,7 @@ Q_SIGNALS:
      */
     void sessionStateChanged();
 
+    void switchWindows(bool toRight);
 protected:
     QVector< EffectPair > loaded_effects;
     //QHash< QString, EffectFactory* > effect_factories;
@@ -3276,6 +3291,9 @@ public:
      * Register a window for managing.
      */
     void manage(EffectWindow *w);
+    void manage(EffectWindow *w, QPointF srcPos);
+
+    bool isEmpty() const;
     /**
      * Register a list of windows for managing.
      */
@@ -3327,6 +3345,9 @@ public:
      * vertical direction as well as in the horizontal direction.
      */
     void moveWindow(EffectWindow *w, QPoint target, double scale = 1.0, double yScale = 0.0);
+
+
+    void moveWindow(EffectWindow *w, QPoint srcPos, QPoint target, double scale = 1.0, double yScale = 0.0);
     /**
      * This is an overloaded method, provided for convenience.
      *
@@ -3339,6 +3360,11 @@ public:
                    target.width() / double(w->width()), target.height() / double(w->height()));
     }
 
+    inline void moveWindow(EffectWindow *w, QPoint srcPos, QRect target) {
+        // TODO: Scale might be slightly different in the comparison due to rounding
+        moveWindow(w, srcPos, target.topLeft(),
+                   target.width() / double(w->width()), target.height() / double(w->height()));
+    }
     /**
      * Retrieve the current tranformed geometry of a registered
      * window.

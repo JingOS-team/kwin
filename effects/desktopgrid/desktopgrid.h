@@ -14,15 +14,27 @@
 #include <kwineffects.h>
 #include <QObject>
 #include <QTimeLine>
-
+#include <QHash>
 class QTimer;
 
 #include "kwineffectquickview.h"
+#include "windowanimationmanager.h"
 
 namespace KWin
 {
 
 class PresentWindowsEffectProxy;
+class EffectQuickScene;
+
+
+class PresentLayout
+{
+public:
+    QPointF curScale;
+    QPointF targetScale;
+    QRectF curGeometry;
+    QRectF targetGeometry;
+};
 
 class DesktopGridEffect
     : public Effect
@@ -35,6 +47,7 @@ class DesktopGridEffect
     Q_PROPERTY(int customLayoutRows READ configuredCustomLayoutRows)
     Q_PROPERTY(bool usePresentWindows READ isUsePresentWindows)
     // TODO: electric borders
+
 public:
     DesktopGridEffect();
     ~DesktopGridEffect() override;
@@ -48,6 +61,15 @@ public:
     void grabbedKeyboardEvent(QKeyEvent* e) override;
     bool borderActivated(ElectricBorder border) override;
     bool isActive() const override;
+    void drawWindow(EffectWindow *w, int mask, const QRegion &region, WindowPaintData &data) override;
+    void postPaintWindow(EffectWindow* w) override;
+
+
+    void onHideTaskManager() override;
+    void onBottomGestureToggled() override;
+    bool touchDown(qint32 id, const QPointF &pos, quint32 time) override;
+    bool touchMotion(qint32 id, const QPointF &pos, quint32 time) override;
+    bool touchUp(qint32 id, quint32 time) override;
 
     int requestedEffectChainPosition() const override {
         return 50;
@@ -75,6 +97,10 @@ public:
     bool isUsePresentWindows() const {
         return clickBehavior == SwitchDesktopAndActivateWindow;
     }
+
+public:
+    Q_SCRIPTABLE void clearWindows();
+
 private Q_SLOTS:
     void toggle();
     // slots for global shortcut changed
@@ -110,6 +136,18 @@ private:
     void desktopsAdded(int old);
     void desktopsRemoved(int old);
     QVector<int> desktopList(const EffectWindow *w) const;
+    void addCloseBtn(EffectWindow *w, const QRect &rect);
+    void clearBtns();
+    void deleteCloseBtn(EffectWindow *w);
+    bool isOnCloseButton(EffectWindow *w, const QPoint& pos);
+
+    void addMask();
+    void addClearBtn();
+    bool isOnClearButton(const QPoint& pos);
+    void killWindow(const EffectWindow *w);
+
+    std::chrono::milliseconds toStdMs(int ms);
+    void getWindowLayout(bool init, int screen, WindowAnimationManager &windowAnimationManager);
 
     QList<ElectricBorder> borderActivate;
     int zoomDuration;
@@ -123,7 +161,7 @@ private:
     QTimeLine timeline;
     int paintingDesktop;
     int highlightedDesktop;
-    int sourceDesktop;
+    int sourceDesktop = 1;
     int m_originalMovingDesktop;
     bool keyboardGrab;
     bool wasWindowMove, wasWindowCopy, wasDesktopMove, isValidMove;
@@ -151,14 +189,23 @@ private:
     QList<QKeySequence> shortcut;
 
     PresentWindowsEffectProxy* m_proxy;
-    QList<WindowMotionManager> m_managers;
+    QList<WindowAnimationManager> m_animateManagers;
     QRect m_windowMoveGeometry;
     QPoint m_windowMoveStartPoint;
 
+    QVector<EffectQuickScene*> maskView;
     QVector<EffectQuickScene*> m_desktopButtons;
-
+    QVector<EffectQuickScene*> m_clearButtons;
+    bool clickCloseWindow = false;
+    QHash<EffectWindow *, EffectQuickScene*> m_windowCloseButtons;
     QAction *m_activateAction;
 
+    EffectWindow* closeWindow = nullptr;
+    EffectWindow* activeWindow = nullptr;
+    bool showDesktop = false;
+    bool isClearWindows = false;
+    QPoint lastPos;
+    QHash<EffectWindow*, PresentLayout> windowLayouts;
 };
 
 } // namespace

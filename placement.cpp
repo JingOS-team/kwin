@@ -363,7 +363,8 @@ void Placement::reinitCascading(int desktop)
 
 QPoint Workspace::cascadeOffset(const AbstractClient *c) const
 {
-    QRect area = clientArea(PlacementArea, c->frameGeometry().center(), c->desktop());
+    // yangg for jingos app under panel
+    QRect area = clientArea(PlacementArea, c, c->frameGeometry().center(), c->desktop());
     return QPoint(area.width()/48, area.height()/48);
 }
 
@@ -717,7 +718,8 @@ void AbstractClient::growHorizontal()
         int newright = workspace()->packPositionRight(this, geom.right() + resizeIncrements().width() - 1, true);
         // check that it hasn't grown outside of the area, due to size increments
         // TODO this may be wrong?
-        if (workspace()->clientArea(MovementArea,
+        // yangg for jingos app under panel
+        if (workspace()->clientArea(MovementArea, nullptr,
                                    QPoint((x() + newright) / 2, frameGeometry().center().y()), desktop()).right() >= newright)
             geom.setRight(newright);
     }
@@ -764,7 +766,8 @@ void AbstractClient::growVertical()
     if (frameGeometry().size() == adjsize && geom.size() != adjsize && resizeIncrements().height() > 1) { // take care of size increments
         int newbottom = workspace()->packPositionDown(this, geom.bottom() + resizeIncrements().height() - 1, true);
         // check that it hasn't grown outside of the area, due to size increments
-        if (workspace()->clientArea(MovementArea,
+        // yangg for jingos app under panel
+        if (workspace()->clientArea(MovementArea, nullptr,
                                    QPoint(frameGeometry().center().x(), (y() + newbottom) / 2), desktop()).bottom() >= newbottom)
             geom.setBottom(newbottom);
     }
@@ -826,7 +829,8 @@ int Workspace::packPositionLeft(const AbstractClient *client, int oldX, bool lef
 {
     int newX = clientArea(MaximizeArea, client).left();
     if (oldX <= newX) { // try another Xinerama screen
-        newX = clientArea(MaximizeArea,
+        // yangg for jingos app under panel
+        newX = clientArea(MaximizeArea, client,
                           QPoint(client->frameGeometry().left() - 1, client->frameGeometry().center().y()), client->desktop()).left();
     }
     if (client->titlebarPosition() != AbstractClient::PositionLeft) {
@@ -859,7 +863,8 @@ int Workspace::packPositionRight(const AbstractClient *client, int oldX, bool ri
 {
     int newX = clientArea(MaximizeArea, client).right();
     if (oldX >= newX) { // try another Xinerama screen
-        newX = clientArea(MaximizeArea,
+        // yangg for jingos app under panel
+        newX = clientArea(MaximizeArea, client,
                           QPoint(client->frameGeometry().right() + 1, client->frameGeometry().center().y()), client->desktop()).right();
     }
     if (client->titlebarPosition() != AbstractClient::PositionRight) {
@@ -892,7 +897,8 @@ int Workspace::packPositionUp(const AbstractClient *client, int oldY, bool topEd
 {
     int newY = clientArea(MaximizeArea, client).top();
     if (oldY <= newY) { // try another Xinerama screen
-        newY = clientArea(MaximizeArea,
+        // yangg for jingos app under panel
+        newY = clientArea(MaximizeArea, client,
                           QPoint(client->frameGeometry().center().x(), client->frameGeometry().top() - 1), client->desktop()).top();
     }
     if (client->titlebarPosition() != AbstractClient::PositionTop) {
@@ -925,7 +931,8 @@ int Workspace::packPositionDown(const AbstractClient *client, int oldY, bool bot
 {
     int newY = clientArea(MaximizeArea, client).bottom();
     if (oldY >= newY) { // try another Xinerama screen
-        newY = clientArea(MaximizeArea,
+        // yangg for jingos app under panel
+        newY = clientArea(MaximizeArea, client,
                           QPoint(client->frameGeometry().center().x(), client->frameGeometry().bottom() + 1), client->desktop()).bottom();
     }
     if (client->titlebarPosition() != AbstractClient::PositionBottom) {

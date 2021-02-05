@@ -20,6 +20,7 @@
 #include "xdgshellclient.h"
 #include "service_utils.h"
 #include "unmanaged.h"
+#include "globalgesture.h"
 
 // Client
 #include <KWayland/Client/connection_thread.h>
@@ -191,6 +192,10 @@ void WaylandServer::registerXdgToplevelClient(XdgToplevelClient *client)
     connect(m_XdgForeign, &XdgForeignV2Interface::transientChanged, client, [this](SurfaceInterface *child) {
         emit foreignTransientChanged(child);
     });
+    // jing_kwin forward gesture
+    if (client->isDesktop()) {
+        GlobalGesture::self()->init(client->pid());
+    }
 }
 
 void WaylandServer::registerXdgGenericClient(AbstractClient *client)

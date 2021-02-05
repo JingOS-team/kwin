@@ -23,6 +23,8 @@
 #include "fallapart/fallapart.h"
 #include "highlightwindow/highlightwindow.h"
 #include "magiclamp/magiclamp.h"
+#include "switchwindows/switchwindows.h"
+#include "showsysinfo/showsysinfo.h"
 #include "resize/resize.h"
 #include "showfps/showfps.h"
 #include "showpaint/showpaint.h"
@@ -679,7 +681,39 @@ EFFECT_FALLBACK
 #endif
 EFFECT_FALLBACK
         QStringLiteral("kwin_zoom_config")
-    }
+    }, {
+            QStringLiteral("switchwindows"),
+            i18ndc("kwin_effects", "Name of a KWin Effect", "Switch Windows"),
+            i18ndc("kwin_effects", "Comment describing the KWin Effect", "Simulate a animate when switch windows"),
+            QStringLiteral("Appearance"),
+            QStringLiteral("switch"),
+            QUrl(QStringLiteral("todo")),
+            false,
+            false,
+    #ifdef EFFECT_BUILTINS
+            &createHelper<SwitchWindows>,
+            &SwitchWindows::supported,
+            nullptr,
+    #endif
+    EFFECT_FALLBACK
+            QStringLiteral("kwin_switchwindows_config")
+        },{
+            QStringLiteral("showsysinfo"),
+            i18ndc("kwin_effects", "Name of a KWin Effect", "ShowSystemInfo"),
+            i18ndc("kwin_effects", "Comment describing the KWin Effect", "Show system infomation"),
+            QStringLiteral("Appearance"),
+            QStringLiteral("showsysinfo"),
+            QUrl(QStringLiteral("todo")),
+            false,
+            false,
+    #ifdef EFFECT_BUILTINS
+            &createHelper<ShowSysInfo>,
+            &SwitchWindows::supported,
+            nullptr,
+    #endif
+    EFFECT_FALLBACK
+            QStringLiteral("kwin_showsysinfo_config")
+        },
     };
     return s_effectData;
 }

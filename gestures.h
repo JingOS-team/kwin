@@ -34,15 +34,18 @@ Q_SIGNALS:
      * On further evaluation either the signal @ref triggered or
      * @ref cancelled will get emitted.
      */
-    void started();
+    // jing_kwin gesture
+    void started(quint32 time);
     /**
      * Gesture matching ended and this Gesture matched.
      */
-    void triggered();
+    // jing_kwin gesture
+    void triggered(quint32 time, const qreal &lastSpeed);
     /**
      * This Gesture no longer matches.
      */
-    void cancelled();
+    // jing_kwin gesture
+    void cancelled(quint32 time);
 };
 
 class SwipeGesture : public Gesture
@@ -53,7 +56,8 @@ public:
         Down,
         Left,
         Up,
-        Right
+        Right,
+        All
     };
 
     explicit SwipeGesture(QObject *parent = nullptr);
@@ -150,7 +154,10 @@ Q_SIGNALS:
      * The progress of the gesture if a minimumDelta is set.
      * The progress is reported in [0.0,1.0]
      */
-    void progress(qreal);
+    // jing_kwin gesture
+    void progress(qreal, quint32);
+
+    void update(QSizeF, quint32);
 
 private:
     bool m_minimumFingerCountRelevant = false;
@@ -180,27 +187,36 @@ public:
     void registerGesture(Gesture *gesture);
     void unregisterGesture(Gesture *gesture);
 
-    int startSwipeGesture(uint fingerCount) {
-        return startSwipeGesture(fingerCount, QPointF(), StartPositionBehavior::Irrelevant);
+    // jing_kwin gesture
+    int startSwipeGesture(uint fingerCount, quint32 time) {
+        return startSwipeGesture(fingerCount, QPointF(), StartPositionBehavior::Irrelevant, time);
     }
-    int startSwipeGesture(const QPointF &startPos) {
-        return startSwipeGesture(1, startPos, StartPositionBehavior::Relevant);
+    int startSwipeGesture(const QPointF &startPos, quint32 time) {
+        return startSwipeGesture(1, startPos, StartPositionBehavior::Relevant, time);
     }
-    void updateSwipeGesture(const QSizeF &delta);
-    void cancelSwipeGesture();
-    void endSwipeGesture();
+    void updateSwipeGesture(const QSizeF &delta, quint32 time);
+    void cancelSwipeGesture(quint32 time);
+    void endSwipeGesture(quint32 time);
 
 private:
-    void cancelActiveSwipeGestures();
+    void cancelActiveSwipeGestures(quint32 time);
+// jing_kwin gesture end
     enum class StartPositionBehavior {
         Relevant,
         Irrelevant
     };
-    int startSwipeGesture(uint fingerCount, const QPointF &startPos, StartPositionBehavior startPosBehavior);
+    // jing_kwin gesture
+    int startSwipeGesture(uint fingerCount, const QPointF &startPos, StartPositionBehavior startPosBehavior, quint32 time);
     QVector<Gesture*> m_gestures;
     QVector<Gesture*> m_activeSwipeGestures;
     QMap<Gesture*, QMetaObject::Connection> m_destroyConnections;
     QVector<QSizeF> m_swipeUpdates;
+    // jing_kwin gesture 
+    quint32 m_lastUpdateTime = 0;
+    quint32 m_lastEndUpdateTime = 0;
+    int m_startIndex = 0;
+    int m_endIndex = 0;
+    // jing_kwin gesture end
 };
 
 }

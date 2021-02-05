@@ -432,6 +432,7 @@ void DrmBackend::readOutputsConfiguration()
         // TODO: add mode
         if (outputConfig.hasKey("Scale"))
             (*it)->setScale(outputConfig.readEntry("Scale", 1.0));
+
         (*it)->setTransform(stringToTransform(outputConfig.readEntry("Transform", "normal")));
         pos.setX(pos.x() + (*it)->geometry().width());
     }

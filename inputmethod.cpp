@@ -111,7 +111,8 @@ void InputMethod::init()
 
 void InputMethod::show()
 {
-    waylandServer()->inputMethod()->sendActivate();
+    // jing_kwin virtual input not show when has keyboard device
+    setInputActivate();
 }
 
 void InputMethod::hide()
@@ -212,7 +213,8 @@ void InputMethod::textInputInterfaceV2StateUpdated(quint32 serial, KWaylandServe
         inputContext->sendCommitState(serial);
         break;
     case KWaylandServer::TextInputV2Interface::UpdateReason::StateEnter:
-        waylandServer()->inputMethod()->sendActivate();
+        // jing_kwin virtual input not show when has keyboard device
+        setInputActivate();
         inputContext->sendCommitState(serial);
         break;
     case KWaylandServer::TextInputV2Interface::UpdateReason::StateFull:
@@ -230,8 +232,10 @@ void InputMethod::textInputInterfaceV2EnabledChanged()
 {
     auto t = waylandServer()->seat()->textInputV2();
     if (t->isEnabled()) {
-        waylandServer()->inputMethod()->sendActivate();
-        adoptInputMethodContext();
+        // jing_kwin virtual input not show when has keyboard device
+        if (setInputActivate()) {
+            adoptInputMethodContext();
+        }
     } else {
         waylandServer()->inputMethod()->sendDeactivate();
         hide();
@@ -242,7 +246,8 @@ void InputMethod::textInputInterfaceV3EnabledChanged()
 {
     auto t3 = waylandServer()->seat()->textInputV3();
     if (t3->isEnabled()) {
-        waylandServer()->inputMethod()->sendActivate();
+        // jing_kwin virtual input not show when has keyboard device
+        setInputActivate();
     } else {
         waylandServer()->inputMethod()->sendDeactivate();
         // reset value of preedit when textinput is disabled
@@ -439,6 +444,18 @@ void InputMethod::adoptInputMethodContext()
     connect(inputContext, &KWaylandServer::InputMethodContextV1Interface::cursorPosition, waylandServer(), &setCursorPosition);
     connect(inputContext, &KWaylandServer::InputMethodContextV1Interface::preeditString, this, &InputMethod::setPreeditString);
     connect(inputContext, &KWaylandServer::InputMethodContextV1Interface::preeditCursor, this, &InputMethod::setPreeditCursor);
+}
+
+// jing_kwin virtual input not show when has keyboard device
+bool InputMethod::setInputActivate()
+{
+    if (!m_enabled) {
+        waylandServer()->inputMethod()->sendDeactivate();
+        return false;
+    }
+
+    waylandServer()->inputMethod()->sendActivate();
+    return true;
 }
 
 void InputMethod::updateSni()

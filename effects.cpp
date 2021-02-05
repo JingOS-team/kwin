@@ -251,6 +251,10 @@ EffectsHandlerImpl::EffectsHandlerImpl(Compositor *compositor, Scene *scene)
         setupClientConnections(client);
     }
 
+
+    connect(ScreenEdges::self(), &ScreenEdges::onBottomGestureToggled, this, &EffectsHandlerImpl::onBottomGestureToggled);
+    connect(ScreenEdges::self(), &ScreenEdges::onHideTaskManager, this, &EffectsHandlerImpl::onHideTaskManager);
+
     reconfigure();
 }
 
@@ -594,6 +598,22 @@ void EffectsHandlerImpl::slotWindowDamaged(Toplevel* t, const QRegion& r)
     emit windowDamaged(t->effectWindow(), r);
 }
 
+void EffectsHandlerImpl::onHideTaskManager()
+{
+    // TODO: reverse call order?
+    for (auto it = loaded_effects.constBegin(); it != loaded_effects.constEnd(); ++it) {
+        it->second->onHideTaskManager();
+    }
+}
+
+void EffectsHandlerImpl::onBottomGestureToggled()
+{
+    // TODO: reverse call order?
+    for (auto it = loaded_effects.constBegin(); it != loaded_effects.constEnd(); ++it) {
+        it->second->onBottomGestureToggled();
+    }
+}
+
 void EffectsHandlerImpl::slotGeometryShapeChanged(Toplevel* t, const QRect& old)
 {
     // during late cleanup effectWindow() may be already NULL
@@ -862,6 +882,14 @@ QByteArray EffectsHandlerImpl::readRootProperty(long atom, long type, int format
     return readWindowProperty(kwinApp()->x11RootWindow(), atom, type, format);
 }
 
+
+void EffectsHandlerImpl::activateWindowWhithoutAnimation(EffectWindow *c)
+{
+    if (auto cl = qobject_cast<AbstractClient *>(static_cast<EffectWindowImpl *>(c)->window())) {
+        Workspace::self()->activateClient(cl, true, true);
+    }
+}
+
 void EffectsHandlerImpl::activateWindow(EffectWindow* c)
 {
     if (auto cl = qobject_cast<AbstractClient *>(static_cast<EffectWindowImpl *>(c)->window())) {
@@ -926,6 +954,11 @@ void EffectsHandlerImpl::windowToScreen(EffectWindow* w, int screen)
 void EffectsHandlerImpl::setShowingDesktop(bool showing)
 {
     Workspace::self()->setShowingDesktop(showing);
+}
+
+bool EffectsHandlerImpl::showingDesktop()
+{
+    return activeWindow() != nullptr && activeWindow()->isDesktop();
 }
 
 QString EffectsHandlerImpl::currentActivity() const
@@ -1223,7 +1256,8 @@ int EffectsHandlerImpl::screenNumber(const QPoint& pos) const
 
 QRect EffectsHandlerImpl::clientArea(clientAreaOption opt, int screen, int desktop) const
 {
-    return Workspace::self()->clientArea(opt, screen, desktop);
+    // jing_kwin for jingos app under panel
+    return Workspace::self()->clientArea(opt, nullptr, screen, desktop);
 }
 
 QRect EffectsHandlerImpl::clientArea(clientAreaOption opt, const EffectWindow* c) const
@@ -1232,13 +1266,20 @@ QRect EffectsHandlerImpl::clientArea(clientAreaOption opt, const EffectWindow* c
     if (const auto *cl = qobject_cast<const AbstractClient *>(t)) {
         return Workspace::self()->clientArea(opt, cl);
     } else {
-        return Workspace::self()->clientArea(opt, t->frameGeometry().center(), VirtualDesktopManager::self()->current());
+        // jing_kwin for jingos app under panel
+        return Workspace::self()->clientArea(opt, cl, t->frameGeometry().center(), VirtualDesktopManager::self()->current());
     }
 }
 
 QRect EffectsHandlerImpl::clientArea(clientAreaOption opt, const QPoint& p, int desktop) const
 {
-    return Workspace::self()->clientArea(opt, p, desktop);
+    // jing_kwin for jingos app under panel
+    return Workspace::self()->clientArea(opt, nullptr, p, desktop);
+}
+
+QSize EffectsHandlerImpl::screenSize(int screen) const
+{
+    return screens()->size(screen);
 }
 
 QRect EffectsHandlerImpl::virtualScreenGeometry() const
@@ -1526,7 +1567,8 @@ QVariant EffectsHandlerImpl::kwinOption(KWinOption kwopt)
     switch (kwopt) {
     case CloseButtonCorner:
         // TODO: this could become per window and be derived from the actual position in the deco
-        return Decoration::DecorationBridge::self()->settings()->decorationButtonsLeft().contains(KDecoration2::DecorationButtonType::Close) ? Qt::TopLeftCorner : Qt::TopRightCorner;
+        //return Decoration::DecorationBridge::self()->settings()->decorationButtonsLeft().contains(KDecoration2::DecorationButtonType::Close) ? Qt::TopLeftCorner : Qt::TopRightCorner;
+        return Qt::TopLeftCorner;
     case SwitchDesktopOnScreenEdge:
         return ScreenEdges::self()->isDesktopSwitching();
     case SwitchDesktopOnScreenEdgeMovingWindows:
@@ -1684,6 +1726,34 @@ void EffectsHandlerImpl::renderEffectQuickView(EffectQuickView *w) const
 SessionState EffectsHandlerImpl::sessionState() const
 {
     return Workspace::self()->sessionManager()->state();
+}
+
+void EffectsHandlerImpl::onTaskSwipe(bool toRight)
+{
+    if (!isShowingTaskMgr() && !isScreenLocked()) {
+        emit switchWindows(toRight);
+    }
+}
+
+bool EffectsHandlerImpl::showCloseNotice()
+{
+    return _showCloseNotice;
+}
+
+void EffectsHandlerImpl::setShowCloseNotice(bool show)
+{
+    _showCloseNotice = show;
+    addRepaintFull();
+}
+
+void EffectsHandlerImpl::setShowingTaskMgr(bool showing)
+{
+    _showingTaskMgr = showing;
+}
+
+bool EffectsHandlerImpl::isShowingTaskMgr()
+{
+    return _showingTaskMgr;
 }
 
 //****************************************

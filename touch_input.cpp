@@ -24,6 +24,8 @@
 // Qt
 #include <QHoverEvent>
 #include <QWindow>
+#include "screenedge.h"
+#include "gestures.h"
 
 namespace KWin
 {

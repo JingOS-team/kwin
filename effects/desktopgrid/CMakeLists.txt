@@ -1,6 +1,6 @@
 #######################################
 # Effect
-install(FILES main.qml DESTINATION ${DATA_INSTALL_DIR}/kwin/effects/desktopgrid/)
+install(FILES main.qml close.qml clear.qml mask.qml  DESTINATION ${DATA_INSTALL_DIR}/kwin/effects/desktopgrid/)
 
 #######################################
 # Config

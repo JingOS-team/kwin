@@ -643,6 +643,16 @@ void Effect::setPositionTransformations(WindowPaintData& data, QRect& region, Ef
     data.setYTranslation(y - w->y());
 }
 
+void Effect::onHideTaskManager()
+{
+
+}
+
+void Effect::onBottomGestureToggled()
+{
+
+}
+
 QPoint Effect::cursorPos()
 {
     return effects->cursorPos();
@@ -743,6 +753,13 @@ EffectsHandler::~EffectsHandler()
     // All effects should already be unloaded by Impl dtor
     Q_ASSERT(loaded_effects.count() == 0);
     KWin::effects = nullptr;
+}
+
+void EffectsHandler::closeWindow(EffectWindow *w)
+{
+    if (w) {
+        w->closeWindow();
+    }
 }
 
 CompositingType EffectsHandler::compositingType() const
@@ -1474,6 +1491,11 @@ WindowMotionManager::~WindowMotionManager()
 
 void WindowMotionManager::manage(EffectWindow *w)
 {
+    manage(w, w->pos());
+}
+
+void WindowMotionManager::manage(EffectWindow *w, QPointF srcPos)
+{
     if (m_managedWindows.contains(w))
         return;
 
@@ -1491,8 +1513,13 @@ void WindowMotionManager::manage(EffectWindow *w)
     motion.scale.setStrength(strength * 1.33);
     motion.scale.setSmoothness(smoothness / 2.0);
 
-    motion.translation.setValue(w->pos());
+    motion.translation.setValue(srcPos);
     motion.scale.setValue(QPointF(1.0, 1.0));
+}
+
+bool WindowMotionManager::isEmpty() const
+{
+    return m_managedWindows.isEmpty();
 }
 
 void WindowMotionManager::unmanage(EffectWindow *w)
@@ -1619,6 +1646,28 @@ void WindowMotionManager::moveWindow(EffectWindow *w, QPoint target, double scal
     if (motion->translation.value() == target && motion->scale.value() == scalePoint)
         return; // Window already at that position
 
+    motion->translation.setTarget(target);
+    motion->scale.setTarget(scalePoint);
+
+    m_movingWindowsSet << w;
+}
+
+void WindowMotionManager::moveWindow(EffectWindow *w, QPoint srcPos, QPoint target, double scale, double yScale)
+{
+    QHash<EffectWindow*, WindowMotion>::iterator it = m_managedWindows.find(w);
+    if (it == m_managedWindows.end())
+        abort(); // Notify the effect author that they did something wrong
+
+    WindowMotion *motion = &it.value();
+
+    if (yScale == 0.0)
+        yScale = scale;
+    QPointF scalePoint(scale, yScale);
+
+    if (motion->translation.value() == target && motion->scale.value() == scalePoint)
+        return; // Window already at that position
+
+    motion->translation.setValue(srcPos);
     motion->translation.setTarget(target);
     motion->scale.setTarget(scalePoint);
 

@@ -86,15 +86,21 @@ public:
      */
     bool processAxis(Qt::KeyboardModifiers modifiers, PointerAxisDirection axis);
 
-    void processSwipeStart(uint fingerCount);
-    void processSwipeUpdate(const QSizeF &delta);
-    void processSwipeCancel();
-    void processSwipeEnd();
-
+    // jing_kwin gesture
+    void processSwipeStart(uint fingerCount, quint32 time);
+    void processSwipeUpdate(const QSizeF &delta, quint32 time);
+    void processSwipeCancel(quint32 time);
+    void processSwipeEnd(quint32 time);
+    // jing_kwin gesture end
     void setKGlobalAccelInterface(KGlobalAccelInterface *interface) {
         m_kglobalAccelInterface = interface;
     }
 
+    // jing_kwin gesture
+    GestureRecognizer *getGestureRecongnizer() {
+        return m_gestureRecognizer;
+    }
+    // jing_kwin gesture
 private:
     void objectDeleted(QObject *object);
     QHash<Qt::KeyboardModifiers, QHash<Qt::MouseButtons, GlobalShortcut*> > m_pointerShortcuts;

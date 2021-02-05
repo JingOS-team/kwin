@@ -54,6 +54,7 @@ private:
     void continueStartupWithScene();
     void finalizeStartup();
     void startSession() override;
+    void startInputMethod();
 
     bool m_startXWayland = false;
     QStringList m_applicationsToStart;

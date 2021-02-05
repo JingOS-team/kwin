@@ -22,6 +22,7 @@
 #include "touch_hide_cursor_spy.h"
 #include "touch_input.h"
 #include "x11client.h"
+#include "globalmotions.h"
 #ifdef KWIN_BUILD_TABBOX
 #include "tabbox/tabbox.h"
 #endif
@@ -37,6 +38,7 @@
 #include "workspace.h"
 #include "xwl/xwayland_interface.h"
 #include "cursor.h"
+#include "globalgesture.h"
 #include <KDecoration2/Decoration>
 #include <KGlobalAccel>
 #include <KWaylandServer/display.h>
@@ -483,7 +485,11 @@ public:
         }
         switch (event->type()) {
         case QEvent::MouseMove:
-            c->updateMoveResize(event->screenPos().toPoint());
+            // TODO jing_kwin do not move
+            if (!c->isNormalWindow()) {
+                c->updateMoveResize(event->screenPos().toPoint());
+            }
+            // jing_kwin don't move end
             break;
         case QEvent::MouseButtonRelease:
             if (event->buttons() == Qt::NoButton) {
@@ -784,22 +790,26 @@ public:
     }
     bool swipeGestureBegin(int fingerCount, quint32 time) override {
         Q_UNUSED(time)
-        input()->shortcuts()->processSwipeStart(fingerCount);
+        // jing_kwin gesture
+        input()->shortcuts()->processSwipeStart(fingerCount, time);
         return false;
     }
     bool swipeGestureUpdate(const QSizeF &delta, quint32 time) override {
         Q_UNUSED(time)
-        input()->shortcuts()->processSwipeUpdate(delta);
+        // jing_kwin gesture
+        input()->shortcuts()->processSwipeUpdate(delta, time);
         return false;
     }
     bool swipeGestureCancelled(quint32 time) override {
         Q_UNUSED(time)
-        input()->shortcuts()->processSwipeCancel();
+        // jing_kwin gesture
+        input()->shortcuts()->processSwipeCancel(time);
         return false;
     }
     bool swipeGestureEnd(quint32 time) override {
         Q_UNUSED(time)
-        input()->shortcuts()->processSwipeEnd();
+        // jing_kwin gesture
+        input()->shortcuts()->processSwipeEnd(time);
         return false;
     }
 
@@ -1257,6 +1267,7 @@ public:
 
 class ScreenEdgeInputFilter : public InputEventFilter
 {
+    int m_touches = 0;
 public:
     bool pointerEvent(QMouseEvent *event, quint32 nativeButton) override {
         Q_UNUSED(nativeButton)
@@ -1266,37 +1277,48 @@ public:
     }
     bool touchDown(qint32 id, const QPointF &pos, quint32 time) override {
         Q_UNUSED(time)
+        m_touches++;
         // TODO: better check whether a touch sequence is in progress
-        if (m_touchInProgress || waylandServer()->seat()->isTouchSequence()) {
+        if (m_touchInProgress /*|| waylandServer()->seat()->isTouchSequence()*/) {
             // cancel existing touch
-            ScreenEdges::self()->gestureRecognizer()->cancelSwipeGesture();
+            // jing_kwin gesture
+            ScreenEdges::self()->gestureRecognizer()->cancelSwipeGesture(time);
             m_touchInProgress = false;
             m_id = 0;
             return false;
         }
-        if (ScreenEdges::self()->gestureRecognizer()->startSwipeGesture(pos) > 0) {
+        // jing_kwin gesture
+        bool started = m_touches > 1 ? ScreenEdges::self()->gestureRecognizer()->startSwipeGesture(m_touches, time) > 0:
+                                       ScreenEdges::self()->gestureRecognizer()->startSwipeGesture(pos, time) > 0;
+        if (started) {
             m_touchInProgress = true;
             m_id = id;
             m_lastPos = pos;
-            return true;
+            // always forward
+            return false;
         }
         return false;
     }
     bool touchMotion(qint32 id, const QPointF &pos, quint32 time) override {
         Q_UNUSED(time)
         if (m_touchInProgress && m_id == id) {
-            ScreenEdges::self()->gestureRecognizer()->updateSwipeGesture(QSizeF(pos.x() - m_lastPos.x(), pos.y() - m_lastPos.y()));
+        // jing_kwin gesture
+            ScreenEdges::self()->gestureRecognizer()->updateSwipeGesture(QSizeF(pos.x() - m_lastPos.x(), pos.y() - m_lastPos.y()), time);
             m_lastPos = pos;
-            return true;
+            // always forward
+            return false;
         }
         return false;
     }
     bool touchUp(qint32 id, quint32 time) override {
         Q_UNUSED(time)
+        m_touches--;
         if (m_touchInProgress && m_id == id) {
-            ScreenEdges::self()->gestureRecognizer()->endSwipeGesture();
+            // jing_kwin gesture
+            ScreenEdges::self()->gestureRecognizer()->endSwipeGesture(time);
             m_touchInProgress = false;
-            return true;
+            // always forward
+            return false;
         }
         return false;
     }
@@ -1366,8 +1388,17 @@ public:
 /**
  * The remaining default input filter which forwards events to other windows
  */
+// jing_kwin
+const qreal MIN_DELTA = 0.9f;
 class ForwardInputFilter : public InputEventFilter
 {
+// jing_kwin
+private:
+    QPointF lastPos;
+    bool isValidMotion(const QPointF &newPos) {
+        return (abs(newPos.x() - lastPos.x()) > MIN_DELTA || abs(newPos.y() - lastPos.y()) > MIN_DELTA);
+    }
+
 public:
     bool pointerEvent(QMouseEvent *event, quint32 nativeButton) override {
         auto seat = waylandServer()->seat();
@@ -1415,6 +1446,9 @@ public:
             source = KWaylandServer::PointerAxisSource::Unknown;
             break;
         }
+       // jing_kwin
+	QSizeF pos(0.0f, 0.0f);
+	GlobalGesture::self()->pinchGestureUpdate(0.1, _event->delta(), pos, 0);
         seat->pointerAxisV5(_event->orientation(), _event->delta(), _event->discreteDelta(), source);
         return true;
     }
@@ -1436,15 +1470,20 @@ public:
         if (!workspace()) {
             return false;
         }
+        // jing_kwin
+        lastPos = pos;
         auto seat = waylandServer()->seat();
         seat->setTimestamp(time);
         input()->touch()->insertId(id, seat->touchDown(pos));
         return true;
     }
     bool touchMotion(qint32 id, const QPointF &pos, quint32 time) override {
-        if (!workspace()) {
+        // jing_kwin
+        if (!workspace()  || !isValidMotion(pos)) {
             return false;
         }
+        // jing_kwin
+        lastPos = pos;
         auto seat = waylandServer()->seat();
         seat->setTimestamp(time);
         const qint32 kwaylandId = input()->touch()->mappedId(id);
@@ -1457,6 +1496,9 @@ public:
         if (!workspace()) {
             return false;
         }
+        // jing_kwin
+        lastPos.setX(0);
+        lastPos.setY(0);
         auto seat = waylandServer()->seat();
         seat->setTimestamp(time);
         const qint32 kwaylandId = input()->touch()->mappedId(id);
@@ -1470,6 +1512,8 @@ public:
         if (!workspace()) {
             return false;
         }
+        // jing_kwin forward gesture
+        GlobalGesture::self()->pinchGestureBegin(fingerCount, time);
         auto seat = waylandServer()->seat();
         seat->setTimestamp(time);
         seat->startPointerPinchGesture(fingerCount);
@@ -1479,6 +1523,8 @@ public:
         if (!workspace()) {
             return false;
         }
+        // jing_kwin forward gesture
+        GlobalGesture::self()->pinchGestureUpdate(scale, angleDelta, delta, time);
         auto seat = waylandServer()->seat();
         seat->setTimestamp(time);
         seat->updatePointerPinchGesture(delta, scale, angleDelta);
@@ -1488,6 +1534,8 @@ public:
         if (!workspace()) {
             return false;
         }
+        // jing_kwin forward gesture
+        GlobalGesture::self()->pinchGestureEnd(time);
         auto seat = waylandServer()->seat();
         seat->setTimestamp(time);
         seat->endPointerPinchGesture();
@@ -1497,6 +1545,8 @@ public:
         if (!workspace()) {
             return false;
         }
+        // jing_kwin forward gesture
+        GlobalGesture::self()->pinchGestureCancelled(time);
         auto seat = waylandServer()->seat();
         seat->setTimestamp(time);
         seat->cancelPointerPinchGesture();
@@ -1507,6 +1557,8 @@ public:
         if (!workspace()) {
             return false;
         }
+        // jing_kwin forward gesture
+        GlobalGesture::self()->swipeGestureBegin(fingerCount, time);
         auto seat = waylandServer()->seat();
         seat->setTimestamp(time);
         seat->startPointerSwipeGesture(fingerCount);
@@ -1516,6 +1568,8 @@ public:
         if (!workspace()) {
             return false;
         }
+        // jing_kwin forward gesture
+        GlobalGesture::self()->swipeGestureUpdate(delta, time);
         auto seat = waylandServer()->seat();
         seat->setTimestamp(time);
         seat->updatePointerSwipeGesture(delta);
@@ -1525,6 +1579,8 @@ public:
         if (!workspace()) {
             return false;
         }
+        // jing_kwin forward gesture
+        GlobalGesture::self()->swipeGestureEnd(time);
         auto seat = waylandServer()->seat();
         seat->setTimestamp(time);
         seat->endPointerSwipeGesture();
@@ -1534,6 +1590,8 @@ public:
         if (!workspace()) {
             return false;
         }
+        // jing_kwin forward gesture
+        GlobalGesture::self()->swipeGestureCancelled(time);
         auto seat = waylandServer()->seat();
         seat->setTimestamp(time);
         seat->cancelPointerSwipeGesture();
@@ -1780,6 +1838,8 @@ class DragAndDropInputFilter : public InputEventFilter
 {
 public:
     bool pointerEvent(QMouseEvent *event, quint32 nativeButton) override {
+        // jing_kwin gesture
+        input()->motions()->onPointEvent(event);
         auto seat = waylandServer()->seat();
         if (!seat->isDragPointer()) {
             return false;
@@ -1917,6 +1977,7 @@ InputRedirection::InputRedirection(QObject *parent)
     , m_tablet(new TabletInputRedirection(this))
     , m_touch(new TouchInputRedirection(this))
     , m_shortcuts(new GlobalShortcutsManager(this))
+    , m_motions(MouseSwipeMotionMgr::create(this)) // jing_kwin gesture
 {
     qRegisterMetaType<KWin::InputRedirection::KeyboardKeyState>();
     qRegisterMetaType<KWin::InputRedirection::PointerButtonState>();
@@ -2108,6 +2169,9 @@ void InputRedirection::setupInputFilters()
     if (LogindIntegration::self()->hasSessionControl() && hasGlobalShortcutSupport) {
         installInputEventFilter(new VirtualTerminalFilter);
     }
+    if (hasGlobalShortcutSupport) {
+        installInputEventFilter(new ScreenEdgeInputFilter);
+    }
     if (waylandServer()) {
         installInputEventSpy(new TouchHideCursorSpy);
         if (hasGlobalShortcutSupport) {
@@ -2119,10 +2183,10 @@ void InputRedirection::setupInputFilters()
         m_windowSelector = new WindowSelectorFilter;
         installInputEventFilter(m_windowSelector);
     }
-    if (hasGlobalShortcutSupport) {
-        installInputEventFilter(new ScreenEdgeInputFilter);
-    }
     installInputEventFilter(new EffectsFilter);
+//    if (hasGlobalShortcutSupport) {
+//        installInputEventFilter(new ScreenEdgeInputFilter);
+//    }
     installInputEventFilter(new MoveResizeFilter);
 #ifdef KWIN_BUILD_TABBOX
     installInputEventFilter(new TabBoxInputFilter);
@@ -2555,6 +2619,11 @@ void InputRedirection::startInteractivePositionSelection(std::function<void(cons
 bool InputRedirection::isSelectingWindow() const
 {
     return m_windowSelector ? m_windowSelector->isActive() : false;
+}
+
+void InputRedirection::forwardBackKey(uint32_t time)
+{
+    m_keyboard->sendBackKey(time);
 }
 
 InputDeviceHandler::InputDeviceHandler(InputRedirection *input)

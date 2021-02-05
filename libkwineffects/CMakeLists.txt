@@ -40,6 +40,7 @@ set(kwin_EFFECTSLIB_SRCS
     kwinanimationeffect.cpp
     kwineffectquickview.cpp
     kwineffects.cpp
+    windowanimationmanager.cpp
     logging.cpp
 )
 

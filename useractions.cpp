@@ -1018,7 +1018,7 @@ void Workspace::clientShortcutUpdated(AbstractClient* c)
             action->setProperty("componentName", QStringLiteral(KWIN_NAME));
             action->setObjectName(key);
             action->setText(i18n("Activate Window (%1)", c->caption()));
-            connect(action, &QAction::triggered, c, std::bind(&Workspace::activateClient, this, c, true));
+            connect(action, &QAction::triggered, c, std::bind(&Workspace::activateClient, this, c, true, false));
         }
 
         // no autoloading, since it's configured explicitly here and is not meant to be reused

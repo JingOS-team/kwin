@@ -21,6 +21,7 @@
 
 #include <QMatrix4x4>
 #include <cmath>
+#include <KConfigGroup>
 
 namespace KWin
 {
@@ -117,6 +118,11 @@ qreal AbstractWaylandOutput::scale() const
 
 void AbstractWaylandOutput::setScale(qreal scale)
 {
+    auto config = KSharedConfig::openConfig(QStringLiteral("kwindisplayrc"))->group("Display");
+    qreal defaultScale = config.readEntry("scaleDefault", -1);
+    if (defaultScale > 0) {
+        scale = defaultScale;
+    }
     m_waylandOutputDevice->setScaleF(scale);
 
     // this is the scale that clients will ideally use for their buffers
@@ -187,8 +193,9 @@ void AbstractWaylandOutput::applyChanges(const KWaylandServer::OutputChangeSet *
     // Enablement changes are handled by platform.
     if (changeSet->modeChanged()) {
         qCDebug(KWIN_CORE) << "Setting new mode:" << changeSet->mode();
-        m_waylandOutputDevice->setCurrentMode(changeSet->mode());
-        updateMode(changeSet->mode());
+        int modeId = updateMode(changeSet->mode());
+        m_waylandOutputDevice->setCurrentMode(modeId);
+        setWaylandMode();
         emitModeChanged = true;
     }
     if (changeSet->transformChanged()) {
@@ -206,6 +213,8 @@ void AbstractWaylandOutput::applyChanges(const KWaylandServer::OutputChangeSet *
     if (changeSet->scaleChanged()) {
         qCDebug(KWIN_CORE) << "Setting scale:" << changeSet->scaleF();
         setScale(changeSet->scaleF());
+        auto config = KSharedConfig::openConfig(QStringLiteral("kwindisplayrc"))->group("Display");
+        config.writeEntry("scaleDefault", -1);
         emitModeChanged = true;
     }
 

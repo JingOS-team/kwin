@@ -35,6 +35,8 @@ public:
     void paintWindow(EffectWindow* w, int mask, QRegion region, WindowPaintData& data) override;
     void postPaintScreen() override;
     bool isActive() const override;
+    // jing_kwin minimum animate
+    void mobilePaint(EffectWindow *w, int mask, QRegion region, WindowPaintData &data);
 
     int requestedEffectChainPosition() const override {
         return 50;
@@ -48,6 +50,11 @@ public Q_SLOTS:
     void slotWindowUnminimized(KWin::EffectWindow *w);
 
 private:
+    QPointF scalePos(const QPoint &pos, int screen, qreal progress) const;
+
+private:
+    std::chrono::milliseconds lastPresentTime;
+    WindowMotionManager  manager;
     std::chrono::milliseconds m_duration;
     QHash<const EffectWindow *, MagicLampAnimation> m_animations;
 

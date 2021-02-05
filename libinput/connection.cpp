@@ -728,7 +728,16 @@ bool Connection::isSuspended() const
 void Connection::applyDeviceConfig(Device *device)
 {
     // pass configuration to Device
-    device->setConfig(m_config->group("Libinput").group(QString::number(device->vendor())).group(QString::number(device->product())).group(device->name()));
+    KConfigGroup config = m_config->group("Libinput").group(QString::number(device->vendor())).group(QString::number(device->product())).group(device->name());
+    if (config.keyList().isEmpty() && !m_config->group("Libinput").group(QString::number(device->vendor())).group("default").group(device->name()).keyList().isEmpty()) {
+            KConfigGroup defConfig = m_config->group("Libinput").group(QString::number(device->vendor())).group("default").group(device->name());
+            for (QString key : defConfig.keyList()) {
+                config.writeEntry(key, defConfig.readEntry(key));
+            }
+    }
+
+    device->setConfig(config);
+    config.sync();
     device->loadConfiguration();
 }
 

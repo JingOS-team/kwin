@@ -152,8 +152,11 @@ protected:
     virtual void updateDpms(KWaylandServer::OutputInterface::DpmsMode mode) {
         Q_UNUSED(mode);
     }
-    virtual void updateMode(int modeIndex) {
-        Q_UNUSED(modeIndex);
+    virtual int updateMode(int modeIndex) {
+        return modeIndex;
+    }
+    virtual void setWaylandMode() {
+
     }
     virtual void updateTransform(Transform transform) {
         Q_UNUSED(transform);

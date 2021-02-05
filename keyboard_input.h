@@ -76,6 +76,8 @@ public:
         return m_xkb->modifiersRelevantForGlobalShortcuts();
     }
 
+    void sendBackKey(uint32_t time);
+
 Q_SIGNALS:
     void ledsChanged(KWin::Xkb::LEDs);
 

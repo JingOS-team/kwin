@@ -239,7 +239,8 @@ int WorkspaceWrapper::displayHeight() const
 
 QRect WorkspaceWrapper::clientArea(ClientAreaOption option, const QPoint &p, int desktop) const
 {
-    return Workspace::self()->clientArea(static_cast<clientAreaOption>(option), p, desktop);
+    // jing_kwin for jingos app under panel
+    return Workspace::self()->clientArea(static_cast<clientAreaOption>(option), nullptr, p, desktop);
 }
 
 QRect WorkspaceWrapper::clientArea(ClientAreaOption option, const KWin::AbstractClient *c) const
@@ -249,7 +250,8 @@ QRect WorkspaceWrapper::clientArea(ClientAreaOption option, const KWin::Abstract
 
 QRect WorkspaceWrapper::clientArea(ClientAreaOption option, int screen, int desktop) const
 {
-    return Workspace::self()->clientArea(static_cast<clientAreaOption>(option), screen, desktop);
+    // jing_kwin for jingos app under panel
+    return Workspace::self()->clientArea(static_cast<clientAreaOption>(option), nullptr, screen, desktop);
 }
 
 QString WorkspaceWrapper::desktopName(int desktop) const

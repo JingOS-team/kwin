@@ -1,0 +1,5 @@
+File=switchwindows.kcfg
+ClassName=SwitchWindowsConfig
+NameSpace=KWin
+Singleton=true
+Mutators=true

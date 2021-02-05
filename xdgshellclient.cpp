@@ -337,6 +337,9 @@ void XdgSurfaceClient::destroyClient()
 
 void XdgSurfaceClient::setVirtualKeyboardGeometry(const QRect &geo)
 {
+    // jing_kwin virtual keyboard show on apps
+    return;
+
     // No keyboard anymore
     if (geo.isEmpty() && !keyboardGeometryRestore().isEmpty()) {
         setFrameGeometry(keyboardGeometryRestore());
@@ -675,9 +678,10 @@ StrutRect XdgToplevelClient::strutRect(StrutArea area) const
         }
         return StrutRect();
     case StrutAreaBottom:
-        if (bottom && ((!left && !right) || horizontal)) {
-            return StrutRect(windowRect, StrutAreaBottom);
-        }
+// jing_kwin for jingos app under bottom panel
+//        if (bottom && ((!left && !right) || horizontal)) {
+//            return StrutRect(windowRect, StrutAreaBottom);
+//        }
         return StrutRect();
     case StrutAreaLeft:
         if (left && ((!top && !bottom) || !horizontal)) {
@@ -1226,7 +1230,8 @@ void XdgToplevelClient::initialize()
         needsPlacement = false;
     }
     if (needsPlacement) {
-        const QRect area = workspace()->clientArea(PlacementArea, Screens::self()->current(), desktop());
+        // yangg for jingos app under panel
+        const QRect area = workspace()->clientArea(PlacementArea, this, Screens::self()->current(), desktop());
         placeIn(area);
     }
 
@@ -1563,7 +1568,8 @@ void XdgToplevelClient::setFullScreen(bool set, bool user)
 
     if (set) {
         const int screen = m_fullScreenRequestedOutput ? kwinApp()->platform()->enabledOutputs().indexOf(m_fullScreenRequestedOutput) : screens()->number(frameGeometry().center());
-        setFrameGeometry(workspace()->clientArea(FullScreenArea, screen, desktop()));
+        // yangg for jingos app under panel
+        setFrameGeometry(workspace()->clientArea(FullScreenArea, this, screen, desktop()));
     } else {
         m_fullScreenRequestedOutput.clear();
         if (m_fullScreenGeometryRestore.isValid()) {
@@ -1599,8 +1605,9 @@ void XdgToplevelClient::changeMaximize(bool horizontal, bool vertical, bool adju
         return;
     }
 
+    // yangg for jingos app under panel
     const QRect clientArea = isElectricBorderMaximizing() ?
-        workspace()->clientArea(MaximizeArea, Cursors::self()->mouse()->pos(), desktop()) :
+        workspace()->clientArea(MaximizeArea, this, Cursors::self()->mouse()->pos(), desktop()) :
         workspace()->clientArea(MaximizeArea, this);
 
     const MaximizeMode oldMode = m_requestedMaximizeMode;
@@ -1990,7 +1997,8 @@ void XdgPopupClient::initialize()
     setTransientFor(parentClient);
 
     blockGeometryUpdates(true);
-    const QRect area = workspace()->clientArea(PlacementArea, Screens::self()->current(), desktop());
+    // yangg for jingos app under panel
+    const QRect area = workspace()->clientArea(PlacementArea, this, Screens::self()->current(), desktop());
     placeIn(area);
     blockGeometryUpdates(false);
 

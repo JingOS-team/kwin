@@ -38,13 +38,134 @@
 
 namespace KWin
 {
+bool DrmOutput::hasInitNewMode = false;
+drmModeModeInfo m_newmode;
+drmModeModeInfo m_newmode_1080;
+const char * RESOLUTION_DEFAULT = "resolutionDefault";
+const char * DISPLAY_GROUP = "Display";
+#define U642VOID(x) ((char *)(unsigned long)(x))
+void *drmMalloc(int size)
+{
+    return calloc(1, size);
+}
+
+void drmFree(void *pt)
+{
+    free(pt);
+}
+
+static void* drmAllocCpy(char *array, int count, int entry_size)
+{
+    char *r;
+    int i;
+
+    if (!count || !array || !entry_size)
+        return 0;
+
+    if (!(r = (char*)drmMalloc(count*entry_size)))
+        return 0;
+
+    for (i = 0; i < count; i++)
+        memcpy(r+(entry_size*(i)), array+(entry_size*i), entry_size);
+
+    return r;
+}
+
+void DrmOutput::clearResolutionDefConfig()
+{
+    auto config = KSharedConfig::openConfig(QStringLiteral("kwindisplayrc"));
+    config->group(DISPLAY_GROUP).writeEntry(RESOLUTION_DEFAULT, -1);
+}
+
+drmModeConnectorPtr DrmOutput::getAddNewMode(int fd, uint32_t connectorId, bool &force)
+{
+    force = true;
+    bool bSuport = true;
+    drmModeConnectorPtr conn = drmModeGetConnector(fd, connectorId);
+    if (!conn || conn->connector_type != DRM_MODE_CONNECTOR_eDP) {
+        //force = false;
+        bSuport = false;
+        // return conn;
+    }
+    auto config = KSharedConfig::openConfig(QStringLiteral("kwindisplayrc"));
+    int resolution = config->group(DISPLAY_GROUP).readEntry(RESOLUTION_DEFAULT, -1);
+    if (resolution < 0) {
+        force = false;
+    }
+    if (!hasInitNewMode) {
+        initNewMode();
+        hasInitNewMode = true;
+    }
+
+    int count_modes = conn->count_modes + 1;
+    drmModeModeInfoPtr oldModes =  conn->modes;
+    conn->modes = (drmModeModeInfoPtr)drmMalloc(count_modes*sizeof(struct drm_mode_modeinfo));
+
+    void* pos = (void*)conn->modes;
+    int size = sizeof(struct drm_mode_modeinfo);
+    for (int i = 0; i < conn->count_modes; i++) {
+        memcpy(pos, U642VOID(oldModes)+(sizeof(struct drm_mode_modeinfo)*i), sizeof(struct drm_mode_modeinfo));
+        pos = (pos + (sizeof(struct drm_mode_modeinfo)));
+    }
+    if (bSuport) {
+        memcpy(pos, &m_newmode, sizeof(struct drm_mode_modeinfo));
+    } else {
+        memcpy(pos, &m_newmode_1080, sizeof(struct drm_mode_modeinfo));
+    }
+
+    conn->count_modes  = count_modes;
+
+    drmFree((void*)oldModes);
+
+    return conn;
+}
+
+void DrmOutput::initNewMode()
+{
+    strcpy(m_newmode.name, "#115");
+    m_newmode.vrefresh = 60;
+    m_newmode.hdisplay = 2052;
+    m_newmode.hsync_start = 2192;
+    m_newmode.hsync_end = 2416;
+    m_newmode.htotal = 2784;
+    m_newmode.hskew = 0;
+    m_newmode.vdisplay = 1368;
+    m_newmode.vsync_start = 1369;
+    m_newmode.vsync_end = 1372;
+    m_newmode.vtotal = 1416;
+    m_newmode.vscan = 0;
+    m_newmode.clock = 236530;
+    m_newmode.flags = 5;
+    m_newmode.type = 0;
+
+
+    strcpy(m_newmode_1080.name, "#116");
+    m_newmode_1080.vrefresh = 60;
+    m_newmode_1080.hdisplay = 1920;
+    m_newmode_1080.hsync_start = 2048;
+    m_newmode_1080.hsync_end = 2248;
+    m_newmode_1080.htotal = 2576;
+    m_newmode_1080.hskew = 0;
+    m_newmode_1080.vdisplay = 1080;
+    m_newmode_1080.vsync_start = 1083;
+    m_newmode_1080.vsync_end = 1088;
+    m_newmode_1080.vtotal = 1120;
+    m_newmode_1080.vscan = 0;
+    m_newmode_1080.clock = 173000;
+    m_newmode_1080.flags = 5;
+    m_newmode_1080.type = 0;
+}
 
 DrmOutput::DrmOutput(DrmBackend *backend, DrmGpu *gpu)
     : AbstractWaylandOutput(backend)
     , m_backend(backend)
     , m_gpu(gpu)
 {
+    connect(this, &DrmOutput::modeChanged, this, []() {
+        clearResolutionDefConfig();
+    });
 }
+
 
 DrmOutput::~DrmOutput()
 {
@@ -103,7 +224,9 @@ bool DrmOutput::hideCursor()
 bool DrmOutput::showCursor(DrmDumbBuffer *c)
 {
     const QSize &s = c->size();
-    return drmModeSetCursor(m_gpu->fd(), m_crtc->id(), c->handle(), s.width(), s.height()) == 0;
+    // jing_kwin cursor
+    QPoint point = Cursors::self()->currentCursor()->hotspot();
+    return drmModeSetCursor2(m_gpu->fd(), m_crtc->id(), c->handle(), s.width(), s.height(), point.x(), point.y()) == 0;
 }
 
 bool DrmOutput::showCursor()
@@ -243,6 +366,8 @@ bool DrmOutput::init(drmModeConnector *connector)
     }
 
     updateDpms(KWaylandServer::OutputInterface::DpmsMode::On);
+
+    setWaylandMode();
     return true;
 }
 
@@ -285,11 +410,13 @@ void DrmOutput::initOutputDevice(drmModeConnector *connector)
 
     // read in mode information
     QVector<KWaylandServer::OutputDeviceInterface::Mode> modes;
-    for (int i = 0; i < connector->count_modes; ++i) {
+    int i = 0;
+
+    for (; i < connector->count_modes; ++i) {
+        KWaylandServer::OutputDeviceInterface::ModeFlags deviceflags = 0;
         // TODO: in AMS here we could read and store for later every mode's blob_id
         // would simplify isCurrentMode(..) and presentAtomically(..) in case of mode set
         auto *m = &connector->modes[i];
-        KWaylandServer::OutputDeviceInterface::ModeFlags deviceflags;
         if (isCurrentMode(m)) {
             deviceflags |= KWaylandServer::OutputDeviceInterface::ModeFlag::Current;
         }
@@ -673,27 +800,45 @@ void DrmOutput::updateTransform(Transform transform)
     }
 }
 
-void DrmOutput::updateMode(int modeIndex)
+int DrmOutput::updateMode(int modeIndex)
 {
+    int modeId = modeIndex;
     // get all modes on the connector
-    DrmScopedPointer<drmModeConnector> connector(drmModeGetConnector(m_gpu->fd(), m_conn->id()));
+    bool force = false;
+    DrmScopedPointer<drmModeConnector> connector(getAddNewMode(m_gpu->fd(), m_conn->id(), force));
+
+    if (force) {
+        modeId = connector->count_modes - 1;
+    }
+
     if (connector->count_modes <= modeIndex) {
         // TODO: error?
-        return;
+        return modeIndex;
     }
+
     if (isCurrentMode(&connector->modes[modeIndex])) {
         // nothing to do
-        return;
+        return modeIndex;
     }
-    m_mode = connector->modes[modeIndex];
+
+    setCurMode(connector->modes[modeId]);
+
     m_modesetRequested = true;
-    setWaylandMode();
+
+    //clearResolutionDefConfig();
+    return modeId;
 }
 
 void DrmOutput::setWaylandMode()
 {
     AbstractWaylandOutput::setWaylandMode(QSize(m_mode.hdisplay, m_mode.vdisplay),
                                           refreshRateForMode(&m_mode));
+}
+
+// jing_kwin for surface resolution
+void DrmOutput::setCurMode(drmModeModeInfo mode)
+{
+    m_mode = mode;
 }
 
 void DrmOutput::pageFlipped()
@@ -819,7 +964,8 @@ bool DrmOutput::presentAtomically(DrmBuffer *buffer)
         qCDebug(KWIN_DRM) << "Atomic test commit failed. Aborting present.";
         // go back to previous state
         if (m_lastWorkingState.valid) {
-            m_mode = m_lastWorkingState.mode;
+            // jing_kwin for surface resolution
+            setCurMode(m_lastWorkingState.mode);
             setTransform(m_lastWorkingState.transform);
             setGlobalPos(m_lastWorkingState.globalPos);
             if (m_primaryPlane) {
@@ -1054,7 +1200,6 @@ bool DrmOutput::setGammaRamp(const GammaRamp &gamma)
 }
 
 }
-
 QDebug& operator<<(QDebug& s, const KWin::DrmOutput *output)
 {
     if (!output)

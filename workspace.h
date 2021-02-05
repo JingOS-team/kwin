@@ -150,10 +150,10 @@ public:
      * @returns Toplevel
      */
     Toplevel *findInternal(QWindow *w) const;
-
-    QRect clientArea(clientAreaOption, const QPoint& p, int desktop) const;
+    // yangg for jingos app under panel
+    QRect clientArea(clientAreaOption, const AbstractClient* c, const QPoint& p, int desktop) const;
     QRect clientArea(clientAreaOption, const AbstractClient* c) const;
-    QRect clientArea(clientAreaOption, int screen, int desktop) const;
+    QRect clientArea(clientAreaOption, const AbstractClient* c, int screen, int desktop) const;
 
     QRegion restrictedMoveArea(int desktop, StrutAreas areas = StrutAreaAll) const;
 
@@ -173,7 +173,7 @@ public:
 
     AbstractClient* clientUnderMouse(int screen) const;
 
-    void activateClient(AbstractClient*, bool force = false);
+    void activateClient(AbstractClient*, bool force = false, bool avoid_animation = false);
     bool requestFocus(AbstractClient* c, bool force = false);
     enum ActivityFlag {
         ActivityFocus = 1 << 0, // focus the window
@@ -325,6 +325,7 @@ public:
 
     void setCurrentScreen(int new_screen);
 
+    void minimizeAllWindow();
     void setShowingDesktop(bool showing);
     bool showingDesktop() const;
 
@@ -421,7 +422,9 @@ public:
      * @internal
      */
     void removeInternalClient(InternalClient *client);
-
+    // yangg for jingos app under panel
+    bool isBelowPanel(const AbstractClient* c) const;
+    bool isTopClientJingApp() const;
 public Q_SLOTS:
     void performWindowOperation(KWin::AbstractClient* c, Options::WindowOperation op);
     // Keybindings
@@ -674,6 +677,10 @@ private:
     QScopedPointer<X11EventFilter> m_syncAlarmFilter;
 
     SessionManager *m_sessionManager;
+
+    // yangg for jingos app under panel
+    void initApplicationInfo();
+    QStringList belowPanelApps;
 private:
     friend bool performTransiencyCheck();
     friend Workspace *workspace();

@@ -96,6 +96,8 @@ set(kwin4_effect_builtins_sources
     logging.cpp
     lookingglass/lookingglass.cpp
     magiclamp/magiclamp.cpp
+    switchwindows/switchwindows.cpp
+    showsysinfo/showsysinfo.cpp
     magnifier/magnifier.cpp
     mouseclick/mouseclick.cpp
     mousemark/mousemark.cpp
@@ -135,6 +137,8 @@ kconfig_add_kcfg_files(kwin4_effect_builtins_sources
     glide/glideconfig.kcfgc
     lookingglass/lookingglassconfig.kcfgc
     magiclamp/magiclampconfig.kcfgc
+    switchwindows/switchwindowsconfig.kcfgc
+    showsysinfo/showsysinfoconfig.kcfgc
     magnifier/magnifierconfig.kcfgc
     mouseclick/mouseclickconfig.kcfgc
     mousemark/mousemarkconfig.kcfgc
@@ -185,6 +189,8 @@ include(fallapart/CMakeLists.txt)
 include(highlightwindow/CMakeLists.txt)
 include(kscreen/CMakeLists.txt)
 add_subdirectory(magiclamp)
+add_subdirectory(switchwindows)
+add_subdirectory(showsysinfo)
 add_subdirectory(presentwindows)
 add_subdirectory(resize)
 include(screenedge/CMakeLists.txt)

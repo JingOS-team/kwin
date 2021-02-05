@@ -37,8 +37,8 @@ void MagicLampEffect::reconfigure(ReconfigureFlags)
     // TODO: Rename animationDuration to duration so we can use
     // animationTime<MagicLampConfig>(250).
     const int d = MagicLampConfig::animationDuration() != 0
-        ? MagicLampConfig::animationDuration()
-        : 250;
+            ? MagicLampConfig::animationDuration()
+            : 250;
     m_duration = std::chrono::milliseconds(static_cast<int>(animationTime(d)));
 }
 
@@ -56,6 +56,16 @@ void MagicLampEffect::prePaintScreen(ScreenPrePaintData& data, std::chrono::mill
         ++animationIt;
     }
 
+    int time;
+    if (lastPresentTime.count()) {
+        time = std::max(1, int((presentTime - lastPresentTime).count()));
+    } else {
+        time = 1;
+    }
+    lastPresentTime = presentTime;
+
+    manager.calculate(time);
+
     // We need to mark the screen windows as transformed. Otherwise the
     // whole screen won't be repainted, resulting in artefacts.
     data.mask |= PAINT_SCREEN_WITH_TRANSFORMED_WINDOWS;
@@ -70,15 +80,64 @@ void MagicLampEffect::prePaintWindow(EffectWindow* w, WindowPrePaintData& data, 
     if (m_animations.contains(w)) {
         // We'll transform this window
         data.setTransformed();
-        data.quads = data.quads.makeGrid(40);
+        // jing_kwin minum animate
+        //data.quads = data.quads.makeGrid(40);
         w->enablePainting(EffectWindow::PAINT_DISABLED_BY_MINIMIZE);
     }
 
     effects->prePaintWindow(w, data, presentTime);
 }
+// jing_kwin minimum animate
+void MagicLampEffect::mobilePaint(EffectWindow *w, int mask, QRegion region, WindowPaintData &data)
+{
+    auto animationIt = m_animations.constFind(w);
+    if (animationIt != m_animations.constEnd()) {
+        const qreal progress = (*animationIt).timeLine.value();
+
+        // data.multiplyBrightness(1.0 - (0.3 * (1.0 - hoverTimeline[paintingDesktop - 1]->currentValue())));
+        for (int screen = 0; screen < effects->numScreens(); screen++) {
+            QRect screenGeom = effects->clientArea(ScreenArea, screen, 0);
+
+            QRectF transformedGeo = w->geometry();
+            // Display all quads on the same screen on the same pass
+            WindowQuadList screenQuads;
+            if (!w->isDesktop() && manager.isManaging(w)) {
+                foreach (const WindowQuad & quad, data.quads)
+                    screenQuads.append(quad);
+                transformedGeo = manager.transformedGeometry(w);
+                if (!manager.areWindowsMoving() && progress == 1.0)
+                    mask |= PAINT_WINDOW_LANCZOS;
+
+                if (screenQuads.isEmpty())
+                    continue;
+
+                WindowPaintData d = data;
+                d.quads = screenQuads;
+
+                QPointF newPos = scalePos(transformedGeo.topLeft().toPoint(), screen, progress);
+                d.setXScale(interpolate(1, (float)transformedGeo.width() / (float)w->geometry().width(), progress));
+                d.setYScale(interpolate(1, (float)transformedGeo.height() / (float)w->geometry().height(), progress));
+                d += QPoint(qRound(newPos.x() - w->x()), qRound(newPos.y() - w->y()));
+
+                d.multiplyOpacity(1 - progress);
+
+                effects->paintWindow(w, mask, effects->clientArea(ScreenArea, screen, 0), d);
+            } else {
+                effects->paintWindow(w, mask, region, data);
+            }
+        }
+    } else {
+        // Call the next effect.
+        effects->paintWindow(w, mask, region, data);
+    }
+}
+// jing_kwin minimum animate
 
 void MagicLampEffect::paintWindow(EffectWindow* w, int mask, QRegion region, WindowPaintData& data)
 {
+    // jing_kwin minimum animation
+    mobilePaint(w, mask, region, data);
+    return;
     auto animationIt = m_animations.constFind(w);
     if (animationIt != m_animations.constEnd()) {
         // 0 = not minimized, 1 = fully minimized
@@ -94,8 +153,8 @@ void MagicLampEffect::paintWindow(EffectWindow* w, int mask, QRegion region, Win
             // focussing inside the window is no good, leads to ugly artefacts, find nearest border
             if (extG.contains(pt)) {
                 const int d[2][2] = { {pt.x() - extG.x(), extG.right()  - pt.x()},
-                    {pt.y() - extG.y(), extG.bottom() - pt.y()}
-                };
+                                      {pt.y() - extG.y(), extG.bottom() - pt.y()}
+                                    };
                 int di = d[1][0];
                 position = Top;
                 if (d[0][0] < di) {
@@ -177,28 +236,28 @@ void MagicLampEffect::paintWindow(EffectWindow* w, int mask, QRegion region, Win
         }
 
 #define SANITIZE_PROGRESS   if (p_progress[0] < 0)\
-                                p_progress[0] = -p_progress[0];\
-                            if (p_progress[1] < 0)\
-                                p_progress[1] = -p_progress[1]
+    p_progress[0] = -p_progress[0];\
+    if (p_progress[1] < 0)\
+    p_progress[1] = -p_progress[1]
 #define SET_QUADS(_SET_A_, _A_, _DA_, _SET_B_, _B_, _O0_, _O1_, _O2_, _O3_) quad[0]._SET_A_((icon._A_() + icon._DA_()*(quad[0]._A_() / geo._DA_()) - (quad[0]._A_() + geo._A_()))*p_progress[_O0_] + quad[0]._A_());\
-                                                                            quad[1]._SET_A_((icon._A_() + icon._DA_()*(quad[1]._A_() / geo._DA_()) - (quad[1]._A_() + geo._A_()))*p_progress[_O1_] + quad[1]._A_());\
-                                                                            quad[2]._SET_A_((icon._A_() + icon._DA_()*(quad[2]._A_() / geo._DA_()) - (quad[2]._A_() + geo._A_()))*p_progress[_O2_] + quad[2]._A_());\
-                                                                            quad[3]._SET_A_((icon._A_() + icon._DA_()*(quad[3]._A_() / geo._DA_()) - (quad[3]._A_() + geo._A_()))*p_progress[_O3_] + quad[3]._A_());\
-                                                                            \
-                                                                            quad[0]._SET_B_(quad[0]._B_() + offset[_O0_]);\
-                                                                            quad[1]._SET_B_(quad[1]._B_() + offset[_O1_]);\
-                                                                            quad[2]._SET_B_(quad[2]._B_() + offset[_O2_]);\
-                                                                            quad[3]._SET_B_(quad[3]._B_() + offset[_O3_])
+    quad[1]._SET_A_((icon._A_() + icon._DA_()*(quad[1]._A_() / geo._DA_()) - (quad[1]._A_() + geo._A_()))*p_progress[_O1_] + quad[1]._A_());\
+    quad[2]._SET_A_((icon._A_() + icon._DA_()*(quad[2]._A_() / geo._DA_()) - (quad[2]._A_() + geo._A_()))*p_progress[_O2_] + quad[2]._A_());\
+    quad[3]._SET_A_((icon._A_() + icon._DA_()*(quad[3]._A_() / geo._DA_()) - (quad[3]._A_() + geo._A_()))*p_progress[_O3_] + quad[3]._A_());\
+    \
+    quad[0]._SET_B_(quad[0]._B_() + offset[_O0_]);\
+    quad[1]._SET_B_(quad[1]._B_() + offset[_O1_]);\
+    quad[2]._SET_B_(quad[2]._B_() + offset[_O2_]);\
+    quad[3]._SET_B_(quad[3]._B_() + offset[_O3_])
 
         WindowQuadList newQuads;
         newQuads.reserve(data.quads.count());
         float quadFactor;   // defines how fast a quad is vertically moved: y coordinates near to window top are slowed down
-                            // it is used as quadFactor^3/windowHeight^3
-                            // quadFactor is the y position of the quad but is changed towards becomming the window height
-                            // by that the factor becomes 1 and has no influence any more
+        // it is used as quadFactor^3/windowHeight^3
+        // quadFactor is the y position of the quad but is changed towards becomming the window height
+        // by that the factor becomes 1 and has no influence any more
         float offset[2] = {0,0};    // how far has a quad to be moved? Distance between icon and window multiplied by the progress and by the quadFactor
         float p_progress[2] = {0,0};  // the factor which defines how far the x values have to be changed
-                            // factor is the current moved y value diveded by the distance between icon and window
+        // factor is the current moved y value diveded by the distance between icon and window
         WindowQuad lastQuad(WindowQuadError);
         lastQuad[0].setX(-1);
         lastQuad[0].setY(-1);
@@ -321,11 +380,14 @@ void MagicLampEffect::postPaintScreen()
 void MagicLampEffect::slotWindowDeleted(EffectWindow* w)
 {
     m_animations.remove(w);
+
+    manager.unmanage(w);
 }
 
 void MagicLampEffect::slotWindowMinimized(EffectWindow* w)
 {
-    if (effects->activeFullScreenEffect())
+    // jing_kwin minimum animate
+    if (effects->activeFullScreenEffect() || !w->isNormalWindow())
         return;
 
     MagicLampAnimation &animation = m_animations[w];
@@ -335,15 +397,25 @@ void MagicLampEffect::slotWindowMinimized(EffectWindow* w)
     } else {
         animation.timeLine.setDirection(TimeLine::Forward);
         animation.timeLine.setDuration(m_duration);
-        animation.timeLine.setEasingCurve(QEasingCurve::Linear);
+        animation.timeLine.setEasingCurve(QEasingCurve::InOutSine);
     }
 
     effects->addRepaintFull();
+
+    manager.manage(w);
+
+    QRect icon = w->iconGeometry();
+    if (!icon.isValid()) {
+        QPoint pt =  w->geometry().center();
+        icon = QRect(pt-QPoint(w->geometry().width() / 3, w->geometry().height() / 3), QSize(w->geometry().width() / 1.5, w->geometry().height() / 1.5));
+    }
+    manager.moveWindow(w, icon);
 }
 
 void MagicLampEffect::slotWindowUnminimized(EffectWindow* w)
 {
-    if (effects->activeFullScreenEffect())
+    // jing_kwin minimum animate
+    if (effects->activeFullScreenEffect() || !w->isNormalWindow())
         return;
 
     MagicLampAnimation &animation = m_animations[w];
@@ -355,13 +427,30 @@ void MagicLampEffect::slotWindowUnminimized(EffectWindow* w)
         animation.timeLine.setDuration(m_duration);
         animation.timeLine.setEasingCurve(QEasingCurve::Linear);
     }
-
-    effects->addRepaintFull();
 }
 
 bool MagicLampEffect::isActive() const
 {
     return !m_animations.isEmpty();
+}
+
+// Transform a point to its position on the scaled grid
+QPointF MagicLampEffect::scalePos(const QPoint& pos, int screen, qreal progress) const
+{
+    if (screen == -1)
+        screen = effects->screenNumber(pos);
+    QRect screenGeom = effects->clientArea(ScreenArea, screen, 0);
+
+    QPointF point(
+                interpolate(screenGeom.x(),
+                            pos.x(),
+                            progress),
+                interpolate(screenGeom.y(),
+                            pos.y(),
+                            progress)
+                );
+
+    return point;
 }
 
 } // namespace

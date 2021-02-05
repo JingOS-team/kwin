@@ -276,26 +276,26 @@ bool GlobalShortcutsManager::processAxis(Qt::KeyboardModifiers mods, PointerAxis
 {
     return processShortcut(mods, axis, m_axisShortcuts);
 }
-
-void GlobalShortcutsManager::processSwipeStart(uint fingerCount)
+// jing_kwin gesture
+void GlobalShortcutsManager::processSwipeStart(uint fingerCount, quint32 time)
 {
-    m_gestureRecognizer->startSwipeGesture(fingerCount);
+    m_gestureRecognizer->startSwipeGesture(fingerCount, time);
 }
 
-void GlobalShortcutsManager::processSwipeUpdate(const QSizeF &delta)
+void GlobalShortcutsManager::processSwipeUpdate(const QSizeF &delta, quint32 time)
 {
-    m_gestureRecognizer->updateSwipeGesture(delta);
+    m_gestureRecognizer->updateSwipeGesture(delta, time);
 }
 
-void GlobalShortcutsManager::processSwipeCancel()
+void GlobalShortcutsManager::processSwipeCancel(quint32 time)
 {
-    m_gestureRecognizer->cancelSwipeGesture();
+    m_gestureRecognizer->cancelSwipeGesture(time);
 }
 
-void GlobalShortcutsManager::processSwipeEnd()
+void GlobalShortcutsManager::processSwipeEnd(quint32 time)
 {
-    m_gestureRecognizer->endSwipeGesture();
+    m_gestureRecognizer->endSwipeGesture(time);
     // TODO: cancel on Wayland Seat if one triggered
 }
-
+// jing_kwin gesture
 } // namespace

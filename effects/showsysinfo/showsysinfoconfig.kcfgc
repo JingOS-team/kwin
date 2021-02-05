@@ -1,0 +1,5 @@
+File=showsysinfo.kcfg
+ClassName=ShowSysInfoConfig
+NameSpace=KWin
+Singleton=true
+Mutators=true

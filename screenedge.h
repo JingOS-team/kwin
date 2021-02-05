@@ -37,6 +37,7 @@ class AbstractClient;
 class GestureRecognizer;
 class ScreenEdges;
 class SwipeGesture;
+class GlobalSwipeGestures;   // jing_kwin gesture
 
 class KWIN_EXPORT Edge : public QObject
 {
@@ -88,6 +89,9 @@ public:
      */
     virtual quint32 approachWindow() const;
 
+    GlobalSwipeGestures *getSwipGesure() {
+        return m_globalSwipeGestures;
+    }
 public Q_SLOTS:
     void reserve();
     void unreserve();
@@ -144,6 +148,8 @@ private:
     AbstractClient *m_client;
     SwipeGesture *m_gesture;
     QVector<QAction *> m_touchActions;
+    // jing_kwin gesture
+    GlobalSwipeGestures *m_globalSwipeGestures;
 };
 
 /**
@@ -337,6 +343,8 @@ public:
     bool handleDndNotify(xcb_window_t window, const QPoint &point);
     bool handleEnterNotifiy(xcb_window_t window, const QPoint &point, const QDateTime &timestamp);
 
+    void hideTaskManager();
+    void onBottomGesture();
 public Q_SLOTS:
     void reconfigure();
     /**
@@ -358,6 +366,8 @@ Q_SIGNALS:
     void approaching(ElectricBorder border, qreal factor, const QRect &geometry);
     void checkBlocking();
 
+    void onHideTaskManager();
+    void onBottomGestureToggled();
 private:
     enum { ElectricDisabled = 0, ElectricMoveOnly = 1, ElectricAlways = 2 };
     void setDesktopSwitching(bool enable);

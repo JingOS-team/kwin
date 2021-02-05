@@ -25,7 +25,6 @@
 #include "wayland_server.h"
 #include "workspace.h"
 #include "xcbutils.h"
-
 #include <kwingltexture.h>
 
 #include <KWaylandServer/surface_interface.h>
@@ -579,6 +578,7 @@ void Compositor::aboutToSwapBuffers()
     m_bufferSwapPending = true;
 }
 
+static int bc = 0;
 void Compositor::bufferSwapComplete()
 {
     Q_ASSERT(m_bufferSwapPending);
@@ -592,6 +592,7 @@ void Compositor::bufferSwapComplete()
     }
 }
 
+static int pc = 0;
 void Compositor::performCompositing()
 {
     // If a buffer swap is still pending, we return to the event loop and

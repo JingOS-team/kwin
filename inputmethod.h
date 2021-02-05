@@ -60,6 +60,8 @@ private:
     void updateSni();
     void updateInputPanelState();
     void adoptInputMethodContext();
+    // jing_kwin virtual input not show when has keyboard device
+    bool setInputActivate();
 
     struct {
         QString text = QString();

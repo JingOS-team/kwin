@@ -5,7 +5,6 @@ project(KWin VERSION ${PROJECT_VERSION})
 
 set(QT_MIN_VERSION "5.15.0")
 set(KF5_MIN_VERSION "5.74")
-
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules ${CMAKE_MODULE_PATH})
 
 find_package(ECM 5.38 REQUIRED NO_MODULE)
@@ -472,8 +471,11 @@ set(kwin_SRCS
     geometrytip.cpp
     gestures.cpp
     globalshortcuts.cpp
+    globalmotions.cpp
+    globalswipegestures.cpp
     group.cpp
     idle_inhibition.cpp
+    globalgesture.cpp
     input.cpp
     input_event.cpp
     input_event_spy.cpp
@@ -821,8 +823,8 @@ if (BUILD_TESTING)
     find_package(QtWaylandScanner ${QT_MIN_VERSION} REQUIRED)
     find_package(Wayland REQUIRED COMPONENTS Client)
 
-    add_subdirectory(autotests)
-    add_subdirectory(tests)
+    #add_subdirectory(autotests)
+    #add_subdirectory(tests)
 endif()
 
 if (KF5DocTools_FOUND)
@@ -848,3 +850,6 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/KWinDBusInterfaceConfig.cmake
 
 ecm_install_configured_files(INPUT plasma-kwin_x11.service.in plasma-kwin_wayland.service.in @ONLY
             DESTINATION ${SYSTEMD_USER_UNIT_INSTALL_DIR})
+
+find_package(KF5I18n CONFIG REQUIRED)
+ki18n_install(po)

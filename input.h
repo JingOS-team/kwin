@@ -42,6 +42,7 @@ class WindowSelectorFilter;
 class SwitchEvent;
 class TabletEvent;
 class TabletInputFilter;
+class MouseSwipeMotionMgr; // jing_kwin gesture
 
 namespace Decoration
 {
@@ -197,6 +198,10 @@ public:
         return m_shortcuts;
     }
 
+    // jing_kwin gesture
+    MouseSwipeMotionMgr* motions() const {
+        return m_motions;
+    }
     /**
      * Sends an event through all InputFilters.
      * The method @p function is invoked on each input filter. Processing is stopped if
@@ -254,6 +259,7 @@ public:
     void startInteractivePositionSelection(std::function<void(const QPoint &)> callback);
     bool isSelectingWindow() const;
 
+    void forwardBackKey(uint32_t time);
 Q_SIGNALS:
     /**
      * @brief Emitted when the global pointer position changed
@@ -311,6 +317,8 @@ private:
     TabletInputFilter *m_tabletSupport = nullptr;
 
     GlobalShortcutsManager *m_shortcuts;
+    // jing_kwin gesture
+    MouseSwipeMotionMgr *m_motions;
 
     LibInput::Connection *m_libInput = nullptr;
 

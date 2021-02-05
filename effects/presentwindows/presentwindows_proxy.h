@@ -10,7 +10,7 @@
 #ifndef KWIN_PRESENTWINDOWS_PROXY_H
 #define KWIN_PRESENTWINDOWS_PROXY_H
 #include <kwineffects.h>
-
+#include "windowanimationmanager.h"
 namespace KWin
 {
 
@@ -22,7 +22,8 @@ public:
     explicit PresentWindowsEffectProxy(PresentWindowsEffect* effect);
     ~PresentWindowsEffectProxy();
 
-    void calculateWindowTransformations(EffectWindowList windows, int screen, WindowMotionManager& manager);
+    void calculateWindowTransformations(EffectWindowList windows, int screen, WindowMotionManager& manager, bool fromBottom = false);
+    QHash<EffectWindow *, QRectF> calculateWindowTransformations(EffectWindowList windows, int screen, int &top);
 
     void reCreateGrids();
 

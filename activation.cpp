@@ -278,7 +278,7 @@ void Workspace::setActiveClient(AbstractClient* c)
  * @see setActiveClient
  * @see requestFocus
  */
-void Workspace::activateClient(AbstractClient* c, bool force)
+void Workspace::activateClient(AbstractClient* c, bool force, bool avoid_animation)
 {
     if (c == nullptr) {
         focusToNull();
@@ -300,7 +300,7 @@ void Workspace::activateClient(AbstractClient* c, bool force)
     }
 #endif
     if (c->isMinimized())
-        c->unminimize();
+        c->unminimize(avoid_animation);
 
     // ensure the window is really visible - could eg. be a hidden utility window, see bug #348083
     c->hideClient(false);

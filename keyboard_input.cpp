@@ -227,6 +227,40 @@ void KeyboardInputRedirection::processKey(uint32_t key, InputRedirection::Keyboa
     }
 }
 
+void KeyboardInputRedirection::sendBackKey(uint32_t time) {
+    uint32_t key = XKB_KEY_XF86Back;
+    m_xkb->updateKey(key, InputRedirection::KeyboardKeyPressed);
+
+    QEvent::Type type =  QEvent::KeyPress;
+    const xkb_keysym_t keySym = m_xkb->currentKeysym();
+    KeyEvent event(type,
+                   m_xkb->toQtKey(keySym),
+                   m_xkb->modifiers(),
+                   key,
+                   keySym,
+                   m_xkb->toString(keySym),
+                   false,
+                   time,
+                   nullptr);
+
+    m_input->processFilters(std::bind(&InputEventFilter::keyEvent, std::placeholders::_1, &event));
+
+    m_xkb->updateKey(key, InputRedirection::KeyboardKeyReleased);
+
+    type =  QEvent::KeyRelease;
+    KeyEvent event_release(type,
+                   m_xkb->toQtKey(keySym),
+                   m_xkb->modifiers(),
+                   key,
+                   keySym,
+                   m_xkb->toString(keySym),
+                   false,
+                   time+10,
+                   nullptr);
+
+    m_input->processFilters(std::bind(&InputEventFilter::keyEvent, std::placeholders::_1, &event_release));
+}
+
 void KeyboardInputRedirection::processModifiers(uint32_t modsDepressed, uint32_t modsLatched, uint32_t modsLocked, uint32_t group)
 {
     if (!m_inited) {

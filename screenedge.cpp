@@ -28,6 +28,8 @@
 #include "utils.h"
 #include <workspace.h>
 #include "virtualdesktops.h"
+#include "globalmotions.h"    // jing_kwin gesture
+#include "globalshortcuts.h"
 #ifdef KWIN_UNIT_TEST
 #include "plugins/platforms/x11/standalone/edge.h"
 #endif
@@ -45,6 +47,7 @@
 #include <QDBusPendingCall>
 #include <QWidget>
 
+#include "globalswipegestures.h"   // jing_kwin gesture
 namespace KWin {
 
 // Mouse should not move more than this many pixels
@@ -62,6 +65,7 @@ Edge::Edge(ScreenEdges *parent)
     , m_pushBackBlocked(false)
     , m_client(nullptr)
     , m_gesture(new SwipeGesture(this))
+    , m_globalSwipeGestures(new GlobalSwipeGestures(this))   // jing_kwin gesture
 {
     m_gesture->setMinimumFingerCount(1);
     m_gesture->setMaximumFingerCount(1);
@@ -517,6 +521,8 @@ void Edge::setGeometry(const QRect &geometry)
         m_gesture->setStartGeometry(m_geometry);
         m_gesture->setMinimumDelta(screens()->size(screens()->number(m_geometry.center())) * 0.2);
     }
+    // jing_kwin gesture
+    m_globalSwipeGestures->setScreenSize(screens()->size(screens()->number(m_geometry.center())));
 }
 
 void Edge::checkBlocking()
@@ -552,6 +558,9 @@ void Edge::activate()
     if (activatesForTouchGesture()) {
         m_edges->gestureRecognizer()->registerGesture(m_gesture);
     }
+    // jing_kwin gesture
+    m_globalSwipeGestures->registerGestrure(ScreenEdges::self()->gestureRecognizer());
+    m_globalSwipeGestures->registerMotion();
     doActivate();
 }
 
@@ -1139,6 +1148,8 @@ Edge *ScreenEdges::createEdge(ElectricBorder border, int x, int y, int width, in
     if (edge->isScreenEdge()) {
         connect(this, &ScreenEdges::checkBlocking, edge, &Edge::checkBlocking);
     }
+    connect(edge->getSwipGesure(), &GlobalSwipeGestures::onBottomGestureToggled, this, &ScreenEdges::onBottomGestureToggled);
+    connect(edge->getSwipGesure(), &GlobalSwipeGestures::onHideTaskManager, this, &ScreenEdges::onHideTaskManager);
     return edge;
 }
 
@@ -1261,7 +1272,8 @@ void ScreenEdges::createEdgeForClient(AbstractClient *client, ElectricBorder bor
     int width = 0;
     int height = 0;
     const QRect geo = client->frameGeometry();
-    const QRect fullArea = workspace()->clientArea(FullArea, 0, 1);
+    // yangg for jingos app under panel
+    const QRect fullArea = workspace()->clientArea(FullArea, client, 0, 1);
     for (int i = 0; i < screens()->count(); ++i) {
         const QRect screen = screens()->geometry(i);
         if (!screen.contains(geo)) {
@@ -1447,6 +1459,16 @@ bool ScreenEdges::handleEnterNotifiy(xcb_window_t window, const QPoint &point, c
         }
     }
     return activated;
+}
+
+void ScreenEdges::hideTaskManager()
+{
+    emit onHideTaskManager();
+}
+
+void ScreenEdges::onBottomGesture()
+{
+    emit onBottomGestureToggled();
 }
 
 bool ScreenEdges::handleDndNotify(xcb_window_t window, const QPoint &point)

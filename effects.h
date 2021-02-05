@@ -77,12 +77,14 @@ public:
 
     void buildQuads(EffectWindow* w, WindowQuadList& quadList) override;
 
+    void activateWindowWhithoutAnimation(EffectWindow* c) override;
     void activateWindow(EffectWindow* c) override;
     EffectWindow* activeWindow() const override;
     void moveWindow(EffectWindow* w, const QPoint& pos, bool snap = false, double snapAdjust = 1.0) override;
     void windowToDesktop(EffectWindow* w, int desktop) override;
     void windowToScreen(EffectWindow* w, int screen) override;
     void setShowingDesktop(bool showing) override;
+    bool showingDesktop() override;
 
     QString currentActivity() const override;
     int currentDesktop() const override;
@@ -149,6 +151,7 @@ public:
     QRect clientArea(clientAreaOption, int screen, int desktop) const override;
     QRect clientArea(clientAreaOption, const EffectWindow* c) const override;
     QRect clientArea(clientAreaOption, const QPoint& p, int desktop) const override;
+    QSize screenSize(int screen) const override;
     QSize virtualScreenSize() const override;
     QRect virtualScreenGeometry() const override;
     double animationTimeFactor() const override;
@@ -263,6 +266,13 @@ public:
 
     SessionState sessionState() const override;
 
+    void onTaskSwipe(bool toRight) override;
+    bool showCloseNotice() override;
+
+    void setShowCloseNotice(bool show) override;
+
+    virtual void setShowingTaskMgr(bool showing) override;
+    virtual bool isShowingTaskMgr() override;
 public Q_SLOTS:
     void slotCurrentTabAboutToChange(EffectWindow* from, EffectWindow* to);
     void slotTabAdded(EffectWindow* from, EffectWindow* to);
@@ -291,6 +301,8 @@ protected Q_SLOTS:
     void slotPaddingChanged(KWin::Toplevel *t, const QRect &old);
     void slotWindowDamaged(KWin::Toplevel *t, const QRegion& r);
 
+    void onHideTaskManager();
+    void onBottomGestureToggled();
 protected:
     void connectNotify(const QMetaMethod &signal) override;
     void disconnectNotify(const QMetaMethod &signal) override;
@@ -330,6 +342,8 @@ protected:
     int next_window_quad_type;
 
 private:
+    bool _showingTaskMgr = false;
+    bool _showCloseNotice = false;
     void registerPropertyType(long atom, bool reg);
     void destroyEffect(Effect *effect);
 

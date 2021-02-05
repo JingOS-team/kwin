@@ -20,6 +20,8 @@
 #include <QSize>
 #include <QVector>
 #include <xf86drmMode.h>
+// KF
+#include <KSharedConfig>
 
 namespace KWin
 {
@@ -97,7 +99,11 @@ public:
         return m_gpu;
     }
 
+    static drmModeConnectorPtr getAddNewMode(int fd, uint32_t connectorId, bool &force);
+    static KSharedConfigPtr inputConfig();
+    static void clearResolutionDefConfig();
 private:
+    static void initNewMode();
     friend class DrmGpu;
     friend class DrmBackend;
     friend class DrmCrtc;   // TODO: For use of setModeLegacy. Remove later when we allow multiple connectors per crtc
@@ -135,9 +141,11 @@ private:
 
     bool atomicReqModesetPopulate(drmModeAtomicReq *req, bool enable);
     void updateDpms(KWaylandServer::OutputInterface::DpmsMode mode) override;
-    void updateMode(int modeIndex) override;
-    void setWaylandMode();
+    int updateMode(int modeIndex) override;
+    void setWaylandMode() override;
 
+    // jing_kwin for surface resolution
+    void setCurMode(drmModeModeInfo mode);
     void updateTransform(Transform transform) override;
 
     int gammaRampSize() const override;
@@ -174,8 +182,9 @@ private:
     int m_cursorIndex = 0;
     bool m_hasNewCursor = false;
     bool m_deleted = false;
+    static bool m_bFirstInit;
+    static bool hasInitNewMode;
 };
-
 }
 
 Q_DECLARE_METATYPE(KWin::DrmOutput*)

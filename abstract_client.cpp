@@ -80,7 +80,8 @@ AbstractClient::AbstractClient()
             Q_UNUSED(c)
             if (isOnScreenDisplay() && !frameGeometry().isEmpty() && old.size() != frameGeometry().size() && isPlaceable()) {
                 GeometryUpdatesBlocker blocker(this);
-                const QRect area = workspace()->clientArea(PlacementArea, Screens::self()->current(), desktop());
+                // jing_kwin for jingos app under panel
+                const QRect area = workspace()->clientArea(PlacementArea, this, Screens::self()->current(), desktop());
                 Placement::self()->place(this, area);
                 setGeometryRestore(frameGeometry());
             }
@@ -882,6 +883,10 @@ void AbstractClient::maximize(MaximizeMode m)
 
 void AbstractClient::setMaximize(bool vertically, bool horizontally)
 {
+    // jing_kwin max window
+    if (!vertically || !horizontally) {
+        return;
+    }
     // changeMaximize() flips the state, so change from set->flip
     const MaximizeMode oldMode = requestedMaximizeMode();
     changeMaximize(
@@ -1033,7 +1038,8 @@ void AbstractClient::checkUnrestrictedMoveResize()
     if (isUnrestrictedMoveResize())
         return;
     const QRect &moveResizeGeom = moveResizeGeometry();
-    QRect desktopArea = workspace()->clientArea(WorkArea, moveResizeGeom.center(), desktop());
+    // jing_kwin for jingos app under panel
+    QRect desktopArea = workspace()->clientArea(WorkArea, this, moveResizeGeom.center(), desktop());
     int left_marge, right_marge, top_marge, bottom_marge, titlebar_marge;
     // restricted move/resize - keep at least part of the titlebar always visible
     // how much must remain visible when moved away in that direction
@@ -1234,7 +1240,8 @@ void AbstractClient::handleMoveResize(int x, int y, int x_root, int y_root)
             // Make sure the titlebar isn't behind a restricted area. We don't need to restrict
             // the other directions. If not visible enough, move the window to the closest valid
             // point. We bruteforce this by slowly moving the window back to its previous position
-            QRegion availableArea(workspace()->clientArea(FullArea, -1, 0));   // On the screen
+            // jing_kwin for jingos app under panel
+            QRegion availableArea(workspace()->clientArea(FullArea, this,  -1, 0));   // On the screen
             availableArea -= workspace()->restrictedMoveArea(desktop());   // Strut areas
             bool transposed = false;
             int requiredPixels;
@@ -1340,10 +1347,11 @@ void AbstractClient::handleMoveResize(int x, int y, int x_root, int y_root)
         if (!isMovable()) { // isMovableAcrossScreens() must have been true to get here
             // Special moving of maximized windows on Xinerama screens
             int screen = screens()->number(globalPos);
+           // jing_kwin for jingos app under panel
             if (isFullScreen())
-                setMoveResizeGeometry(workspace()->clientArea(FullScreenArea, screen, 0));
+                setMoveResizeGeometry(workspace()->clientArea(FullScreenArea, this, screen, 0));
             else {
-                QRect moveResizeGeom = workspace()->clientArea(MaximizeArea, screen, 0);
+                QRect moveResizeGeom = workspace()->clientArea(MaximizeArea, this, screen, 0);
                 QSize adjSize = constrainFrameSize(moveResizeGeom.size(), SizeModeMax);
                 if (adjSize != moveResizeGeom.size()) {
                     QRect r(moveResizeGeom);
@@ -1362,7 +1370,8 @@ void AbstractClient::handleMoveResize(int x, int y, int x_root, int y_root)
 
             if (!isUnrestrictedMoveResize()) {
                 const QRegion strut = workspace()->restrictedMoveArea(desktop());   // Strut areas
-                QRegion availableArea(workspace()->clientArea(FullArea, -1, 0));   // On the screen
+                // jing_kwin for jingos app under panel
+                QRegion availableArea(workspace()->clientArea(FullArea, this, -1, 0));   // On the screen
                 availableArea -= strut;   // Strut areas
                 bool transposed = false;
                 int requiredPixels;
@@ -2170,7 +2179,8 @@ void AbstractClient::checkQuickTilingMaximizationZones(int xroot, int yroot)
             return false;
         };
 
-        QRect area = workspace()->clientArea(MaximizeArea, QPoint(xroot, yroot), desktop());
+        // jing_kwin for jingos app under panel
+        QRect area = workspace()->clientArea(MaximizeArea, this, QPoint(xroot, yroot), desktop());
         if (options->electricBorderTiling()) {
             if (xroot <= area.x() + 20) {
                 mode |= QuickTileFlag::Left;
@@ -2887,14 +2897,15 @@ void AbstractClient::setElectricBorderMaximizing(bool maximizing)
 
 QRect AbstractClient::electricBorderMaximizeGeometry(QPoint pos, int desktop)
 {
+    // jing_kwin for jingos app under panel
     if (electricBorderMode() == QuickTileMode(QuickTileFlag::Maximize)) {
         if (maximizeMode() == MaximizeFull)
             return geometryRestore();
         else
-            return workspace()->clientArea(MaximizeArea, pos, desktop);
+            return workspace()->clientArea(MaximizeArea, this, pos, desktop);
     }
 
-    QRect ret = workspace()->clientArea(MaximizeArea, pos, desktop);
+    QRect ret = workspace()->clientArea(MaximizeArea, this, pos, desktop);
     if (electricBorderMode() & QuickTileFlag::Left)
         ret.setRight(ret.left()+ret.width()/2 - 1);
     else if (electricBorderMode() & QuickTileFlag::Right)
@@ -3080,7 +3091,8 @@ void AbstractClient::sendToScreen(int newScreen)
         setQuickTileMode(QuickTileFlag::None, true);
 
     QRect oldScreenArea = workspace()->clientArea(MaximizeArea, this);
-    QRect screenArea = workspace()->clientArea(MaximizeArea, newScreen, desktop());
+    // jing_kwin for jingos app under panel
+    QRect screenArea = workspace()->clientArea(MaximizeArea, this, newScreen, desktop());
 
     // the window can have its center so that the position correction moves the new center onto
     // the old screen, what will tile it where it is. Ie. the screen is not changed
@@ -3141,8 +3153,9 @@ void AbstractClient::checkWorkspacePosition(QRect oldGeometry, int oldDesktop, Q
         oldDesktop = desktop();
     if (!oldClientGeometry.isValid())
         oldClientGeometry = oldGeometry.adjusted(border[Left], border[Top], -border[Right], -border[Bottom]);
+    // jing_kwin for jingos app under panel
     if (isFullScreen()) {
-        QRect area = workspace()->clientArea(FullScreenArea, geometryRestore().center(), desktop());
+        QRect area = workspace()->clientArea(FullScreenArea, this, geometryRestore().center(), desktop());
         if (frameGeometry() != area)
             setFrameGeometry(area);
         return;
@@ -3187,7 +3200,8 @@ void AbstractClient::checkWorkspacePosition(QRect oldGeometry, int oldDesktop, Q
             }
         }
     } else {
-        oldScreenArea = workspace()->clientArea(ScreenArea, oldGeometry.center(), oldDesktop);
+        // jing_kwin for jingos app under panel
+        oldScreenArea = workspace()->clientArea(ScreenArea, this, oldGeometry.center(), oldDesktop);
     }
     const QRect oldGeomTall = QRect(oldGeometry.x(), oldScreenArea.y(), oldGeometry.width(), oldScreenArea.height());   // Full screen height
     const QRect oldGeomWide = QRect(oldScreenArea.x(), oldGeometry.y(), oldScreenArea.width(), oldGeometry.height());   // Full screen width
@@ -3195,7 +3209,8 @@ void AbstractClient::checkWorkspacePosition(QRect oldGeometry, int oldDesktop, Q
     int oldRightMax = oldScreenArea.x() + oldScreenArea.width();
     int oldBottomMax = oldScreenArea.y() + oldScreenArea.height();
     int oldLeftMax = oldScreenArea.x();
-    const QRect screenArea = workspace()->clientArea(ScreenArea, geometryRestore().center(), desktop());
+    // jing_kwin for jingos app under panel
+    const QRect screenArea = workspace()->clientArea(ScreenArea, this, geometryRestore().center(), desktop());
     int topMax = screenArea.y();
     int rightMax = screenArea.x() + screenArea.width();
     int bottomMax = screenArea.y() + screenArea.height();

@@ -215,7 +215,7 @@ void ApplicationWayland::continueStartupWithScene()
     m_xwayland->start();
 }
 
-void ApplicationWayland::startSession()
+void ApplicationWayland::startInputMethod()
 {
     if (!m_inputMethodServerToStart.isEmpty()) {
         QStringList arguments = KShell::splitArgs(m_inputMethodServerToStart);
@@ -231,11 +231,13 @@ void ApplicationWayland::startSession()
                 QProcess *p = new Process(this);
                 p->setProcessChannelMode(QProcess::ForwardedErrorChannel);
                 connect(p, qOverload<int, QProcess::ExitStatus>(&QProcess::finished), this,
-                    [p] {
+                    [this, p] {
                         if (waylandServer()) {
                             waylandServer()->destroyInputMethodConnection();
                         }
                         p->deleteLater();
+
+                        startInputMethod();
                     }
                 );
                 p->setProcessEnvironment(environment);
@@ -252,6 +254,12 @@ void ApplicationWayland::startSession()
                      qPrintable(m_inputMethodServerToStart));
         }
     }
+}
+
+void ApplicationWayland::startSession()
+{
+
+    startInputMethod();
 
     // start session
     if (!m_sessionArgument.isEmpty()) {

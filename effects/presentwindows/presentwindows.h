@@ -15,7 +15,7 @@
 
 #include <kwineffects.h>
 #include <kwineffectquickview.h>
-
+#include "windowanimationmanager.h"
 #include <QElapsedTimer>
 
 class QMouseEvent;
@@ -182,6 +182,7 @@ public:
 public Q_SLOTS:
     void setActive(bool active);
     void toggleActive()  {
+        return;
         m_mode = ModeCurrentDesktop;
         setActive(!m_activated);
     }
@@ -209,10 +210,14 @@ protected:
     // Window rearranging
     void rearrangeWindows();
     void reCreateGrids();
+    QHash<EffectWindow *, QRectF> calculateWindowTransformations_new(EffectWindowList windows, int screenr, int &top);
+
+    QHash<EffectWindow *, QRectF> calculateWindowTransformationsClosest_new(EffectWindowList windowlist, int screen, int &top);
+
     void calculateWindowTransformations(EffectWindowList windowlist, int screen,
-                                        WindowMotionManager& motionManager, bool external = false);
+                                        WindowMotionManager& motionManager, bool external = false, bool fromBottom = false);
     void calculateWindowTransformationsClosest(EffectWindowList windowlist, int screen,
-            WindowMotionManager& motionManager);
+            WindowMotionManager &motionManager, bool fromBottom = false);
     void calculateWindowTransformationsKompose(EffectWindowList windowlist, int screen,
             WindowMotionManager& motionManager);
     void calculateWindowTransformationsNatural(EffectWindowList windowlist, int screen,

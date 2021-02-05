@@ -46,6 +46,7 @@ public:
     void processDown(qint32 id, const QPointF &pos, quint32 time, LibInput::Device *device = nullptr);
     void processUp(qint32 id, quint32 time, LibInput::Device *device = nullptr);
     void processMotion(qint32 id, const QPointF &pos, quint32 time, LibInput::Device *device = nullptr);
+    void deelWhithUp(qint32 id, quint32 time, LibInput::Device *device = nullptr);
     void cancel();
     void frame();
 
@@ -86,7 +87,7 @@ private:
     QMetaObject::Connection m_focusGeometryConnection;
     bool m_windowUpdatedInCycle = false;
     QPointF m_lastPosition;
-
+    QHash<LibInput::Device *, QList<qint32>> m_ids;
     int m_touches = 0;
 };
 

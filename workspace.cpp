@@ -59,6 +59,7 @@
 #include <KStartupInfo>
 // Qt
 #include <QtConcurrentRun>
+#include "globalgesture.h"
 
 namespace KWin
 {
@@ -716,7 +717,8 @@ void Workspace::addShellClient(AbstractClient *client)
     updateClientLayer(client);
 
     if (client->isPlaceable()) {
-        const QRect area = clientArea(PlacementArea, Screens::self()->current(), client->desktop());
+       // yangg for jingos app under panel
+        const QRect area = clientArea(PlacementArea, client, Screens::self()->current(), client->desktop());
         bool placementDone = false;
         if (client->isFullScreen()) {
             placementDone = true;
@@ -734,6 +736,10 @@ void Workspace::addShellClient(AbstractClient *client)
     m_allClients.append(client);
     if (!unconstrained_stacking_order.contains(client)) {
         unconstrained_stacking_order.append(client); // Raise if it hasn't got any stacking position yet
+    }
+    // jing_kwin jingos app under panel
+    if (client->isDesktop()) {
+        initApplicationInfo();
     }
     if (!stacking_order.contains(client)) { // It'll be updated later, and updateToolWindows() requires
         stacking_order.append(client);      // client to be in stacking_order
@@ -1280,6 +1286,17 @@ void Workspace::focusToNull()
 {
     if (m_nullFocus) {
         m_nullFocus->focus();
+    }
+}
+
+void Workspace::minimizeAllWindow() {
+    for (int i = stacking_order.count() - 1; i > -1; --i) {
+        AbstractClient *c = qobject_cast<AbstractClient*>(stacking_order.at(i));
+        if (c && c->isOnCurrentDesktop()) {
+            if (c->isNormalWindow()) {
+                c->minimize(c != activeClient());
+            }
+        }
     }
 }
 
@@ -1836,6 +1853,14 @@ void Workspace::updateTabbox()
 #endif
 }
 
+// yangg for jingos app under panel
+void Workspace::initApplicationInfo()
+{
+    auto cfg = KSharedConfig::openConfig(QStringLiteral("applications-blacklistrc"));
+    auto blgroup = KConfigGroup(cfg, QStringLiteral("Applications"));
+    belowPanelApps = blgroup.readEntry("belowPanel", QStringList());
+}
+
 void Workspace::addInternalClient(InternalClient *client)
 {
     m_internalClients.append(client);
@@ -1844,7 +1869,8 @@ void Workspace::addInternalClient(InternalClient *client)
     client->updateLayer();
 
     if (client->isPlaceable()) {
-        const QRect area = clientArea(PlacementArea, screens()->current(), client->desktop());
+        // yangg for jingos app under panel
+        const QRect area = clientArea(PlacementArea, client, screens()->current(), client->desktop());
         client->placeIn(area);
     }
 
@@ -2077,6 +2103,19 @@ QRect Workspace::adjustClientArea(AbstractClient *client, const QRect &area) con
     return adjustedArea;
 }
 
+// yangg for jingos app under panel
+bool Workspace::isBelowPanel(const AbstractClient *c) const {
+    if (!c) {
+        return false;
+    }
+    return belowPanelApps.contains(c->desktopFileName());
+}
+
+bool Workspace::isTopClientJingApp() const
+{
+    return isBelowPanel(activeClient());
+}
+
 /**
  * Updates the current client areas according to the current clients.
  *
@@ -2254,14 +2293,18 @@ void Workspace::updateClientArea()
  * geometry minus windows on the dock. Placement algorithms should
  * refer to this rather than Screens::geometry.
  */
-QRect Workspace::clientArea(clientAreaOption opt, int screen, int desktop) const
+// yangg for jingos app under panel
+QRect Workspace::clientArea(clientAreaOption opt, const AbstractClient *c, int screen, int desktop) const
 {
     if (desktop == NETWinInfo::OnAllDesktops || desktop == 0)
         desktop = VirtualDesktopManager::self()->current();
     if (screen == -1)
         screen = screens()->current();
     const QSize displaySize = screens()->displaySize();
-
+    // yangg for jingos app under panel
+    if (isBelowPanel(c)) {
+        return QRect(0, 0, displaySize.width(), displaySize.height());
+    }
     QRect sarea, warea;
 
     if (is_multihead) {
@@ -2305,15 +2348,15 @@ QRect Workspace::clientArea(clientAreaOption opt, int screen, int desktop) const
     abort();
 }
 
-
-QRect Workspace::clientArea(clientAreaOption opt, const QPoint& p, int desktop) const
+// yangg for jingos app under panel
+QRect Workspace::clientArea(clientAreaOption opt, const AbstractClient *c, const QPoint& p, int desktop) const
 {
-    return clientArea(opt, screens()->number(p), desktop);
+    return clientArea(opt, c, screens()->number(p), desktop);
 }
 
 QRect Workspace::clientArea(clientAreaOption opt, const AbstractClient* c) const
 {
-    return clientArea(opt, c->frameGeometry().center(), c->desktop());
+    return clientArea(opt, c, c->frameGeometry().center(), c->desktop());
 }
 
 QRegion Workspace::restrictedMoveArea(int desktop, StrutAreas areas) const
@@ -2373,7 +2416,8 @@ QPoint Workspace::adjustClientPosition(AbstractClient* c, QPoint pos, bool unres
     QRect maxRect;
     int guideMaximized = MaximizeRestore;
     if (c->maximizeMode() != MaximizeRestore) {
-        maxRect = clientArea(MaximizeArea, pos + c->rect().center(), c->desktop());
+        // yangg for jingos app under panel
+        maxRect = clientArea(MaximizeArea, c, pos + c->rect().center(), c->desktop());
         QRect geo = c->frameGeometry();
         if (c->maximizeMode() & MaximizeHorizontal && (geo.x() == maxRect.left() || geo.right() == maxRect.right())) {
             guideMaximized |= MaximizeHorizontal;
@@ -2390,7 +2434,7 @@ QPoint Workspace::adjustClientPosition(AbstractClient* c, QPoint pos, bool unres
         const bool sOWO = options->isSnapOnlyWhenOverlapping();
         const int screen = screens()->number(pos + c->rect().center());
         if (maxRect.isNull())
-            maxRect = clientArea(MovementArea, screen, c->desktop());
+            maxRect = clientArea(MovementArea, c, screen, c->desktop());     // yangg for jingos app under panel
         const int xmin = maxRect.left();
         const int xmax = maxRect.right() + 1;             //desk size
         const int ymin = maxRect.top();
@@ -2558,8 +2602,9 @@ QRect Workspace::adjustClientSize(AbstractClient* c, QRect moveResizeGeom, int m
     //the new dimensions to snap to other windows/borders if appropriate
     if (options->windowSnapZone() || options->borderSnapZone()) {  // || options->centerSnapZone )
         const bool sOWO = options->isSnapOnlyWhenOverlapping();
-
-        const QRect maxRect = clientArea(MovementArea, c->rect().center(), c->desktop());
+        
+        // yangg for jingos app under panel
+        const QRect maxRect = clientArea(MovementArea, c, c->rect().center(), c->desktop());
         const int xmin = maxRect.left();
         const int xmax = maxRect.right();               //desk size
         const int ymin = maxRect.top();
