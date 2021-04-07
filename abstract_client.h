@@ -868,6 +868,14 @@ public:
         return m_windowManagementInterface;
     }
 
+    bool isScaleApp() const override;
+
+    bool isLogoutWindow() const override;
+
+    void setIsBackApp(bool isBack) override;
+
+    virtual bool isDefaultMaxApp();
+
 public Q_SLOTS:
     virtual void closeWindow() = 0;
 
@@ -1312,6 +1320,7 @@ private:
     WindowRules m_rules;
 
     static bool s_haveResizeEffect;
+    void checkScaleInfo();
 };
 
 /**

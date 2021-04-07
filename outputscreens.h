@@ -37,6 +37,10 @@ public:
     void updateCount() override;
     int number(const QPoint &pos) const override;
 
+    // casper_yang for scale
+    void setClientScale(wl_client* client, qreal scale) override;
+    void unsetClientScale(wl_client* client) override;
+    void setDefaultClientScale(qreal scale);
 protected:
     Platform *m_platform;
 

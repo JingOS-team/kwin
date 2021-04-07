@@ -32,6 +32,9 @@
 
 #include <KDesktopFile>
 
+#include <KWaylandServer/surface_interface.h>
+#include <KWaylandServer/clientconnection.h>
+
 #include <QDir>
 #include <QMouseEvent>
 #include <QStyleHints>
@@ -191,6 +194,9 @@ void AbstractClient::setIcon(const QIcon &icon)
 
 void AbstractClient::setActive(bool act)
 {
+    if (act) {
+        setIsBackApp(false);
+    }
     if (isZombie()) {
         return;
     }
@@ -884,7 +890,7 @@ void AbstractClient::maximize(MaximizeMode m)
 void AbstractClient::setMaximize(bool vertically, bool horizontally)
 {
     // jing_kwin max window
-    if (!vertically || !horizontally) {
+    if ((!vertically || !horizontally) && isDefaultMaxApp()) {
         return;
     }
     // changeMaximize() flips the state, so change from set->flip
@@ -2654,12 +2660,20 @@ bool AbstractClient::dockWantsInput() const
 void AbstractClient::setDesktopFileName(QByteArray name)
 {
     name = rules()->checkDesktopFile(name).toUtf8();
+    m_desktopFileName = name;
+
+    setIsScaleApp(!Workspace::self()->isJingOSApp(this) &&
+                  !g_scale_black_list.contains(resourceName()) &&
+                  !g_scale_black_list.contains(resourceClass()) &&
+                  !isLogoutWindow());
+
     if (name == m_desktopFileName) {
         return;
     }
-    m_desktopFileName = name;
+
     updateWindowRules(Rules::DesktopFile);
     emit desktopFileNameChanged();
+    effects->addRepaintFull();
 }
 
 QString AbstractClient::iconFromDesktopFile() const
@@ -2828,6 +2842,29 @@ bool AbstractClient::isInternal() const
 bool AbstractClient::supportsWindowRules() const
 {
     return false;
+}
+
+bool AbstractClient::isScaleApp() const
+{
+    return m_isScaleApp;
+}
+
+bool AbstractClient::isLogoutWindow() const
+{
+    return desktopFileName().contains("ksmserver-logout-greeter");
+}
+
+void AbstractClient::setIsBackApp(bool isBack)
+{
+    //m_isOnBack = isBack;
+    if (isBack) {
+        minimize(true);
+    }
+}
+
+bool AbstractClient::isDefaultMaxApp()
+{
+    return (isNormalWindow() || isDialog()) && (!transientFor() || pid() != transientFor()->pid()) && isResizable();
 }
 
 QMargins AbstractClient::frameMargins() const

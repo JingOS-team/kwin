@@ -25,6 +25,7 @@
 #include "magiclamp/magiclamp.h"
 #include "switchwindows/switchwindows.h"
 #include "showsysinfo/showsysinfo.h"
+#include "taskpanel/taskpanel.h"
 #include "resize/resize.h"
 #include "showfps/showfps.h"
 #include "showpaint/showpaint.h"
@@ -708,6 +709,22 @@ EFFECT_FALLBACK
             false,
     #ifdef EFFECT_BUILTINS
             &createHelper<ShowSysInfo>,
+            &SwitchWindows::supported,
+            nullptr,
+    #endif
+    EFFECT_FALLBACK
+            QStringLiteral("kwin_showsysinfo_config")
+        },{
+            QStringLiteral("taskpanel"),
+            i18ndc("kwin_effects", "Name of a KWin Effect", "TaskPanel"),
+            i18ndc("kwin_effects", "Comment describing the KWin Effect", "Task panel"),
+            QStringLiteral("Appearance"),
+            QStringLiteral("taskpanel"),
+            QUrl(QStringLiteral("todo")),
+            false,
+            false,
+    #ifdef EFFECT_BUILTINS
+            &createHelper<TaskPanel>,
             &SwitchWindows::supported,
             nullptr,
     #endif

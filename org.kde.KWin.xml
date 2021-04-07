@@ -45,5 +45,16 @@
         <arg type="s" direction="in"/>
         <arg type="a{sv}" direction="out"/>
     </method>
+    <method name="setAppDefaultScale">
+        <annotation name="org.qtproject.QtDBus.QtTypeName.Out0" value="QVariantMap"/>
+        <arg type="d" direction="in"/>
+    </method>
+    <method name="getAppDefaultScale">
+        <annotation name="org.qtproject.QtDBus.QtTypeName.Out0" value="QVariantMap"/>
+        <arg type="d" direction="out"/>
+    </method>
+    <signal name="appDefaultScaleChanged">
+       <arg name="scale" type="d"/>
+    </signal>
   </interface>
 </node>

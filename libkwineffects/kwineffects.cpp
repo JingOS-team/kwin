@@ -708,6 +708,12 @@ bool Effect::touchUp(qint32 id, quint32 time)
     return false;
 }
 
+bool Effect::pointerEvent(QMouseEvent *event)
+{
+    Q_UNUSED(event)
+    return false;
+}
+
 bool Effect::perform(Feature feature, const QVariantList &arguments)
 {
     Q_UNUSED(feature)
@@ -852,7 +858,17 @@ bool EffectWindow::isVisible() const
 {
     return !isMinimized()
            && isOnCurrentDesktop()
-           && isOnCurrentActivity();
+            && isOnCurrentActivity();
+}
+
+void EffectWindow::kill()
+{
+    if (pid() > 0) {
+        QString cmd = QString("kill -9 %1").arg(pid());
+        system(cmd.toLocal8Bit().data());
+    } else {
+        closeWindow();
+    }
 }
 
 //****************************************
@@ -1977,6 +1993,12 @@ TimeLine &TimeLine::operator=(const TimeLine &other)
 {
     d = other.d;
     return *this;
+}
+
+void TimeLine::stop()
+{
+    d->elapsed = d->duration;
+    d->done = true;
 }
 
 } // namespace

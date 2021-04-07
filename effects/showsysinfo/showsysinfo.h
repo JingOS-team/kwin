@@ -19,13 +19,40 @@ class ShowSysInfo : public Effect
     Q_OBJECT
 public:
     ShowSysInfo();
+    void prePaintScreen(ScreenPrePaintData& data, std::chrono::milliseconds presentTime) override;
     void postPaintScreen() override;
     bool isActive() const override;
+    virtual bool pointerEvent(QMouseEvent* e) override;
+
+    void prePaintWindow(EffectWindow *w, WindowPrePaintData &data, std::chrono::milliseconds presentTime) override;
+    void paintWindow(EffectWindow* w, int mask, QRegion region, WindowPaintData& data) override;
 
     static bool supported();
 
+    Q_SCRIPTABLE void showDesktop();
+    Q_SCRIPTABLE void enterControlBar();
+    Q_SCRIPTABLE void leaveControlBar();
+
+    Q_SCRIPTABLE void switchWindow(bool toRight);
+
 private:
+    bool isShowNextWindow();
+    bool isShowingDesktop() const;
+
+private slots:
+    void slotShowingDesktopChanged(bool show);
+
+private:
+    TimeLine _bottomAnimationTimeLine;
+    bool _hasTouchDown = false;
+    QPoint _lastPressPos;
+    QPoint _startPressPos;
+    bool _pressed = false;
+    qreal _barScale = 1.0;
+    QRect _bottomRect;
     EffectQuickScene *_noticeView;
+    EffectQuickScene *_bottomControlview;
+    std::chrono::milliseconds _lastPresentTime = std::chrono::milliseconds::zero();
 };
 
 }

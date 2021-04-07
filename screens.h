@@ -20,6 +20,7 @@
 #include <QTimer>
 #include <QVector>
 
+struct wl_client;
 namespace KWin
 {
 class AbstractClient;
@@ -138,6 +139,10 @@ public:
     int physicalDpiX(int screen) const;
     int physicalDpiY(int screen) const;
 
+    // casper_yang for scale
+    virtual void setClientScale(wl_client* client, qreal scale) = 0;
+    virtual void unsetClientScale(wl_client* client) = 0;
+    virtual void setDefaultClientScale(qreal scale) = 0;
 public Q_SLOTS:
     void reconfigure();
 

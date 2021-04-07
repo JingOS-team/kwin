@@ -23,7 +23,7 @@
 #include <QWindow>
 // X
 #include <xcb/sync.h>
-
+#include "group.h"
 // TODO: Cleanup the order of things in this .h file
 
 class QTimer;

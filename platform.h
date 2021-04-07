@@ -404,6 +404,7 @@ public:
      */
     virtual void createEffectsHandler(Compositor *compositor, Scene *scene);
 
+    virtual void createTaskManager(Compositor *compositor);
     /**
      * The CompositingTypes supported by the Platform.
      * The first item should be the most preferred one.

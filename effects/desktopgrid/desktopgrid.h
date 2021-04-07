@@ -140,11 +140,12 @@ private:
     void clearBtns();
     void deleteCloseBtn(EffectWindow *w);
     bool isOnCloseButton(EffectWindow *w, const QPoint& pos);
+    void killWindow(const EffectWindow *w);
 
-    void addMask();
     void addClearBtn();
     bool isOnClearButton(const QPoint& pos);
-    void killWindow(const EffectWindow *w);
+
+    void addMask();
 
     std::chrono::milliseconds toStdMs(int ms);
     void getWindowLayout(bool init, int screen, WindowAnimationManager &windowAnimationManager);

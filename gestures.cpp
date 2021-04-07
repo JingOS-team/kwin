@@ -47,7 +47,12 @@ qreal SwipeGesture::minimumDeltaReachedProgress(const QSizeF &delta) const
         return 1.0;
     }
     if (m_direction == Direction::All) {
-        auto ret = std::min((std::abs(delta.width()) + std::abs(delta.height())) / (std::abs(m_minimumDelta.width()) + std::abs(m_minimumDelta.height())), 1.0);
+        qreal ret = 1.0;
+        if (m_minimumSwipeAngle) {
+            qreal angle = std::atan(std::abs(delta.width())/std::abs(delta.height())) * 180/3.14;
+            ret = std::min(angle/m_minimumSwipeAngle, ret);
+        }
+        ret = std::min((std::abs(delta.width()) + std::abs(delta.height())) / (std::abs(m_minimumDelta.width()) + std::abs(m_minimumDelta.height())), ret);
         return ret;
     }
     switch (m_direction) {
@@ -92,7 +97,7 @@ void GestureRecognizer::unregisterGesture(KWin::Gesture* gesture)
     m_gestures.removeAll(gesture);
     if (m_activeSwipeGestures.removeOne(gesture)) {
         // jing_kwin gesture
-        emit gesture->cancelled(0);
+        emit gesture->cancelled(0, 0);
     }
 }
 
@@ -186,20 +191,21 @@ void GestureRecognizer::updateSwipeGesture(const QSizeF &delta, quint32 time)
         auto g = qobject_cast<SwipeGesture*>(*it);
         //if (g->direction() == direction || g->direction() == SwipeGesture::Direction::All) {
         if (g->minimumDeltaReached(combinedDelta)) {
-            qreal speed = 0.0;
+            qreal spead = 0.0;
             const QSizeF lastDelta = std::accumulate(m_swipeUpdates.constBegin() + m_startIndex, m_swipeUpdates.constEnd(), QSizeF(0, 0));
             if (std::abs(lastDelta.width()) > std::abs(lastDelta.height())) {
-                speed = lastDelta.width() / (time - m_lastUpdateTime);
+                spead = lastDelta.width() / (time - m_lastUpdateTime);
             } else {
-                speed = lastDelta.height() / (time - m_lastUpdateTime);
+                spead = lastDelta.height() / (time - m_lastUpdateTime);
             }
-            emit g->triggered(time, speed);
+            emit g->triggered(time, spead);
             it = m_activeSwipeGestures.erase(it);
         } else {
             if (g->isMinimumDeltaRelevant()) {
                 // jing_kwin gesture
-                emit g->progress(g->minimumDeltaReachedProgress(combinedDelta), time);
-                emit g->update(delta, time);
+                qreal curProgress = g->minimumDeltaReachedProgress(combinedDelta);
+                emit g->progress(curProgress, time);
+                emit g->update(delta, curProgress, time);
             }
             it++;
         }
@@ -216,7 +222,7 @@ void GestureRecognizer::cancelActiveSwipeGestures(quint32 time)
 {
     for (auto g : qAsConst(m_activeSwipeGestures)) {
         // jing_kwin gesture
-        emit g->cancelled(time);
+        emit g->cancelled(time, 0);
     }
     m_activeSwipeGestures.clear();
     // jing_kwin gesture
@@ -248,17 +254,17 @@ void GestureRecognizer::endSwipeGesture(quint32 time)
     for (auto g : qAsConst(m_activeSwipeGestures)) {
         // jing_kwin gesture
         SwipeGesture *swipeGesture = static_cast<SwipeGesture*>(g);
-        if (swipeGesture->minimumDeltaReached(delta)) {
-            qreal speed = 0.0;
-            const QSizeF lastDelta = std::accumulate(m_swipeUpdates.constBegin() + m_startIndex, m_swipeUpdates.constEnd(), QSizeF(0, 0));
-            if (std::abs(lastDelta.width()) > std::abs(lastDelta.height())) {
-                speed = lastDelta.width() / (time - m_lastUpdateTime);
-            } else {
-                speed = lastDelta.height() / (time - m_lastUpdateTime);
-            }
-            emit g->triggered(time, speed);
+        qreal spead = 0.0;
+        const QSizeF lastDelta = std::accumulate(m_swipeUpdates.constBegin() + m_startIndex, m_swipeUpdates.constEnd(), QSizeF(0, 0));
+        if (std::abs(lastDelta.width()) > std::abs(lastDelta.height())) {
+            spead = lastDelta.width() / (time - m_lastUpdateTime);
         } else {
-            emit g->cancelled(time);
+            spead = lastDelta.height() / (time - m_lastUpdateTime);
+        }
+        if (swipeGesture->minimumDeltaReached(delta)) {
+            emit g->triggered(time, spead);
+        } else {
+            emit g->cancelled(time, spead);
         }
     }
     m_activeSwipeGestures.clear();

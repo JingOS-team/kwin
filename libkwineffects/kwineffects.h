@@ -35,7 +35,7 @@
 
 #include <KPluginFactory>
 #include <KSharedConfig>
-
+#include "taskmanager.h"
 #include <netwm.h>
 
 #include <climits>
@@ -46,6 +46,7 @@ class QFont;
 class QKeyEvent;
 class QMatrix4x4;
 class QAction;
+class QMouseEvent;
 
 /**
  * Logging category to be used inside the KWin effects.
@@ -625,6 +626,8 @@ public:
      * @since 5.8
      */
     virtual bool touchUp(qint32 id, quint32 time);
+
+    virtual bool pointerEvent(QMouseEvent* event);
 
     static QPoint cursorPos();
 
@@ -1387,6 +1390,12 @@ public:
 
     virtual void setShowingTaskMgr(bool showing) = 0;
     virtual bool isShowingTaskMgr() = 0;
+
+    virtual EffectWindow* getDesktopWindow(int desktop) = 0;
+
+    virtual void setCloseWindowToDesktop(bool toDesktop) = 0;
+
+    virtual qreal getAppDefaultScale() = 0;
 Q_SIGNALS:
     /**
      * Signal emitted when the current desktop changed.
@@ -1849,6 +1858,7 @@ protected:
 class KWINEFFECTS_EXPORT EffectWindow : public QObject
 {
     Q_OBJECT
+    Q_PROPERTY(bool isScaleApp READ isScaleApp)
     Q_PROPERTY(bool alpha READ hasAlpha CONSTANT)
     Q_PROPERTY(QRect geometry READ geometry)
     Q_PROPERTY(QRect expandedGeometry READ expandedGeometry)
@@ -2154,7 +2164,8 @@ public:
 
     explicit EffectWindow(QObject *parent = nullptr);
     ~EffectWindow() override;
-
+    virtual bool isScaleApp() = 0;
+    virtual qreal appScale() = 0;
     virtual void enablePainting(int reason) = 0;
     virtual void disablePainting(int reason) = 0;
     virtual bool isPaintingEnabled() = 0;
@@ -2504,6 +2515,18 @@ public:
      */
     virtual void unreferencePreviousWindowPixmap() = 0;
 
+
+    virtual bool isLogoutWindow() const = 0;
+
+    virtual qreal getAppScale() const = 0;
+    virtual const QRegion& opaqueRegion() const = 0;
+    virtual int maximizeMode() const = 0;
+
+    virtual bool isBackApp() const = 0;
+    virtual void setIsBackApp(bool isBack) = 0;
+    virtual bool isTransient() const = 0;
+
+    Q_SCRIPTABLE void kill();
 private:
     class Private;
     QScopedPointer<Private> d;
@@ -3807,6 +3830,7 @@ public:
 
     TimeLine &operator=(const TimeLine &other);
 
+    void stop();
 private:
     qreal progress() const;
 
@@ -3819,7 +3843,6 @@ private:
  * Pointer to the global EffectsHandler object.
  */
 extern KWINEFFECTS_EXPORT EffectsHandler* effects;
-
 /***************************************************************
  WindowVertex
 ***************************************************************/

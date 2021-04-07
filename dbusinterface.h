@@ -12,6 +12,7 @@
 
 #include <QObject>
 #include <QtDBus>
+#include "utils.h"
 
 #include "virtualdesktopsdbustypes.h"
 
@@ -62,8 +63,13 @@ public Q_SLOTS: // METHODS
     QVariantMap queryWindowInfo();
     QVariantMap getWindowInfo(const QString &uuid);
 
+    void setAppDefaultScale(qreal scale);
+    qreal getAppDefaultScale();
 private Q_SLOTS:
     void becomeKWinService(const QString &service);
+
+Q_SIGNALS:
+    void appDefaultScaleChanged(qreal scale);
 
 private:
     void announceService();

@@ -21,7 +21,7 @@
 #include "workspace.h"
 
 #include <KWaylandServer/surface_interface.h>
-
+#include <KWaylandServer/clientconnection.h>
 #include <QDebug>
 
 namespace KWin
@@ -140,10 +140,18 @@ void Toplevel::disownDataPassedToDeleted()
 QRect Toplevel::visibleRect() const
 {
     // There's no strict order between frame geometry and buffer geometry.
-    QRect rect = frameGeometry() | bufferGeometry();
+    QRect _frameGeometry = frameGeometry();
+    QRect _bufferGeometry = bufferGeometry();
+
+    _frameGeometry.setSize(_frameGeometry.size() * getAppScale());
+    _bufferGeometry.setSize(_bufferGeometry.size() * getAppScale());
+
+    QRect rect = _frameGeometry | _bufferGeometry;
 
     if (shadow() && !shadow()->shadowRegion().isEmpty()) {
-        rect |= shadow()->shadowRegion().boundingRect().translated(pos());
+        QRect _shadow = shadow()->shadowRegion().boundingRect().translated(pos());
+        _shadow.setSize(_shadow.size() * getAppScale());
+        rect |= _shadow;
     }
 
     return rect;
@@ -238,6 +246,7 @@ void Toplevel::setResourceClass(const QByteArray &name, const QByteArray &classN
 {
     resource_name  = name;
     resource_class = className;
+
     emit windowClassChanged();
 }
 
@@ -394,12 +403,12 @@ void Toplevel::getDamageRegionReply()
         qrects.reserve(count);
 
         for (int i = 0; i < count; i++)
-            qrects << QRect(rects[i].x, rects[i].y, rects[i].width, rects[i].height);
+            qrects << QRect(rects[i].x, rects[i].y, rects[i].width * getAppScale(), rects[i].height * getAppScale());
 
         region.setRects(qrects.constData(), count);
     } else
         region += QRect(reply->extents.x, reply->extents.y,
-                        reply->extents.width, reply->extents.height);
+                        reply->extents.width * getAppScale(), reply->extents.height * getAppScale());
     free(reply);
 
     addDamage(region);
@@ -664,6 +673,15 @@ void Toplevel::elevate(bool elevate)
     addWorkspaceRepaint(visibleRect());
 }
 
+qreal Toplevel::getAppScale() const
+{
+    if (isScaleApp()) {
+        return workspace()->getAppDefaultScale();
+    }
+
+    return 1.;
+}
+
 pid_t Toplevel::pid() const
 {
     if (!info) {
@@ -718,6 +736,10 @@ void Toplevel::setSurface(KWaylandServer::SurfaceInterface *surface)
         disconnect(m_surface, &SurfaceInterface::sizeChanged, this, &Toplevel::discardWindowPixmap);
     }
     m_surface = surface;
+
+    if (m_isScaleApp && surface) {
+        sendScale(getAppScale());
+    }
     connect(m_surface, &SurfaceInterface::damaged, this, &Toplevel::addDamage);
     connect(m_surface, &SurfaceInterface::sizeChanged, this, &Toplevel::discardWindowPixmap);
     connect(m_surface, &SurfaceInterface::subSurfaceTreeChanged, this,
@@ -745,10 +767,12 @@ void Toplevel::addDamage(const QRegion &damage)
     const QRect frameRect = frameGeometry();
 
     m_isDamaged = true;
-    damage_region += damage;
-    addRepaint(damage.translated(bufferRect.topLeft() - frameRect.topLeft()));
+    QRect rect = damage.boundingRect();
+    rect = QRect(rect.topLeft() * getAppScale(), rect.size() * getAppScale());
+    damage_region += rect;
+    addRepaint(rect.translated(bufferRect.topLeft() - frameRect.topLeft()));
 
-    emit damaged(this, damage);
+    emit damaged(this, rect);
 }
 
 QByteArray Toplevel::windowRole() const
@@ -784,7 +808,8 @@ QRegion Toplevel::inputShape() const
 QMatrix4x4 Toplevel::inputTransformation() const
 {
     QMatrix4x4 m;
-    m.translate(-x(), -y());
+    // casper_yang for app scalse
+    m.translate(-x() / getAppScale(), -y() / getAppScale());
     return m;
 }
 
@@ -794,6 +819,49 @@ bool Toplevel::hitTest(const QPoint &point) const
         return m_surface->inputSurfaceAt(mapToLocal(point));
     }
     return inputGeometry().contains(point);
+}
+
+bool Toplevel::isScaleApp() const
+{
+    return m_isScaleApp;
+}
+
+void Toplevel::setIsScaleApp(bool isScale)
+{
+    m_isScaleApp = isScale;
+    if (m_isScaleApp) {
+        sendScale(getAppScale());
+    }
+}
+
+bool Toplevel::isLogoutWindow() const
+{
+    return false;
+}
+
+bool Toplevel::isBackApp() const
+{
+    return m_isOnBack;
+}
+
+void Toplevel::setIsBackApp(bool isBack)
+{
+    m_isOnBack = isBack;
+}
+
+void Toplevel::kill()
+{
+    QString cmd = QString("kill -9 %1").arg(pid());
+    system(cmd.toLocal8Bit().data());
+}
+
+void Toplevel::sendScale(qreal scale)
+{
+    if (surface()  && !m_hasSendScaleInfo) {
+        m_hasSendScaleInfo = true;
+        surface()->setInputAreaScale(getAppScale());
+        screens()->setClientScale(surface()->client()->client(), getAppScale());
+    }
 }
 
 QPoint Toplevel::mapToFrame(const QPoint &point) const

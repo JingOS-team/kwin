@@ -45,7 +45,7 @@ Q_SIGNALS:
      * This Gesture no longer matches.
      */
     // jing_kwin gesture
-    void cancelled(quint32 time);
+    void cancelled(quint32 time, const qreal &lastSpeed);
 };
 
 class SwipeGesture : public Gesture
@@ -80,6 +80,13 @@ public:
     void setMaximumFingerCount(uint count) {
         m_maximumFingerCount = count;
         m_maximumFingerCountRelevant = true;
+    }
+    void setMinimumSwipeAngle(qreal angle) {
+        m_minimumSwipeAngle = angle;
+        m_minimumSwipeAngleRelevant = true;
+    }
+    qreal minimumSwipeAngle() {
+        return m_minimumSwipeAngle;
     }
     uint maximumFingerCount() const {
         return m_maximumFingerCount;
@@ -157,8 +164,7 @@ Q_SIGNALS:
     // jing_kwin gesture
     void progress(qreal, quint32);
 
-    void update(QSizeF, quint32);
-
+    void update(QSizeF, qreal, quint32);
 private:
     bool m_minimumFingerCountRelevant = false;
     uint m_minimumFingerCount = 0;
@@ -175,6 +181,8 @@ private:
     int m_maximumY = 0;
     bool m_minimumDeltaRelevant = false;
     QSizeF m_minimumDelta;
+    qreal m_minimumSwipeAngle = 0.f;
+    bool m_minimumSwipeAngleRelevant = false;
 };
 
 class KWIN_EXPORT GestureRecognizer : public QObject

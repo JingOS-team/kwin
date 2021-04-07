@@ -30,6 +30,9 @@
 #include <KWaylandServer/surface_interface.h>
 #include <KWaylandServer/xdgdecoration_v1_interface.h>
 
+#include <KWaylandServer/surface_interface.h>
+#include <KWaylandServer/clientconnection.h>
+
 using namespace KWaylandServer;
 
 namespace KWin
@@ -107,7 +110,8 @@ QRect XdgSurfaceClient::inputGeometry() const
 QMatrix4x4 XdgSurfaceClient::inputTransformation() const
 {
     QMatrix4x4 transformation;
-    transformation.translate(-bufferGeometry().x(), -bufferGeometry().y());
+    // casper_yang for app scale
+    transformation.translate(-bufferGeometry().x() / getAppScale(), -bufferGeometry().y() / getAppScale());
     return transformation;
 }
 
@@ -202,7 +206,13 @@ void XdgSurfaceClient::handleNextWindowGeometry()
     // Note that the xdg-shell spec is not clear about when exactly we have to clamp the
     // window geometry.
 
-    m_windowGeometry = m_shellSurface->windowGeometry();
+    // yanggx for max app
+    QRect rect = workspace()->clientArea(FullScreenArea, this, 0, 0);
+
+    // casper_yang for app scale
+    rect.setSize(rect.size() / getAppScale());
+    m_windowGeometry = m_shellSurface->windowGeometry().intersected(rect);
+
     if (m_windowGeometry.isValid()) {
         m_windowGeometry &= boundingGeometry;
     } else {
@@ -895,8 +905,9 @@ bool XdgToplevelClient::takeFocus()
         sendPing(PingReason::FocusWindow);
         setActive(true);
     }
-    if (!keepAbove() && !isOnScreenDisplay() && !belongsToDesktop()) {
-        workspace()->setShowingDesktop(false);
+
+    if (!keepAbove() && !isOnScreenDisplay() && !belongsToDesktop() && isNormalWindow()) {
+        workspace()->setShowingDesktop(false, false);
     }
     return true;
 }
@@ -1198,7 +1209,9 @@ void XdgToplevelClient::initialize()
         if (originalGeometry != ruledGeometry) {
             setFrameGeometry(ruledGeometry);
         }
+
         maximize(rules()->checkMaximize(initialMaximizeMode(), true));
+
         setFullScreen(rules()->checkFullScreen(initialFullScreenMode(), true), false);
         setDesktop(rules()->checkDesktop(desktop(), true));
         setDesktopFileName(rules()->checkDesktopFile(desktopFileName(), true).toUtf8());
@@ -1433,6 +1446,7 @@ void XdgToplevelClient::installPlasmaShellSurface(PlasmaShellSurfaceInterface *s
 
 void XdgToplevelClient::updateShowOnScreenEdge()
 {
+
     if (!ScreenEdges::self()) {
         return;
     }
@@ -1568,8 +1582,12 @@ void XdgToplevelClient::setFullScreen(bool set, bool user)
 
     if (set) {
         const int screen = m_fullScreenRequestedOutput ? kwinApp()->platform()->enabledOutputs().indexOf(m_fullScreenRequestedOutput) : screens()->number(frameGeometry().center());
-        // yangg for jingos app under panel
-        setFrameGeometry(workspace()->clientArea(FullScreenArea, this, screen, desktop()));
+        // yangg for max app
+        QRect rect = workspace()->clientArea(FullScreenArea, this, screen, desktop());
+
+        // casper_yang for app scale
+        rect.setSize(rect.size() / getAppScale());
+        setFrameGeometry(rect);
     } else {
         m_fullScreenRequestedOutput.clear();
         if (m_fullScreenGeometryRestore.isValid()) {
@@ -1682,7 +1700,11 @@ void XdgToplevelClient::changeMaximize(bool horizontal, bool vertical, bool adju
             doSetQuickTileMode();
             emit quickTileModeChanged();
         }
-        setFrameGeometry(workspace()->clientArea(MaximizeArea, this));
+
+        // casper_yang for app scale
+        QRect rect = workspace()->clientArea(MaximizeArea, this);
+        rect.setSize(rect.size() / getAppScale());
+        setFrameGeometry(rect);
     } else {
         if (m_requestedMaximizeMode == MaximizeRestore) {
             updateQuickTileMode(QuickTileFlag::None);

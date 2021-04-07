@@ -326,7 +326,7 @@ public:
     void setCurrentScreen(int new_screen);
 
     void minimizeAllWindow();
-    void setShowingDesktop(bool showing);
+    void setShowingDesktop(bool showing, bool activeNext = true);
     bool showingDesktop() const;
 
     void removeClient(X11Client *);   // Only called from X11Client::destroyClient() or X11Client::releaseWindow()
@@ -425,6 +425,12 @@ public:
     // yangg for jingos app under panel
     bool isBelowPanel(const AbstractClient* c) const;
     bool isTopClientJingApp() const;
+    bool isJingOSApp(const AbstractClient* c) const;
+    bool isJingOSApp(const QString& appName) const;
+
+    void setCloseWindowToDesktop(bool toDesktop) {
+        m_showDesktopWhenWindowClosed = toDesktop;
+    }
 public Q_SLOTS:
     void performWindowOperation(KWin::AbstractClient* c, Options::WindowOperation op);
     // Keybindings
@@ -488,6 +494,16 @@ public Q_SLOTS:
 
     void updateClientArea();
 
+    // yangg for jingos app under panel
+    void initApplicationInfo();
+
+    // casper_yang for app scale
+    qreal getAppDefaultScale();
+    void setAppDefaultScale(qreal scale);
+    void killScaleApps();
+    void setHasLogin(bool login);
+    bool hasLogin();
+
 private Q_SLOTS:
     void desktopResized();
     void selectWmInputEventMask();
@@ -535,6 +551,8 @@ Q_SIGNALS:
      * This signal is emitted whenever an internal client gets removed.
      */
     void internalClientRemoved(KWin::InternalClient *client);
+
+    void loginChanged(bool login);
 
 private:
     void init();
@@ -678,9 +696,11 @@ private:
 
     SessionManager *m_sessionManager;
 
-    // yangg for jingos app under panel
-    void initApplicationInfo();
     QStringList belowPanelApps;
+    // casper_yang for app scale
+    qreal _appDefaultScale = APP_DEFAULT_SCALE;
+    bool m_showDesktopWhenWindowClosed = true;
+    bool _hasLogin = false;
 private:
     friend bool performTransiencyCheck();
     friend Workspace *workspace();

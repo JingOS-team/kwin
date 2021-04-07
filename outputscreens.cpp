@@ -111,6 +111,32 @@ int OutputScreens::number(const QPoint &pos) const
     return bestScreen;
 }
 
+// casper_yang for scale
+void OutputScreens::setClientScale(wl_client *client, qreal scale)
+{
+    const auto outputs = m_platform->enabledOutputs();
+    for (int i = 0; i < outputs.size(); ++i) {
+        outputs[i]->setClientScale(client, scale);
+    }
+}
+
+// casper_yang for scale
+void OutputScreens::unsetClientScale(wl_client *client)
+{
+    const auto outputs = m_platform->enabledOutputs();
+    for (int i = 0; i < outputs.size(); ++i) {
+        outputs[i]->unsetClientScale(client);
+    }
+}
+
+void OutputScreens::setDefaultClientScale(qreal scale)
+{
+    const auto outputs = m_platform->enabledOutputs();
+    for (int i = 0; i < outputs.size(); ++i) {
+        outputs[i]->setDefaultClientScale(scale);
+    }
+}
+
 AbstractOutput *OutputScreens::findOutput(int screen) const
 {
     return m_platform->findOutput(screen);

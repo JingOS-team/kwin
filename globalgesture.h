@@ -39,6 +39,7 @@ private:
     void minimumWindow();
 
 private:
+    QSizeF _lastSpead = QSizeF(0., 0.);
     static GlobalGesture* _self;
     QSizeF _lastSwipDelta;
     bool _swipeStarted = false;

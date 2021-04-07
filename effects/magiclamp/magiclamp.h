@@ -53,7 +53,7 @@ private:
     QPointF scalePos(const QPoint &pos, int screen, qreal progress) const;
 
 private:
-    std::chrono::milliseconds lastPresentTime;
+    std::chrono::milliseconds lastPresentTime = std::chrono::milliseconds::zero();
     WindowMotionManager  manager;
     std::chrono::milliseconds m_duration;
     QHash<const EffectWindow *, MagicLampAnimation> m_animations;

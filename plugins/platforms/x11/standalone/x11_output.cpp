@@ -92,4 +92,19 @@ QSize X11Output::pixelSize() const
     return geometry().size();
 }
 
+void X11Output::setClientScale(wl_client *, qreal )
+{
+    // TODO casper_yang
+}
+
+void X11Output::unsetClientScale(wl_client *)
+{
+    // TODO casper_yang
+}
+
+void X11Output::setDefaultClientScale(qreal)
+{
+    // TODO casper_yang
+}
+
 }

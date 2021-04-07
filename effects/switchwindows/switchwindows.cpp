@@ -6,6 +6,7 @@
 
     SPDX-License-Identifier: GPL-2.0-or-later
 */
+
 #include "switchwindows.h"
 #include "workspace.h"
 #include <QTimer>
@@ -60,7 +61,7 @@ void SwitchWindows::prePaintWindow(EffectWindow *w, WindowPrePaintData &data, st
                 data.quads = data.quads.splitAtY(screenGeom.y() - w->y());
             if (w->y() + w->height() > screenGeom.y() + screenGeom.height())
                 data.quads = data.quads.splitAtY(screenGeom.y() + screenGeom.height() - w->y());
-        } 
+        }          w->disablePainting(EffectWindow::PAINT_DISABLED_BY_DESKTOP);
     }
     effects->prePaintWindow(w, data, presentTime);
 }
@@ -269,7 +270,6 @@ void SwitchWindows::doSwitchWindow(EffectWindow *old, EffectWindow *cur, bool is
         curAni->initAnimate(QEasingCurve::InOutQuart, toStdMs(getAniDuration()));
         curAni->initValue(getWindowSwitchPos(cur, isForward), cur->pos());
         curMotions->addTranslateAnimate(curAni);
-
 
         BoundAnimation2F *curScaleAni = new BoundAnimation2F;
         curScaleAni->initAnimate(QEasingCurve::InOutQuart, toStdMs(getAniDuration()));

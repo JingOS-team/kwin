@@ -438,18 +438,27 @@ public:
         if (!effects) {
             return false;
         }
-        return static_cast<EffectsHandlerImpl*>(effects)->checkInputWindowEvent(event);
+        auto seat = waylandServer()->seat();
+        seat->setTimestamp(event->timestamp());
+        bool ret = static_cast< EffectsHandlerImpl* >(effects)->pointerEvent(event);
+        return ret ? ret : static_cast<EffectsHandlerImpl*>(effects)->checkInputWindowEvent(event);
     }
     bool wheelEvent(QWheelEvent *event) override {
         if (!effects) {
             return false;
         }
+        auto seat = waylandServer()->seat();
+        seat->setTimestamp(event->timestamp());
+
         return static_cast<EffectsHandlerImpl*>(effects)->checkInputWindowEvent(event);
     }
     bool keyEvent(QKeyEvent *event) override {
         if (!effects || !static_cast< EffectsHandlerImpl* >(effects)->hasKeyboardGrab()) {
             return false;
         }
+        auto seat = waylandServer()->seat();
+        seat->setTimestamp(event->timestamp());
+
         waylandServer()->seat()->setFocusedKeyboardSurface(nullptr);
         passToWaylandServer(event);
         static_cast< EffectsHandlerImpl* >(effects)->grabbedKeyboardEvent(event);
@@ -459,18 +468,31 @@ public:
         if (!effects) {
             return false;
         }
+
+        auto seat = waylandServer()->seat();
+        seat->setTimestamp(time);
+
         return static_cast< EffectsHandlerImpl* >(effects)->touchDown(id, pos, time);
     }
     bool touchMotion(qint32 id, const QPointF &pos, quint32 time) override {
         if (!effects) {
             return false;
         }
+
+
+        auto seat = waylandServer()->seat();
+        seat->setTimestamp(time);
+
         return static_cast< EffectsHandlerImpl* >(effects)->touchMotion(id, pos, time);
     }
     bool touchUp(qint32 id, quint32 time) override {
         if (!effects) {
             return false;
         }
+
+        auto seat = waylandServer()->seat();
+        seat->setTimestamp(time);
+
         return static_cast< EffectsHandlerImpl* >(effects)->touchUp(id, time);
     }
 };
@@ -2169,9 +2191,6 @@ void InputRedirection::setupInputFilters()
     if (LogindIntegration::self()->hasSessionControl() && hasGlobalShortcutSupport) {
         installInputEventFilter(new VirtualTerminalFilter);
     }
-    if (hasGlobalShortcutSupport) {
-        installInputEventFilter(new ScreenEdgeInputFilter);
-    }
     if (waylandServer()) {
         installInputEventSpy(new TouchHideCursorSpy);
         if (hasGlobalShortcutSupport) {
@@ -2179,11 +2198,17 @@ void InputRedirection::setupInputFilters()
         }
         installInputEventFilter(new DragAndDropInputFilter);
         installInputEventFilter(new LockScreenFilter);
+    }
+    installInputEventFilter(new EffectsFilter);
+    if (hasGlobalShortcutSupport) {
+        installInputEventFilter(new ScreenEdgeInputFilter);
+    }
+
+    if (waylandServer()) {
         installInputEventFilter(new PopupInputFilter);
         m_windowSelector = new WindowSelectorFilter;
         installInputEventFilter(m_windowSelector);
     }
-    installInputEventFilter(new EffectsFilter);
 //    if (hasGlobalShortcutSupport) {
 //        installInputEventFilter(new ScreenEdgeInputFilter);
 //    }
@@ -2498,10 +2523,12 @@ Toplevel *InputRedirection::findToplevel(const QPoint &pos)
             return nullptr;
         }
         const QList<Unmanaged *> &unmanaged = Workspace::self()->unmanagedList();
-        foreach (Unmanaged *u, unmanaged) {
-            if (u->hitTest(pos)) {
-                return u;
+        auto it = unmanaged.rbegin();
+        while (it!= unmanaged.rend()) {
+            if ((*it)->hitTest(pos)) {
+                return *it;
             }
+            it++;
         }
     }
     return findManagedToplevel(pos);

@@ -1,0 +1,5 @@
+File=taskpanel.kcfg
+ClassName=TaskPanelConfig
+NameSpace=KWin
+Singleton=true
+Mutators=true

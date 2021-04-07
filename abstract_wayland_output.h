@@ -23,6 +23,7 @@
 #include <KWaylandServer/output_interface.h>
 #include <KWaylandServer/outputdevice_interface.h>
 
+struct wl_client;
 namespace KWaylandServer
 {
 class OutputInterface;
@@ -120,6 +121,11 @@ public:
      * Returns a matrix that can translate into the display's coordinates system
      */
     static QMatrix4x4 logicalToNativeMatrix(const QRect &rect, qreal scale, Transform transform);
+
+    // casper_yang for scale
+    void setClientScale(wl_client* client, qreal scale) override;
+    void unsetClientScale(wl_client* client) override;
+    void setDefaultClientScale(qreal scale) override;
 
 Q_SIGNALS:
     void modeChanged();

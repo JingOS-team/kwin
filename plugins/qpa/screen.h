@@ -13,7 +13,7 @@
 
 #include <QPointer>
 #include <QScopedPointer>
-
+struct wl_client;
 namespace KWin
 {
 class AbstractOutput;

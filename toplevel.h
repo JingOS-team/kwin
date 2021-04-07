@@ -474,6 +474,7 @@ public:
      */
     void elevate(bool elevate);
 
+    qreal getAppScale() const;
     /**
      * Returns the pointer to the Toplevel's Shadow. A Shadow
      * is only available if Compositing is enabled and the corresponding X window
@@ -595,6 +596,18 @@ public:
     {
         return m_internalId;
     }
+
+    virtual bool isScaleApp() const;
+    virtual void setIsScaleApp(bool isScale);
+
+    virtual bool isLogoutWindow() const;
+
+    virtual  bool isBackApp() const;
+    virtual void setIsBackApp(bool isBack);
+
+    virtual void kill();
+
+    virtual void sendScale(qreal scale = 1.);
 
 Q_SIGNALS:
     void opacityChanged(KWin::Toplevel* toplevel, qreal oldOpacity);
@@ -732,6 +745,9 @@ protected:
 
 protected:
     bool m_isDamaged;
+    bool m_isOnBack = false;
+    bool m_isScaleApp = false;
+    bool m_hasSendScaleInfo = false;
 
 private:
     // when adding new data members, check also copyToDeleted()
@@ -779,37 +795,37 @@ inline QSize Toplevel::clientSize() const
 
 inline QRect Toplevel::frameGeometry() const
 {
-    return m_frameGeometry;
+    return  m_frameGeometry;
 }
 
 inline QSize Toplevel::size() const
 {
-    return m_frameGeometry.size();
+    return frameGeometry().size();
 }
 
 inline QPoint Toplevel::pos() const
 {
-    return m_frameGeometry.topLeft();
+    return frameGeometry().topLeft();
 }
 
 inline int Toplevel::x() const
 {
-    return m_frameGeometry.x();
+    return frameGeometry().x();
 }
 
 inline int Toplevel::y() const
 {
-    return m_frameGeometry.y();
+    return frameGeometry().y();
 }
 
 inline int Toplevel::width() const
 {
-    return m_frameGeometry.width();
+    return frameGeometry().width();
 }
 
 inline int Toplevel::height() const
 {
-    return m_frameGeometry.height();
+    return frameGeometry().height();
 }
 
 inline QRect Toplevel::rect() const

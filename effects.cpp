@@ -958,7 +958,7 @@ void EffectsHandlerImpl::setShowingDesktop(bool showing)
 
 bool EffectsHandlerImpl::showingDesktop()
 {
-    return activeWindow() != nullptr && activeWindow()->isDesktop();
+    return Workspace::self()->showingDesktop();
 }
 
 QString EffectsHandlerImpl::currentActivity() const
@@ -1078,6 +1078,17 @@ double EffectsHandlerImpl::animationTimeFactor() const
 WindowQuadType EffectsHandlerImpl::newWindowQuadType()
 {
     return WindowQuadType(next_window_quad_type++);
+}
+
+bool EffectsHandlerImpl::pointerEvent(QMouseEvent *e)
+{
+    // TODO: reverse call order?
+    for (auto it = loaded_effects.constBegin(); it != loaded_effects.constEnd(); ++it) {
+        if (it->second->pointerEvent(e)) {
+            return true;
+        }
+    }
+    return false;
 }
 
 EffectWindow* EffectsHandlerImpl::findWindow(WId id) const
@@ -1756,6 +1767,26 @@ bool EffectsHandlerImpl::isShowingTaskMgr()
     return _showingTaskMgr;
 }
 
+EffectWindow *EffectsHandlerImpl::getDesktopWindow(int desktop)
+{
+    AbstractClient *pc = Workspace::self()->findDesktop(false, desktop);
+    if (pc != nullptr) {
+        return pc->effectWindow();
+    }
+
+    return nullptr;
+}
+
+void EffectsHandlerImpl::setCloseWindowToDesktop(bool toDesktop)
+{
+    Workspace::self()->setCloseWindowToDesktop(toDesktop);
+}
+
+qreal EffectsHandlerImpl::getAppDefaultScale()
+{
+    return workspace()->getAppDefaultScale();
+}
+
 //****************************************
 // EffectWindowImpl
 //****************************************
@@ -1786,6 +1817,16 @@ EffectWindowImpl::~EffectWindowImpl()
         GLTexture *cachedTexture = static_cast< GLTexture*>(cachedTextureVariant.value<void*>());
         delete cachedTexture;
     }
+}
+
+qreal EffectWindowImpl::appScale()
+{
+    return toplevel->getAppScale();
+}
+
+bool EffectWindowImpl::isScaleApp()
+{
+    return toplevel->isScaleApp();
 }
 
 bool EffectWindowImpl::isPaintingEnabled()
@@ -1874,6 +1915,7 @@ TOPLEVEL_HELPER(QRect, expandedGeometry, visibleRect)
 TOPLEVEL_HELPER(QRect, rect, rect)
 TOPLEVEL_HELPER(int, desktop, desktop)
 TOPLEVEL_HELPER(bool, isDesktop, isDesktop)
+TOPLEVEL_HELPER(bool, isLogoutWindow, isLogoutWindow)
 TOPLEVEL_HELPER(bool, isDock, isDock)
 TOPLEVEL_HELPER(bool, isToolbar, isToolbar)
 TOPLEVEL_HELPER(bool, isMenu, isMenu)
@@ -1899,6 +1941,8 @@ TOPLEVEL_HELPER(bool, isPopupWindow, isPopupWindow)
 TOPLEVEL_HELPER(bool, isOutline, isOutline)
 TOPLEVEL_HELPER(pid_t, pid, pid)
 TOPLEVEL_HELPER(qlonglong, windowId, window)
+TOPLEVEL_HELPER(qreal, getAppScale, getAppScale)
+TOPLEVEL_HELPER(const QRegion&, opaqueRegion, opaqueRegion)
 
 #undef TOPLEVEL_HELPER
 
@@ -2128,6 +2172,36 @@ void EffectWindowImpl::registerThumbnail(AbstractThumbnailItem *item)
         m_desktopThumbnails.append(desktopThumb);
         connect(desktopThumb, &QObject::destroyed, this, &EffectWindowImpl::desktopThumbnailDestroyed);
     }
+}
+
+int EffectWindowImpl::maximizeMode() const
+{
+    AbstractClient *client = qobject_cast<AbstractClient *>(toplevel);
+    if (client) {
+        return client->maximizeMode();
+    }
+
+    return -1;
+}
+
+bool EffectWindowImpl::isBackApp() const
+{
+    return toplevel->isBackApp();
+}
+
+void EffectWindowImpl::setIsBackApp(bool isBack)
+{
+    toplevel->setIsBackApp(isBack);
+}
+
+bool EffectWindowImpl::isTransient() const
+{
+    AbstractClient *client = qobject_cast<AbstractClient *>(toplevel);
+     if (client) {
+        return client->isTransient();
+     }
+
+     return false;
 }
 
 void EffectWindowImpl::thumbnailDestroyed(QObject *object)

@@ -552,9 +552,9 @@ bool X11Client::manage(xcb_window_t w, bool isMapped)
     }
 
     // jing_kwin max window
-    if (isNormalWindow()) {
-        geom = area;
-    }
+//    if (isDefaultMaxApp()) {
+//        geom = area;
+//    }
 
     if (isDesktop())
         // KWin doesn't manage desktop windows
@@ -632,6 +632,7 @@ bool X11Client::manage(xcb_window_t w, bool isMapped)
     }
     if (!placementDone) {
         // Placement needs to be after setting size
+       area.setSize(area.size()/workspace()->getAppDefaultScale());
         Placement::self()->place(this, area);
         // The client may have been moved to another screen, update placement area.
         area = workspace()->clientArea(PlacementArea, this);
@@ -895,7 +896,11 @@ bool X11Client::manage(xcb_window_t w, bool isMapped)
     // but this client is not yet in Workspace's client list at this point, will
     // be only done in addClient()
     emit clientManaging(this);
-    maximize(MaximizeFull);
+    // jing_kwin max window
+
+    if (isDefaultMaxApp()) {
+        changeMaximize(true, true, true);
+    }
     return true;
 }
 
@@ -2053,7 +2058,7 @@ bool X11Client::takeFocus()
         }
     }
     if (breakShowingDesktop)
-        workspace()->setShowingDesktop(false);
+        workspace()->setShowingDesktop(false, false);
 
     return true;
 }
@@ -2707,7 +2712,8 @@ QRect X11Client::frameRectToBufferRect(const QRect &rect) const
 QMatrix4x4 X11Client::inputTransformation() const
 {
     QMatrix4x4 matrix;
-    matrix.translate(-m_bufferGeometry.x(), -m_bufferGeometry.y());
+    // casper_yang for app scale
+    matrix.translate(-m_bufferGeometry.x() / getAppScale(), -m_bufferGeometry.y() / getAppScale());
     return matrix;
 }
 
@@ -3982,7 +3988,8 @@ void X11Client::configureRequest(int value_mask, int rx, int ry, int rw, int rh,
         QSize requestedFrameSize = clientSizeToFrameSize(requestedClientSize);
         requestedFrameSize = rules()->checkSize(requestedFrameSize);
 
-        if (requestedFrameSize != size()) { // don't restore if some app sets its own size again
+        // jing os for max window
+        if (requestedFrameSize != size() && (!isNormalWindow() || isTransient())) { // don't restore if some app sets its own size again
             QRect origClientGeometry = m_clientGeometry;
             GeometryUpdatesBlocker blocker(this);
             resizeWithChecks(requestedFrameSize, xcb_gravity_t(gravity));
@@ -4006,6 +4013,9 @@ void X11Client::configureRequest(int value_mask, int rx, int ry, int rw, int rh,
 
 void X11Client::resizeWithChecks(int w, int h, xcb_gravity_t gravity, ForceGeometry_t force)
 {
+    if (isDefaultMaxApp()) {
+        return;
+    }
     Q_ASSERT(!shade_geometry_change);
     if (isShade()) {
         if (h == borderTop() + borderBottom()) {
@@ -4162,6 +4172,10 @@ void X11Client::setFrameGeometry(const QRect &rect, ForceGeometry_t force)
     // for example using X11Client::clientSize()
 
     QRect frameGeometry = rect;
+    if (isDefaultMaxApp() && rect.isValid()) {
+        frameGeometry = workspace()->clientArea(MaximizeArea, this, rect.center(), desktop());
+        frameGeometry.setSize(frameGeometry.size() / getAppScale());
+    }
 
     if (shade_geometry_change)
         ; // nothing
@@ -4342,7 +4356,7 @@ void X11Client::changeMaximize(bool horizontal, bool vertical, bool adjust)
         return;
 
     QRect clientArea;
-    // yangg for jingos app under panel
+    // yanggx for jingos app under panel
     if (isElectricBorderMaximizing())
         clientArea = workspace()->clientArea(MaximizeArea, this, Cursors::self()->mouse()->pos(), desktop());
     else
@@ -4577,6 +4591,7 @@ void X11Client::changeMaximize(bool horizontal, bool vertical, bool adjust)
             }
             r.moveTopLeft(rules()->checkPosition(r.topLeft()));
         }
+        r.setSize(r.size()/workspace()->getAppDefaultScale());
         setFrameGeometry(r, geom_mode);
         if (options->electricBorderMaximize() && r.top() == clientArea.top())
             updateQuickTileMode(QuickTileFlag::Maximize);

@@ -17,6 +17,8 @@
 #include "abstract_client.h"
 #include "wayland_server.h"
 #include "workspace.h"
+#include "screens.h"
+#include "taskmanager.h"
 
 #include "effects.h"
 namespace KWin {
@@ -55,40 +57,38 @@ void GlobalGesture::pinchGestureCancelled(quint32 time)
 
 void GlobalGesture::swipeGestureBegin(int fingerCount, quint32 time, bool isTouch)
 {
+    Q_UNUSED(isTouch);
     if (fingerCount == 3 || fingerCount == 4) {
         _swipeTime = time;
         _swipeStarted = true;
+        _lastSpead = QSize(0., 0.);
+
+        taskManager->setTaskState(TaskManager::TS_Prepare);
     }
 }
 
 void GlobalGesture::swipeGestureUpdate(const QSizeF &delta, quint32 time, bool isTouch)
 {
+    Q_UNUSED(isTouch);
     if (_swipeStarted) {
-        _swipeDelta += delta;
-        if (std::abs(_swipeDelta.height()) > 50 || std::abs(_swipeDelta.width()) > 100) {
-            swipeGestureEnd(time, isTouch);
+        _swipeDelta += delta * 3;
+
+        if (time != _swipeTime) {
+            _lastSpead = delta / (time - _swipeTime);
         }
+        _swipeTime = time;
+        taskManager->updateMove(delta, std::abs(_swipeDelta.height())/(screens()->size(0).height() - 50));
     }
 }
 
 void GlobalGesture::swipeGestureEnd(quint32 time, bool isTouch)
 {
+    Q_UNUSED(time);
+    Q_UNUSED(isTouch)
+
     if (_swipeStarted) {
-        qreal rate = std::abs(_swipeDelta.width()) / std::abs(_swipeDelta.height());
-        if (std::abs(_swipeDelta.width()) / std::abs(_swipeDelta.height()) > 1.2) {
-            effects->onTaskSwipe(_swipeDelta.width() > 0);
-        } else if (!isTouch) {
-            qreal delta = std::abs(_swipeDelta.width()) + std::abs(_swipeDelta.height());
-            if (delta / (time - _swipeTime) > 1.0 && _swipeDelta.height() < 0) {
-                if (nullptr != Workspace::self() && waylandServer() && !waylandServer()->isScreenLocked()) {
-                    Workspace::self()->minimizeAllWindow();
-                    ScreenEdges::self()->hideTaskManager();
-                }
-            } else {
-                ScreenEdges::self()->onBottomGesture();
-            }
-        }
-         _swipeStarted = false;
+        taskManager->onGestueEnd(_swipeDelta, _lastSpead);
+        _swipeStarted = false;
     }
 
 
@@ -107,20 +107,7 @@ void GlobalGesture::minimumWindow()
 void GlobalGesture::swipeGestureCancelled(quint32 time, bool isTouch)
 {
     if (_swipeStarted) {
-        qreal rate = std::abs(_swipeDelta.width()) / std::abs(_swipeDelta.height());
-        if (std::abs(_swipeDelta.width()) / std::abs(_swipeDelta.height()) > 1.2) {
-            effects->onTaskSwipe(_swipeDelta.width() > 0);
-        } else if (!isTouch) {
-            qreal delta = std::abs(_swipeDelta.width()) + std::abs(_swipeDelta.height());
-            if (delta / (time - _swipeTime) > 2.0 && _swipeDelta.height() < 0) {
-                if (nullptr != Workspace::self() && waylandServer() && !waylandServer()->isScreenLocked()) {
-                    Workspace::self()->setShowingDesktop(true);
-                    ScreenEdges::self()->hideTaskManager();
-                }
-            } else {
-                ScreenEdges::self()->onBottomGesture();
-            }
-        }
+        taskManager->onGestueEnd(_swipeDelta, _lastSpead);
         _swipeStarted = false;
     }
 

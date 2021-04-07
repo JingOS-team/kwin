@@ -31,7 +31,7 @@ namespace KWin
 {
 
 const QPoint invalidPoint(INT_MIN, INT_MIN);
-
+const qreal APP_DEFAULT_SCALE = 1.2;
 enum Layer {
     UnknownLayer = -1,
     FirstLayer = 0,
@@ -111,6 +111,50 @@ enum class QuickTileFlag {
     Maximize    = Left | Right | Top | Bottom,
 };
 Q_DECLARE_FLAGS(QuickTileMode, QuickTileFlag)
+
+const QList<QString> g_jing_app_list {
+"org.kde.jinggallery",
+"org.jingos.ub",
+"org.kde.media,org.kde.krecorder",
+"org.kde.index",
+"org.kde.kalk",
+"org.kde.kclock",
+"org.kde.discover",
+"org.kde.mobile.plasmasettings",
+"org.kde.calindori",
+"userguide userguide",
+"userguide"
+};
+
+const QList<QString> g_scale_black_list {
+"jinggallery",
+"ub",
+"krecorder",
+"index",
+"kalk",
+"kclock",
+"discover",
+"chromium-browser",
+"plasmasettings",
+"calindori",
+"org.kde.plasmashell",
+"org.kde.kscreenlocker",
+"org.kde.kscreenlocker_greet",
+"org.kde.konsole",
+"systemsettings",
+"org.kde.plasma-camera",
+"org.kde.media",
+"userguide userguide",
+"userguide",
+"qaptupdator",
+"org.jingos.qaptupdator",
+"org.kde.polkit-kde-authentication-agent-1",
+"haruna",
+"org.kde.haruna",
+"io.calamares.calamares",
+"ksplashqml"
+};
+
 
 template <typename T> using ScopedCPointer = QScopedPointer<T, QScopedPointerPodDeleter>;
 

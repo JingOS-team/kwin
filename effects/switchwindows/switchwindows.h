@@ -6,6 +6,7 @@
 
     SPDX-License-Identifier: GPL-2.0-or-later
 */
+
 #ifndef SWITCHWINDOWS_H
 #define SWITCHWINDOWS_H
 

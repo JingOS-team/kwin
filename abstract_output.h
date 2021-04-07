@@ -16,6 +16,7 @@
 #include <QSize>
 #include <QVector>
 
+struct wl_client;
 namespace KWaylandServer
 {
 class OutputChangeSet;
@@ -176,6 +177,11 @@ public:
      * Returns the serial number of the screen.
      */
     virtual QString serialNumber() const;
+
+    // casper_yang for scale
+    virtual void setClientScale(wl_client* client, qreal scale) = 0;
+    virtual void unsetClientScale(wl_client* client) = 0;
+    virtual void setDefaultClientScale(qreal scale) = 0;
 
 Q_SIGNALS:
     /**

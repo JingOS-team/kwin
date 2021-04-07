@@ -113,6 +113,8 @@ set(kwin4_effect_builtins_sources
     windowgeometry/windowgeometry.cpp
     wobblywindows/wobblywindows.cpp
     zoom/zoom.cpp
+    taskpanel/taskpanel.cpp
+    taskpanel/tasklist.cpp
     ../service_utils.cpp
 )
 
@@ -183,6 +185,7 @@ install_scripted_effect(sessionquit)
 # Built-in effects go here
 
 # Common effects
+add_subdirectory(taskpanel)
 add_subdirectory(desktopgrid)
 add_subdirectory(diminactive)
 include(fallapart/CMakeLists.txt)

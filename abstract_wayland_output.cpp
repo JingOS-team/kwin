@@ -380,4 +380,28 @@ QMatrix4x4 AbstractWaylandOutput::logicalToNativeMatrix(const QRect &rect, qreal
     return matrix;
 }
 
+// casper_yang for scale
+void AbstractWaylandOutput::setClientScale(wl_client *client, qreal scale)
+{
+    if (m_xdgOutputV1) {
+        m_xdgOutputV1->setClientScale(client, scale);
+    }
+}
+
+// casper_yang for scale
+void AbstractWaylandOutput::unsetClientScale(wl_client *client)
+{
+    if (m_xdgOutputV1) {
+        m_xdgOutputV1->unsetClientScale(client);
+    }
+}
+
+void AbstractWaylandOutput::setDefaultClientScale(qreal scale)
+{
+    if (m_xdgOutputV1) {
+        m_xdgOutputV1->setAppDefaultScale(scale);
+        emit geometryChanged();
+    }
+}
+
 }

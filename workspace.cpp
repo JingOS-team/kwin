@@ -1300,7 +1300,7 @@ void Workspace::minimizeAllWindow() {
     }
 }
 
-void Workspace::setShowingDesktop(bool showing)
+void Workspace::setShowingDesktop(bool showing, bool activeNext)
 {
     const bool changed = showing != showing_desktop;
     if (rootInfo() && changed) {
@@ -1308,6 +1308,16 @@ void Workspace::setShowingDesktop(bool showing)
     }
     showing_desktop = showing;
 
+    if (showing) {
+        forEachToplevel([](Toplevel* top) {
+            AbstractClient *client = qobject_cast<AbstractClient *>(top);
+            if (client && (client->isNormalWindow() || client->isDialog() || client->isUtility())) {
+                client->setIsBackApp(true);
+            } else if (client){
+                qDebug()<<"setShowingDesktop:"<<client->isNormalWindow()<<" "<<client->windowType();
+            }
+        });
+    }
     AbstractClient *topDesk = nullptr;
 
     { // for the blocker RAII
@@ -1334,7 +1344,7 @@ void Workspace::setShowingDesktop(bool showing)
 
     if (showing_desktop && topDesk) {
         requestFocus(topDesk);
-    } else if (!showing_desktop && changed) {
+    } else if (!showing_desktop && activeNext && changed) {
         const auto client = FocusChain::self()->getForActivation(VirtualDesktopManager::self()->current());
         if (client) {
             activateClient(client);
@@ -1853,12 +1863,55 @@ void Workspace::updateTabbox()
 #endif
 }
 
+qreal Workspace::getAppDefaultScale()
+{
+    if (_hasLogin) {
+        return _appDefaultScale;
+    }
+
+    return 1;
+}
+
+void Workspace::setAppDefaultScale(qreal scale)
+{
+    _appDefaultScale = scale;
+    screens()->setDefaultClientScale(scale);
+}
+
+// casper_yang for app scale
+void Workspace::killScaleApps()
+{
+    foreach (EffectWindow * w, effects->stackingOrder()) {
+        if (w->isScaleApp() && w->pid() > 0) {
+            qDebug()<<Q_FUNC_INFO<<w->pid();
+            w->kill();
+        }
+    }
+}
+
+void Workspace::setHasLogin(bool login)
+{
+    _hasLogin = login;
+    loginChanged(login);
+    initApplicationInfo();
+}
+
+bool Workspace::hasLogin()
+{
+    return _hasLogin;
+}
+
 // yangg for jingos app under panel
 void Workspace::initApplicationInfo()
 {
     auto cfg = KSharedConfig::openConfig(QStringLiteral("applications-blacklistrc"));
     auto blgroup = KConfigGroup(cfg, QStringLiteral("Applications"));
     belowPanelApps = blgroup.readEntry("belowPanel", QStringList());
+    foreach(QString str , g_jing_app_list) {
+        if (!belowPanelApps.contains(str)) {
+            belowPanelApps.append(str);
+        }
+    }
 }
 
 void Workspace::addInternalClient(InternalClient *client)
@@ -2055,7 +2108,7 @@ QRect Workspace::adjustClientArea(AbstractClient *client, const QRect &area) con
 {
     QRect adjustedArea = area;
 
-    QRect strutLeft = client->strutRect(StrutAreaLeft);
+    QRect strutLeft = QRect(); //client->strutRect(StrutAreaLeft);
     QRect strutRight = client->strutRect(StrutAreaRight);
     QRect strutTop = client->strutRect(StrutAreaTop);
     QRect strutBottom = client->strutRect(StrutAreaBottom);
@@ -2114,6 +2167,16 @@ bool Workspace::isBelowPanel(const AbstractClient *c) const {
 bool Workspace::isTopClientJingApp() const
 {
     return isBelowPanel(activeClient());
+}
+
+bool Workspace::isJingOSApp(const AbstractClient *c) const
+{
+    return isBelowPanel(c);
+}
+
+bool Workspace::isJingOSApp(const QString &appName) const
+{
+    return belowPanelApps.contains(appName);
 }
 
 /**

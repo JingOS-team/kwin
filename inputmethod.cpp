@@ -112,13 +112,21 @@ void InputMethod::init()
 void InputMethod::show()
 {
     // jing_kwin virtual input not show when has keyboard device
-    setInputActivate();
+    if (m_shown) {
+        waylandServer()->inputMethod()->sendDeactivate();
+    }
+
+    if (setInputActivate()) {
+        adoptInputMethodContext();
+        m_shown = true;
+    }
 }
 
 void InputMethod::hide()
 {
     waylandServer()->inputMethod()->sendDeactivate();
     updateInputPanelState();
+    m_shown = false;
 }
 
 void InputMethod::clientAdded(AbstractClient* client)
@@ -420,6 +428,8 @@ void InputMethod::setPreeditString(uint32_t serial, const QString &text, const Q
 
 void InputMethod::adoptInputMethodContext()
 {
+    static InputMethodContextV1Interface * interface_bak = 0;
+
     auto inputContext = waylandServer()->inputMethod()->context();
 
     TextInputV2Interface *t2 = waylandServer()->seat()->textInputV2();
@@ -429,8 +439,8 @@ void InputMethod::adoptInputMethodContext()
         inputContext->sendSurroundingText(t2->surroundingText(), t2->surroundingTextCursorPosition(), t2->surroundingTextSelectionAnchor());
         inputContext->sendPreferredLanguage(t2->preferredLanguage());
         inputContext->sendContentType(t2->contentHints(), t2->contentPurpose());
-        connect(inputContext, &KWaylandServer::InputMethodContextV1Interface::language, waylandServer(), &setLanguage);
-        connect(inputContext, &KWaylandServer::InputMethodContextV1Interface::textDirection, waylandServer(), &setTextDirection);
+        connect(inputContext, &KWaylandServer::InputMethodContextV1Interface::language, waylandServer(), &setLanguage, Qt::UniqueConnection);
+        connect(inputContext, &KWaylandServer::InputMethodContextV1Interface::textDirection, waylandServer(), &setTextDirection, Qt::UniqueConnection);
     }
 
     if (t3 && t3->isEnabled()) {
@@ -438,12 +448,17 @@ void InputMethod::adoptInputMethodContext()
         inputContext->sendContentType(t3->contentHints(), t3->contentPurpose());
     }
 
-    connect(inputContext, &KWaylandServer::InputMethodContextV1Interface::keysym, waylandServer(), &keysymReceived);
-    connect(inputContext, &KWaylandServer::InputMethodContextV1Interface::commitString, waylandServer(), &commitString);
-    connect(inputContext, &KWaylandServer::InputMethodContextV1Interface::deleteSurroundingText, waylandServer(), &deleteSurroundingText);
-    connect(inputContext, &KWaylandServer::InputMethodContextV1Interface::cursorPosition, waylandServer(), &setCursorPosition);
-    connect(inputContext, &KWaylandServer::InputMethodContextV1Interface::preeditString, this, &InputMethod::setPreeditString);
-    connect(inputContext, &KWaylandServer::InputMethodContextV1Interface::preeditCursor, this, &InputMethod::setPreeditCursor);
+    if (inputContext != interface_bak) {
+        connect(inputContext, &KWaylandServer::InputMethodContextV1Interface::keysym, waylandServer(), &keysymReceived, Qt::UniqueConnection);
+        connect(inputContext, &KWaylandServer::InputMethodContextV1Interface::commitString, waylandServer(), &commitString, Qt::UniqueConnection);
+        connect(inputContext, &KWaylandServer::InputMethodContextV1Interface::deleteSurroundingText, waylandServer(), &deleteSurroundingText, Qt::UniqueConnection);
+        connect(inputContext, &KWaylandServer::InputMethodContextV1Interface::cursorPosition, waylandServer(), &setCursorPosition, Qt::UniqueConnection);
+        connect(inputContext, &KWaylandServer::InputMethodContextV1Interface::preeditString, this, &InputMethod::setPreeditString, Qt::UniqueConnection);
+        connect(inputContext, &KWaylandServer::InputMethodContextV1Interface::preeditCursor, this, &InputMethod::setPreeditCursor, Qt::UniqueConnection);
+    }
+
+    interface_bak = inputContext;
+
 }
 
 // jing_kwin virtual input not show when has keyboard device
@@ -455,6 +470,7 @@ bool InputMethod::setInputActivate()
     }
 
     waylandServer()->inputMethod()->sendActivate();
+
     return true;
 }
 

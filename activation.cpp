@@ -27,7 +27,7 @@
 #include <kstartupinfo.h>
 #include <kstringhandler.h>
 #include <KLocalizedString>
-
+#include "screenlockerwatcher.h"
 #include "atoms.h"
 #include "group.h"
 #include "rules.h"
@@ -305,7 +305,7 @@ void Workspace::activateClient(AbstractClient* c, bool force, bool avoid_animati
     // ensure the window is really visible - could eg. be a hidden utility window, see bug #348083
     c->hideClient(false);
 
-// TODO force should perhaps allow this only if the window already contains the mouse
+    // TODO force should perhaps allow this only if the window already contains the mouse
     if (options->focusPolicyIsReasonable() || force)
         requestFocus(c, force);
 
@@ -365,9 +365,9 @@ bool Workspace::takeActivity(AbstractClient* c, ActivityFlags flags)
     if (!flags.testFlag(ActivityFocusForce) && (c->isDock() || c->isSplash())) {
         // toplevel menus and dock windows don't take focus if not forced
         // and don't have a flag that they take focus
-	if (!c->dockWantsInput()) {
-	    flags &= ~ActivityFocus;
-	}
+        if (!c->dockWantsInput()) {
+            flags &= ~ActivityFocus;
+        }
     }
     if (c->isShade()) {
         if (c->wantsInput() && (flags & ActivityFocus)) {
@@ -420,7 +420,7 @@ AbstractClient *Workspace::clientUnderMouse(int screen) const
         // rule out clients which are not really visible.
         // the screen test is rather superfluous for xrandr & twinview since the geometry would differ -> TODO: might be dropped
         if (!(client->isShown(false) && client->isOnCurrentDesktop() &&
-                client->isOnCurrentActivity() && client->isOnScreen(screen)))
+              client->isOnCurrentActivity() && client->isOnScreen(screen)))
             continue;
 
         if (client->frameGeometry().contains(Cursors::self()->mouse()->pos())) {
@@ -480,8 +480,13 @@ bool Workspace::activateNextClient(AbstractClient* c)
             }
         }
         if (!get_focus) {
-            // nope, ask the focus chain for the next candidate
             get_focus = FocusChain::self()->nextForDesktop(c, desktop);
+            // nope, ask the focus chain for the next candidate
+
+            if (m_showDesktopWhenWindowClosed && get_focus && get_focus->isBackApp()) {
+                setShowingDesktop(true);
+                return false;
+            }
         }
     }
 
@@ -532,7 +537,7 @@ void Workspace::setShouldGetFocus(AbstractClient* c)
 
 
 namespace FSP {
-    enum Level { None = 0, Low, Medium, High, Extreme };
+enum Level { None = 0, Low, Medium, High, Extreme };
 }
 
 // focus_in -> the window got FocusIn event
@@ -617,7 +622,7 @@ bool Workspace::allowClientActivation(const KWin::AbstractClient *c, xcb_timesta
     // Low or medium FSP, usertime comparism is possible
     const xcb_timestamp_t user_time = ac->userTime();
     qCDebug(KWIN_CORE) << "Activation, compared:" << c << ":" << time << ":" << user_time
-                 << ":" << (NET::timestampCompare(time, user_time) >= 0);
+                       << ":" << (NET::timestampCompare(time, user_time) >= 0);
     return NET::timestampCompare(time, user_time) >= 0;   // time >= user_time
 }
 
@@ -649,7 +654,7 @@ bool Workspace::allowFullClientRaising(const KWin::AbstractClient *c, xcb_timest
         return false;
     xcb_timestamp_t user_time = ac->userTime();
     qCDebug(KWIN_CORE) << "Raising, compared:" << time << ":" << user_time
-                 << ":" << (NET::timestampCompare(time, user_time) >= 0);
+                       << ":" << (NET::timestampCompare(time, user_time) >= 0);
     return NET::timestampCompare(time, user_time) >= 0;   // time >= user_time
 }
 
@@ -716,7 +721,7 @@ xcb_timestamp_t X11Client::readUserCreationTime() const
 }
 
 xcb_timestamp_t X11Client::readUserTimeMapTimestamp(const KStartupInfoId *asn_id, const KStartupInfoData *asn_data,
-                                                 bool session) const
+                                                    bool session) const
 {
     xcb_timestamp_t time = info->userTime();
     //qDebug() << "User timestamp, initial:" << time;
@@ -763,7 +768,7 @@ xcb_timestamp_t X11Client::readUserTimeMapTimestamp(const KStartupInfoId *asn_id
                     ; // is transient for currently active window, even though it's not
                 // the same app (e.g. kcookiejar dialog) -> allow activation
                 else if (groupTransient() &&
-                        findInList<X11Client, X11Client>(clientMainClients(), sameApplicationActiveHackPredicate) == nullptr)
+                         findInList<X11Client, X11Client>(clientMainClients(), sameApplicationActiveHackPredicate) == nullptr)
                     ; // standalone transient
                 else
                     first_window = false;

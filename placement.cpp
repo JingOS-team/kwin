@@ -459,8 +459,9 @@ void Placement::placeCentered(AbstractClient* c, const QRect& area, Policy /*nex
 {
     Q_ASSERT(area.isValid());
 
-    const int xp = area.left() + (area.width() - c->width()) / 2;
-    const int yp = area.top() + (area.height() - c->height()) / 2;
+    // casper_yang for center dialog
+    const int xp = area.left() + (area.width() - c->width() * c->getAppScale()) / 2;
+    const int yp = area.top() + (area.height() - c->height() * c->getAppScale()) / 2;
 
     // place the window
     c->move(QPoint(xp, yp));
@@ -519,7 +520,12 @@ void Placement::placeTransient(AbstractClient *c)
 
 void Placement::placeDialog(AbstractClient *c, const QRect &area, Policy nextPlacement)
 {
-    placeOnMainWindow(c, area, nextPlacement);
+   // casper_yang for center dialog
+    if (c->isDefaultMaxApp()) {
+        placeOnMainWindow(c, area, nextPlacement);
+    } else {
+        placeOnMainWindow(c, area, Centered);
+    }
 }
 
 void Placement::placeUnderMouse(AbstractClient *c, const QRect &area, Policy /*next*/)
@@ -579,7 +585,10 @@ void Placement::placeOnMainWindow(AbstractClient *c, const QRect &area, Policy n
         return;
     }
     QRect geom = c->frameGeometry();
-    geom.moveCenter(place_on->frameGeometry().center());
+    // casper_yang for center dialog
+    QRect placeOnGemo = place_on->frameGeometry();
+    placeOnGemo.setSize(placeOnGemo.size() * place_on->getAppScale());
+    geom.moveCenter(placeOnGemo.center());
     c->move(geom.topLeft());
     // get area again, because the mainwindow may be on different xinerama screen
     const QRect placementArea = workspace()->clientArea(PlacementArea, c);

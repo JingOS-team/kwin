@@ -1059,8 +1059,9 @@ void SceneOpenGL2::performPaintWindow(EffectWindowImpl* w, int mask, const QRegi
             });
         }
         m_lanczosFilter->performPaint(w, mask, region, data);
-    } else
+    } else {
         w->sceneWindow()->performPaint(mask, region, data);
+    }
 }
 
 //****************************************

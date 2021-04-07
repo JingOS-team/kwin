@@ -69,6 +69,7 @@ Deleted* Deleted::create(Toplevel* c)
     Deleted* d = new Deleted();
     d->copyToDeleted(c);
     workspace()->addDeleted(d, c);
+    d->setIsScaleApp(c->isScaleApp());
     return d;
 }
 

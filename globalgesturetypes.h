@@ -6,6 +6,7 @@
 
     SPDX-License-Identifier: GPL-2.0-or-later
 */
+
 #ifndef GLOBALGESTURETYPES_H
 #define GLOBALGESTURETYPES_H
 #include <QtGlobal>

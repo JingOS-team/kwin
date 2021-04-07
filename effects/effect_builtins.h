@@ -61,6 +61,7 @@ enum class BuiltInEffect
     WobblyWindows,
     SwitchWindows,
     ShowSysInfo,
+    TaskPanel,
     Zoom
 };
 

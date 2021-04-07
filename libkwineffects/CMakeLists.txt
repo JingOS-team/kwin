@@ -10,6 +10,7 @@ ecm_setup_version(${PROJECT_VERSION}
 
 ### xrenderutils lib ###
 set(kwin_XRENDERUTILS_SRCS
+    taskmanager.cpp
     kwinxrenderutils.cpp
     logging.cpp
 )
@@ -36,6 +37,7 @@ install(TARGETS kwinxrenderutils EXPORT KWinEffectsTargets ${INSTALL_TARGETS_DEF
 
 ###  effects lib  ###
 set(kwin_EFFECTSLIB_SRCS
+    taskmanager.cpp
     anidata.cpp
     kwinanimationeffect.cpp
     kwineffectquickview.cpp
@@ -71,6 +73,7 @@ install(TARGETS kwineffects EXPORT KWinEffectsTargets ${INSTALL_TARGETS_DEFAULT_
 
 # kwingl(es)utils library
 set(kwin_GLUTILSLIB_SRCS
+    taskmanager.cpp
     kwinglplatform.cpp
     kwingltexture.cpp
     kwinglutils.cpp
@@ -105,6 +108,7 @@ install(FILES
     kwinglutils.h
     kwinglutils_funcs.h
     kwinxrenderutils.h
+    taskmanager.h
     DESTINATION ${INCLUDE_INSTALL_DIR} COMPONENT Devel)
 
 set(CMAKECONFIG_INSTALL_DIR "${KDE_INSTALL_CMAKEPACKAGEDIR}/KWinEffects")

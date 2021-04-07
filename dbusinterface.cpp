@@ -44,6 +44,13 @@ DBusInterface::DBusInterface(QObject *parent)
 {
     (void) new KWinAdaptor(this);
 
+    qreal _scale = workspace()->getAppDefaultScale();
+    auto scaleSchemeConfig = KSharedConfig::openConfig("applications-scale", KConfig::SimpleConfig);
+    auto scaleGgroup = KConfigGroup(scaleSchemeConfig, QStringLiteral("ApplicationScale"));
+    _scale = scaleGgroup.readEntry("default", APP_DEFAULT_SCALE);
+
+    workspace()->setAppDefaultScale(_scale > 0 ? _scale : APP_DEFAULT_SCALE);
+
     QDBusConnection dbus = QDBusConnection::sessionBus();
     dbus.registerObject(QStringLiteral("/KWin"), this);
     const QByteArray dBusSuffix = qgetenv("KWIN_DBUS_SERVICE_SUFFIX");
@@ -59,6 +66,12 @@ DBusInterface::DBusInterface(QObject *parent)
     dbus.connect(QString(), QStringLiteral("/KWin"), QStringLiteral("org.kde.KWin"), QStringLiteral("reloadConfig"),
                  Workspace::self(), SLOT(slotReloadConfig()));
     connect(kwinApp(), &Application::x11ConnectionChanged, this, &DBusInterface::announceService);
+
+    connect(workspace(), &Workspace::loginChanged, this, [this](bool login) {
+        if (login) {
+            emit appDefaultScaleChanged(workspace()->getAppDefaultScale());
+        }
+    });
 }
 
 void DBusInterface::becomeKWinService(const QString &service)
@@ -244,6 +257,27 @@ QVariantMap DBusInterface::getWindowInfo(const QString &uuid)
     } else {
         return {};
     }
+}
+
+void DBusInterface::setAppDefaultScale(qreal scale)
+{
+    qreal _scale = workspace()->getAppDefaultScale();
+    if (scale < 5 && scale > 0.1 && _scale != scale) {
+        _scale = scale;
+        workspace()->setAppDefaultScale(scale);
+        workspace()->killScaleApps();
+        if (workspace()->hasLogin()) {
+            emit appDefaultScaleChanged(scale);
+        }
+        auto scaleSchemeConfig = KSharedConfig::openConfig("applications-scale", KConfig::SimpleConfig);
+        auto scaleGgroup = KConfigGroup(scaleSchemeConfig, QStringLiteral("ApplicationScale"));
+        scaleGgroup.writeEntry("default", scale);
+    }
+}
+
+qreal DBusInterface::getAppDefaultScale()
+{
+    return workspace()->getAppDefaultScale();
 }
 
 CompositorDBusInterface::CompositorDBusInterface(Compositor *parent)

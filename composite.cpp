@@ -349,6 +349,7 @@ void Compositor::startupWithWorkspace()
 
     // Sets also the 'effects' pointer.
     kwinApp()->platform()->createEffectsHandler(this, m_scene);
+    kwinApp()->platform()->createTaskManager(this);
     connect(Workspace::self(), &Workspace::deletedRemoved, m_scene, &Scene::removeToplevel);
     connect(effects, &EffectsHandler::screenGeometryChanged, this, &Compositor::addRepaintFull);
 
@@ -617,7 +618,7 @@ void Compositor::performCompositing()
     // Reset the damage state of each window and fetch the damage region
     // without waiting for a reply
     for (Toplevel *win : qAsConst(windows)) {
-        if (win->resetAndFetchDamage()) {
+        if (win->resetAndFetchDamage() && !win->isBackApp()) {
             damaged << win;
         }
     }
@@ -671,6 +672,7 @@ void Compositor::performCompositing()
         if (!win->readyForPainting()) {
             windows.removeAll(win);
         }
+
         if (waylandServer() && waylandServer()->isScreenLocked()) {
             if(!win->isLockScreen() && !win->isInputMethod()) {
                 windows.removeAll(win);

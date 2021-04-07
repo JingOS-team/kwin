@@ -157,6 +157,7 @@ public:
     double animationTimeFactor() const override;
     WindowQuadType newWindowQuadType() override;
 
+    bool pointerEvent(QMouseEvent *e);
     void defineCursor(Qt::CursorShape shape) override;
     bool checkInputWindowEvent(QMouseEvent *e);
     bool checkInputWindowEvent(QWheelEvent *e);
@@ -273,6 +274,12 @@ public:
 
     virtual void setShowingTaskMgr(bool showing) override;
     virtual bool isShowingTaskMgr() override;
+
+    virtual EffectWindow *getDesktopWindow(int desktop) override;
+
+    virtual void setCloseWindowToDesktop(bool toDesktop) override;
+
+    virtual qreal getAppDefaultScale() override;
 public Q_SLOTS:
     void slotCurrentTabAboutToChange(EffectWindow* from, EffectWindow* to);
     void slotTabAdded(EffectWindow* from, EffectWindow* to);
@@ -375,6 +382,8 @@ public:
     explicit EffectWindowImpl(Toplevel *toplevel);
     ~EffectWindowImpl() override;
 
+    qreal appScale() override;
+    bool isScaleApp() override;
     void enablePainting(int reason) override;
     void disablePainting(int reason) override;
     bool isPaintingEnabled() override;
@@ -429,6 +438,7 @@ public:
     bool isToolbar() const override;
     bool isMenu() const override;
     bool isNormalWindow() const override;
+    bool isLogoutWindow() const override;
     bool isSpecialWindow() const override;
     bool isDialog() const override;
     bool isSplash() const override;
@@ -449,6 +459,9 @@ public:
     bool isModal() const override;
     bool isPopupWindow() const override;
     bool isOutline() const override;
+
+    qreal getAppScale() const override;
+    const QRegion& opaqueRegion() const override;
 
     KWaylandServer::SurfaceInterface *surface() const override;
     bool isFullScreen() const override;
@@ -510,6 +523,11 @@ public:
         return m_desktopThumbnails;
     }
 
+    int maximizeMode() const override;
+
+    bool isBackApp() const override;
+    void setIsBackApp(bool isBack) override;
+    bool isTransient() const override;
 private Q_SLOTS:
     void thumbnailDestroyed(QObject *object);
     void thumbnailTargetChanged();

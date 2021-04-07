@@ -592,6 +592,8 @@ void WaylandServer::initScreenLocker()
             if (clientFd < 0) {
                 return;
             }
+            // casper_yang for app scale
+            screens()->setDefaultClientScale(1.);
             ScreenLocker::KSldApp::self()->setWaylandFd(clientFd);
 
             for (auto *seat : m_display->seats()) {
@@ -614,6 +616,9 @@ void WaylandServer::initScreenLocker()
                            screenLockerApp, &ScreenLocker::KSldApp::userActivity);
             }
             ScreenLocker::KSldApp::self()->setWaylandFd(-1);
+            // casper_yang for app scale
+            screens()->setDefaultClientScale(Workspace::self()->getAppDefaultScale());
+            Workspace::self()->setHasLogin(true);
         }
     );
 

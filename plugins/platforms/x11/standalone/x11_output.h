@@ -48,6 +48,11 @@ public:
 
     QSize pixelSize() const override;
 
+    // casper_yang for scale
+    void setClientScale(wl_client* client, qreal scale) override;
+    void unsetClientScale(wl_client* client) override;
+    virtual void setDefaultClientScale(qreal scale) override;
+
 private:
     void setCrtc(xcb_randr_crtc_t crtc);
     void setGammaRampSize(int size);

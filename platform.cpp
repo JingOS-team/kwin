@@ -21,7 +21,7 @@
 #include "screens.h"
 #include "screenedge.h"
 #include "wayland_server.h"
-
+#include "taskmanager.h"
 #include <KWaylandServer/outputconfiguration_interface.h>
 #include <KWaylandServer/outputchangeset.h>
 
@@ -611,6 +611,11 @@ void Platform::invertScreen()
 void Platform::createEffectsHandler(Compositor *compositor, Scene *scene)
 {
     new EffectsHandlerImpl(compositor, scene);
+}
+
+void Platform::createTaskManager(Compositor *compositor)
+{
+    new TaskManager(compositor);
 }
 
 QString Platform::supportInformation() const

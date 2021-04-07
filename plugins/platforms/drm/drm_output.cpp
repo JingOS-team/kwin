@@ -102,7 +102,6 @@ drmModeConnectorPtr DrmOutput::getAddNewMode(int fd, uint32_t connectorId, bool 
     conn->modes = (drmModeModeInfoPtr)drmMalloc(count_modes*sizeof(struct drm_mode_modeinfo));
 
     void* pos = (void*)conn->modes;
-    int size = sizeof(struct drm_mode_modeinfo);
     for (int i = 0; i < conn->count_modes; i++) {
         memcpy(pos, U642VOID(oldModes)+(sizeof(struct drm_mode_modeinfo)*i), sizeof(struct drm_mode_modeinfo));
         pos = (pos + (sizeof(struct drm_mode_modeinfo)));

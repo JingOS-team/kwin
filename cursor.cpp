@@ -177,6 +177,7 @@ void Cursor::updateCursor(const QImage &image, const QPoint &hotspot)
 {
     m_image = image;
     m_hotspot = hotspot;
+
     Q_EMIT cursorChanged();
 }
 

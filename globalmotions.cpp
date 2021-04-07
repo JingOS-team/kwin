@@ -81,7 +81,7 @@ void MouseSwipeMotionRecognizer::unregisterMotion(MouseMotion *motion)
     }
     m_motions.removeAll(motion);
     if (m_activeSwipeMotions.removeOne(motion)) {
-        emit motion->cancelled(1);
+        emit motion->cancelled(1, 0);
     }
 }
 
@@ -148,7 +148,7 @@ void MouseSwipeMotionRecognizer::updateSwipeMotion(const QPointF &pos, qint64 ti
 void MouseSwipeMotionRecognizer::cancelSwipeMotion(qint64 time)
 {
     for (auto g : qAsConst(m_activeSwipeMotions)) {
-        emit g->cancelled(time - m_lastUpdateTime);
+        emit g->cancelled(time - m_lastUpdateTime, 0);
     }
     m_lastAverageSeed = 0.0f;
     m_lastUpdateTime = 0;
@@ -173,7 +173,7 @@ void MouseSwipeMotionRecognizer::endSwipeMotion(const QPointF &pos, qint64 time)
         if (static_cast<MouseMotion*>(g)->minimumDeltaReached(delta)) {
             emit g->motionTriggered(time - m_lastUpdateTime, m_lastAverageSeed);
         } else {
-            emit g->cancelled(time - m_lastUpdateTime);
+            emit g->cancelled(time - m_lastUpdateTime, 0);
         }
     }
     m_activeSwipeMotions.clear();

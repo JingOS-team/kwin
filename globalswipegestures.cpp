@@ -19,23 +19,24 @@
 #include <QRect>
 #include <QDebug>
 #include "effects.h"
+#include "taskmanager.h"
 
 namespace KWin {
 
-const int MOTION_BORDER_WIDTH = 50;
-const int GESTURE_BORDER_WIDTH = 50;
+const int MOTION_BORDER_WIDTH = 25;
+const int GESTURE_BORDER_WIDTH = 25;
 const qreal GESTURE_MINIMUM_DELTA_RATE = 0.06f;
 QRect topRect(QSizeF screenSize, bool gesture) {
     return  QRect(0, 0, screenSize.width(), gesture ? GESTURE_BORDER_WIDTH : MOTION_BORDER_WIDTH);
 }
 QRect rightRect(QSizeF screenSize, bool gesture) {
-    return QRect(screenSize.width() - (gesture ? GESTURE_BORDER_WIDTH : MOTION_BORDER_WIDTH), 0, screenSize.width(), screenSize.height());
+    return QRect(screenSize.width() - (gesture ? GESTURE_BORDER_WIDTH : MOTION_BORDER_WIDTH) * 2, 0, screenSize.width(), screenSize.height());
 }
 QRect bottomRect(QSizeF screenSize, bool gesture) {
     return QRect(0, screenSize.height() - (gesture ? GESTURE_BORDER_WIDTH : MOTION_BORDER_WIDTH), screenSize.width(), screenSize.height());
 }
 QRect leftRect(QSizeF screenSize, bool gesture) {
-    return QRect(0, 0, (gesture ? GESTURE_BORDER_WIDTH : MOTION_BORDER_WIDTH), screenSize.height());
+    return QRect(0, 0, (gesture ? GESTURE_BORDER_WIDTH : MOTION_BORDER_WIDTH) * 2, screenSize.height());
 }
 
 GlobalSwipeGestures::GlobalSwipeGestures(QObject *parent)
@@ -71,13 +72,15 @@ void GlobalSwipeGestures::setScreenSize(QSize screenSize)
     init3FingersGesture();
 }
 
-void GlobalSwipeGestures::initGesture(SwipeGesture *gesture, const QRect& startGeometry, const QSize& miniDelta, SwipeGesture::Direction direction)
+void GlobalSwipeGestures::initGesture(SwipeGesture *gesture, const QRect& startGeometry, const QSize& miniDelta, qreal angle, SwipeGesture::Direction direction)
 {
     gesture->setMinimumFingerCount(1);
     gesture->setMaximumFingerCount(1);
 
     gesture->setStartGeometry(startGeometry);
     gesture->setMinimumDelta(miniDelta);
+
+    gesture->setMinimumSwipeAngle(angle);
 
     gesture->setDirection(direction);
 }
@@ -140,7 +143,7 @@ void GlobalSwipeGestures::unregisterMotion()
 void GlobalSwipeGestures::initBackGesture()
 {
     QSize size(m_screenSize.width(), 0);
-    initGesture(m_backGesture, leftRect(m_screenSize, true), size * GESTURE_MINIMUM_DELTA_RATE, SwipeGesture::Direction::All);
+    initGesture(m_backGesture, leftRect(m_screenSize, true), size * GESTURE_MINIMUM_DELTA_RATE, 25, SwipeGesture::Direction::All);
 
     connect(m_backGesture, &SwipeGesture::progress, this, &GlobalSwipeGestures::onBackProcess, Qt::QueuedConnection);
     connect(m_backGesture, &Gesture::cancelled, this, &GlobalSwipeGestures::onBackCancelled, Qt::QueuedConnection);
@@ -150,7 +153,7 @@ void GlobalSwipeGestures::initBackGesture()
 void GlobalSwipeGestures::initMinimumGesture()
 {
     QSize size(m_screenSize.width(), 0);
-    initGesture(m_minimumGesture, rightRect(m_screenSize, true), size * GESTURE_MINIMUM_DELTA_RATE, SwipeGesture::Direction::All);
+    initGesture(m_minimumGesture, rightRect(m_screenSize, true), size * GESTURE_MINIMUM_DELTA_RATE, 25, SwipeGesture::Direction::All);
 
     connect(m_minimumGesture, &SwipeGesture::progress, this, &GlobalSwipeGestures::onMinimumProcess, Qt::QueuedConnection);
     connect(m_minimumGesture, &Gesture::cancelled, this, &GlobalSwipeGestures::onMinimumCancelled, Qt::QueuedConnection);
@@ -159,9 +162,16 @@ void GlobalSwipeGestures::initMinimumGesture()
 
 void GlobalSwipeGestures::initBottomGesture()
 {
-    initGesture(m_bottomGesture, bottomRect(m_screenSize, true), m_screenSize * GESTURE_MINIMUM_DELTA_RATE, SwipeGesture::Direction::Up);
+    m_bottomGesture->setMinimumFingerCount(1);
+    m_bottomGesture->setMaximumFingerCount(1);
 
-    connect(m_bottomGesture, &SwipeGesture::progress, this, &GlobalSwipeGestures::onBottomProcess, Qt::QueuedConnection);
+    m_bottomGesture->setStartGeometry(bottomRect(m_screenSize, true));
+    m_bottomGesture->setMinimumDelta(m_screenSize - QSizeF(0, 10));
+
+    m_bottomGesture->setDirection(SwipeGesture::Direction::Up);
+
+    connect(m_bottomGesture, &SwipeGesture::started, this, &GlobalSwipeGestures::onBottomStart, Qt::QueuedConnection);
+    connect(m_bottomGesture, &SwipeGesture::update, this, &GlobalSwipeGestures::onBottomUpdate, Qt::QueuedConnection);
     connect(m_bottomGesture, &Gesture::cancelled, this, &GlobalSwipeGestures::onBottomCancelled, Qt::QueuedConnection);
     connect(m_bottomGesture, &Gesture::triggered, this, &GlobalSwipeGestures::onBottomTriggered, Qt::QueuedConnection);
 }
@@ -171,7 +181,7 @@ void GlobalSwipeGestures::init3FingersGesture()
     m_3FingersSwipeGesture->setMinimumFingerCount(3);
     m_3FingersSwipeGesture->setMaximumFingerCount(4);
     m_3FingersSwipeGesture->setDirection(SwipeGesture::Direction::All);
-    m_3FingersSwipeGesture->setMinimumDelta(m_screenSize * 0.1);
+    m_3FingersSwipeGesture->setMinimumDelta(m_screenSize * 0.5);
 
     connect(m_3FingersSwipeGesture, &SwipeGesture::started, this, &GlobalSwipeGestures::on3FingersSwipeStarted, Qt::QueuedConnection);
     connect(m_3FingersSwipeGesture, &SwipeGesture::update, this, &GlobalSwipeGestures::on3FingersSwipeUpdate, Qt::QueuedConnection);
@@ -208,64 +218,76 @@ void GlobalSwipeGestures::initBottomMotion()
 
 void GlobalSwipeGestures::onBackTriggered(quint32 time, const qreal &lastSpeed)
 {
+    Q_UNUSED(lastSpeed);
     // back(time);
     onSideGestureTrigger(time);
 }
 
 void GlobalSwipeGestures::onBackProcess(qreal delta, quint32 time)
 {
-
+    Q_UNUSED(delta);
+    Q_UNUSED(time);
 }
 
 void GlobalSwipeGestures::onBackCancelled(quint32 time)
 {
+    Q_UNUSED(time);
+}
 
+void GlobalSwipeGestures::onBottomStart(quint32 time)
+{
+    _swipeDelta = QSizeF(0.0f, 0.0f);
+    taskManager->setTaskState(TaskManager::TS_Prepare);
 }
 
 void GlobalSwipeGestures::onBottomTriggered(quint32 time, const qreal &lastSpeed)
 {
-    if (std::abs(lastSpeed) > 1.2) {
-        showDesktop();
-        //minimumWindow();
-        emit onHideTaskManager();
-    } else {
-        emit onBottomGestureToggled();
-    }
+    Q_UNUSED(time);
+    taskManager->onGestueEnd(_swipeDelta, QSizeF(0, lastSpeed));
+    _swipeDelta = QSizeF(0.0f, 0.0f);
 }
 
-void GlobalSwipeGestures::onBottomProcess(qreal delta, quint32 time)
+void GlobalSwipeGestures::onBottomUpdate(QSizeF delta, qreal progress, quint32 time)
 {
-
+    Q_UNUSED(time);
+    _swipeDelta += delta;
+    taskManager->updateMove(delta, progress);
 }
 
-void GlobalSwipeGestures::onBottomCancelled(quint32 time)
+void GlobalSwipeGestures::onBottomCancelled(quint32 time, const qreal &lastSpeed)
 {
-
+    Q_UNUSED(time);
+    taskManager->onGestueEnd(_swipeDelta, QSizeF(0, lastSpeed));
+    _swipeDelta = QSizeF(0.0f, 0.0f);
 }
 
 void GlobalSwipeGestures::onMinimumTriggered(quint32 time, const qreal &lastSpeed)
 {
+    Q_UNUSED(lastSpeed);
     //if (lastSpeed > 0.4)
         onSideGestureTrigger(time);
 }
 
 void GlobalSwipeGestures::onMinimumProcess(qreal delta, quint32 time)
 {
-
+    Q_UNUSED(delta);
+    Q_UNUSED(time);
 }
 
 void GlobalSwipeGestures::onMinimumCancelled(quint32 time)
 {
-
+    Q_UNUSED(time);
 }
 
 void GlobalSwipeGestures::onBackMotionTriggered(quint32 time, const qreal &lastSpeed)
 {
+    Q_UNUSED(lastSpeed);
      onSideGestureTrigger(time);
 }
 
 void GlobalSwipeGestures::onBottomMotionTriggered(quint32 time, const qreal &lastSpeed)
 {
+    Q_UNUSED(time);
     if (std::abs(lastSpeed) > 0.7) {
         showDesktop();
     } else {
@@ -275,38 +297,46 @@ void GlobalSwipeGestures::onBottomMotionTriggered(quint32 time, const qreal &las
 
 void GlobalSwipeGestures::onBottomMotionProcess(qreal delta, quint32 time)
 {
-
+    Q_UNUSED(delta);
+    Q_UNUSED(time);
 }
 
 void GlobalSwipeGestures::onBottomMotionCancelled(quint32 time)
 {
+    Q_UNUSED(time);
 
 }
 
 void GlobalSwipeGestures::on3FingersSwipeStarted(quint32 time)
 {
+    Q_UNUSED(time);
     _swipeStarted = true;
     _swipeDelta = QSizeF(0.0f, 0.0f);
+    taskManager->setTaskState(TaskManager::TS_Prepare);
 }
 
 void GlobalSwipeGestures::on3FingersSwipeTriggered(quint32 time, const qreal &lastSpeed)
 {
-    if (_swipeStarted && std::abs(_swipeDelta.width()) / std::abs(_swipeDelta.height()) > 1.2) {
-        effects->onTaskSwipe(_swipeDelta.width() > 0);
-    }
+    Q_UNUSED(lastSpeed);
+    taskManager->onGestueEnd(_swipeDelta, QSizeF(0, lastSpeed));
     _swipeStarted = false;
     _swipeDelta = QSizeF(0.0f, 0.0f);
 }
 
-void GlobalSwipeGestures::on3FingersSwipeUpdate(QSizeF delta, quint32 time)
+void GlobalSwipeGestures::on3FingersSwipeUpdate(QSizeF delta, qreal progress, quint32 time)
 {
+    Q_UNUSED(progress);
+    Q_UNUSED(time);
     if (_swipeStarted) {
         _swipeDelta += delta;
     }
+    taskManager->updateMove(delta, progress > 0.1 ? 0.1 : progress);
 }
 
 void GlobalSwipeGestures::on3FingersSwipeCancelled(quint32 time)
 {
+    Q_UNUSED(time);
+    taskManager->onGestueEnd(_swipeDelta, QSizeF(0, 0));
     _swipeStarted = false;
     _swipeDelta = QSizeF(0.0f, 0.0f);
 }
@@ -327,7 +357,7 @@ void GlobalSwipeGestures::closeWindow()
 {
     if (_hasTriggerClose) {
         hideCloseNotice();
-        if (nullptr != Workspace::self() && nullptr != Workspace::self()->activeClient()&& waylandServer() && !waylandServer()->isScreenLocked()) {
+        if (nullptr != Workspace::self() && nullptr != Workspace::self()->activeClient()&& waylandServer() && !waylandServer()->isScreenLocked() && !Workspace::self()->activeClient()->isDesktop()) {
             Workspace::self()->activeClient()->closeWindow();
         }
     } else if (Workspace::self()->activeClient()->isCloseable()){
@@ -337,6 +367,8 @@ void GlobalSwipeGestures::closeWindow()
 
 void GlobalSwipeGestures::onMinimumMotionTriggered(quint32 time, const qreal &lastSpeed)
 {
+    Q_UNUSED(time);
+    Q_UNUSED(lastSpeed);
     minimumWindow();
 }
 

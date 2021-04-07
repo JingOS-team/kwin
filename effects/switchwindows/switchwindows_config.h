@@ -2,7 +2,7 @@
     KWin - the KDE window manager
     This file is part of the KDE project.
 
-    SPDX-FileCopyrightText: 2021 guoxiang yang <yangguoxiang@jingos.com>
+    SPDX-FileCopyrightText: 2009 Martin Gräßlin <mgraesslin@kde.org>
 
     SPDX-License-Identifier: GPL-2.0-or-later
 */

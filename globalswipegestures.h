@@ -45,22 +45,23 @@ protected:
     void initMinimumMotion();
     void initBottomMotion();
 
-    void initGesture(SwipeGesture *gesture, const QRect &startGeometry, const QSize &miniDelta, SwipeGesture::Direction direction);
+    void initGesture(SwipeGesture *gesture, const QRect &startGeometry, const QSize &miniDelta, qreal angle, SwipeGesture::Direction direction);
     void initMotion(MouseMotion *motion, const QRect &startGeometry, const QSize &miniDelta, MouseMotion::Direction direction);
 private slots:
     void onBackTriggered(quint32 time, const qreal &lastSpeed);
     void onBackProcess(qreal delta, quint32 time);
     void onBackCancelled(quint32 time);
 
+    void onBottomStart(quint32 time);
     void onBottomTriggered(quint32 time, const qreal &lastSpeed);
-    void onBottomProcess(qreal delta, quint32 time);
-    void onBottomCancelled(quint32 time);
+    void onBottomUpdate(QSizeF delta, qreal progress, quint32 time);
+    void onBottomCancelled(quint32 time, const qreal &lastSpeed);
 
     void onMinimumTriggered(quint32 time, const qreal &lastSpeed);
     void onMinimumProcess(qreal delta, quint32 time);
     void onMinimumCancelled(quint32 time);
-
     void onMinimumMotionTriggered(quint32 time, const qreal &lastSpeed);
+
     void onBackMotionTriggered(quint32 time, const qreal &lastSpeed);
     void onBottomMotionTriggered(quint32 time, const qreal &lastSpeed);
     void onBottomMotionProcess(qreal delta, quint32 time);
@@ -68,7 +69,7 @@ private slots:
 
     void on3FingersSwipeStarted(quint32 time);
     void on3FingersSwipeTriggered(quint32 time, const qreal &lastSpeed);
-    void on3FingersSwipeUpdate(QSizeF delta, quint32 time);
+    void on3FingersSwipeUpdate(QSizeF delta, qreal progress, quint32 time);
     void on3FingersSwipeCancelled(quint32 time);
 
 Q_SIGNALS:
