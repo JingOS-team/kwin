@@ -281,6 +281,9 @@ void BlurEffect::updateBlurRegion(EffectWindow *w) const
 
     if (surf && surf->blur()) {
         region = surf->blur()->region();
+        connect(surf->blur(), &KWaylandServer::BlurInterface::regionChanged, this, [w]() {
+            effects->addRepaintFull();
+        });
     }
 
     if (auto internal = w->internalWindow()) {
@@ -556,6 +559,7 @@ bool BlurEffect::shouldBlur(const EffectWindow *w, int mask, const WindowPaintDa
 
 void BlurEffect::drawWindow(EffectWindow *w, int mask, const QRegion &region, WindowPaintData &data)
 {
+    updateBlurRegion(w);
     const QRect screen = GLRenderTarget::virtualScreenGeometry();
     if (shouldBlur(w, mask, data)) {
         QRegion shape = region & blurRegion(w).translated(w->pos()) & screen;

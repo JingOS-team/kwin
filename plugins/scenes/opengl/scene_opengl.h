@@ -85,6 +85,7 @@ protected:
     void paintDesktop(int desktop, int mask, const QRegion &region, ScreenPaintData &data) override;
     void paintEffectQuickView(EffectQuickView *w) override;
 
+    void paintTexture(GLTexture *texture, const QRegion &region, const QRect &rect);
     void handleGraphicsReset(GLenum status);
 
     virtual void doPaintBackground(const QVector<float> &vertices) = 0;

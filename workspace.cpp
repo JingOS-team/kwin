@@ -197,7 +197,7 @@ Workspace::Workspace()
         storeSession(name, SMSavePhase2);
     });
 
-    new DBusInterface(this);
+    m_dbusInterface = new DBusInterface(this);
     Outline::create(this);
 
     initShortcuts();
@@ -531,6 +531,16 @@ Workspace::~Workspace()
     qDeleteAll(session);
 
     _self = nullptr;
+}
+
+void Workspace::mouseOnTopLeftConer()
+{
+    emit onMouseOnTopLeftConer();
+}
+
+void Workspace::mouseOnTopRightConer()
+{
+    emit onMouseOnTopRightConer();
 }
 
 void Workspace::setupClientConnections(AbstractClient *c)
@@ -888,6 +898,47 @@ void Workspace::updateToolWindows(bool also_hide)
 void Workspace::resetUpdateToolWindowsTimer()
 {
     updateToolWindowsTimer.start(200);
+}
+
+bool Workspace::isSystemUI(EffectWindow *w) const
+{
+    if (w == nullptr) {
+        return false;
+    }
+    if (w->isDesktop()) {
+        return true;
+    }
+    EffectWindow *desktop = effects->getDesktopWindow(effects->currentDesktop());
+    if (desktop == nullptr) {
+        return false;
+    }
+
+    return (w->pid() == desktop->pid() || w->windowClass().compare(desktop->windowClass()) == 0);
+}
+
+bool Workspace::isManageWindowType(EffectWindow *w)
+{
+    return (w->screen() == 0) && (w->isNormalWindow() || w->isDialog()) && !w->isTransient() &&
+            !w->windowClass().contains("org.kde.plasmashell") && !w->windowClass().contains("org.kde.kioclient") && !w->windowClass().contains("rg.kde.polkit-kde-authentication-agent")
+            && !w->windowClass().contains("userguide");
+}
+
+void Workspace::triggerDesktop()
+{
+    if (showingDesktop()) {
+        if (m_triggerWindow) {
+            Workspace::self()->activateClient(m_triggerWindow, true, true, true);
+        }
+    } else {
+        foreach (EffectWindow * w, effects->stackingOrder()) {
+            if (isManageWindowType(w) && !isSystemUI(w)) {
+                if (auto cl = qobject_cast<AbstractClient *>(static_cast<EffectWindowImpl *>(w)->window())) {
+                    m_triggerWindow = cl;
+                }
+            }
+        }
+        setShowingDesktop(true, false, true);
+    }
 }
 
 void Workspace::slotUpdateToolWindows()
@@ -1300,8 +1351,11 @@ void Workspace::minimizeAllWindow() {
     }
 }
 
-void Workspace::setShowingDesktop(bool showing, bool activeNext)
+void Workspace::setShowingDesktop(bool showing, bool activeNext, bool isTrigger)
 {
+    if (!isTrigger) {
+        m_triggerWindow = nullptr;
+    }
     const bool changed = showing != showing_desktop;
     if (rootInfo() && changed) {
         rootInfo()->setShowingDesktop(showing);
@@ -1317,6 +1371,7 @@ void Workspace::setShowingDesktop(bool showing, bool activeNext)
                 qDebug()<<"setShowingDesktop:"<<client->isNormalWindow()<<" "<<client->windowType();
             }
         });
+        effects->showDockBg(false, false);
     }
     AbstractClient *topDesk = nullptr;
 
@@ -2166,7 +2221,8 @@ bool Workspace::isBelowPanel(const AbstractClient *c) const {
 
 bool Workspace::isTopClientJingApp() const
 {
-    return isBelowPanel(activeClient());
+    AbstractClient * client = activeClient();
+    return !client || isBelowPanel(client) || isSystemUI(client->effectWindow());
 }
 
 bool Workspace::isJingOSApp(const AbstractClient *c) const

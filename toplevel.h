@@ -609,6 +609,7 @@ public:
 
     virtual void sendScale(qreal scale = 1.);
 
+    virtual bool visible();
 Q_SIGNALS:
     void opacityChanged(KWin::Toplevel* toplevel, qreal oldOpacity);
     void damaged(KWin::Toplevel* toplevel, const QRegion& damage);

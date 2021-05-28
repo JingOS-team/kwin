@@ -778,6 +778,36 @@ bool EffectsHandler::isOpenGLCompositing() const
     return compositing_type & OpenGLCompositing;
 }
 
+QColor EffectsHandler::panelBgColor()
+{
+    return QColor(0xef, 0xf0, 0xf1);
+}
+
+void EffectsHandler::setPanelGeometry(const QRect &geometry)
+{
+    _panelGeometry = geometry;
+}
+
+QRect EffectsHandler::panelGeometry()
+{
+    return _panelGeometry;
+}
+
+void EffectsHandler::setPanel(EffectWindow *panel)
+{
+    _panel = panel;
+}
+
+EffectWindow *EffectsHandler::panel()
+{
+    return _panel;
+}
+
+void EffectsHandler::showDockBg(bool show, bool animate)
+{
+    emit onShowDockBgChanged(show, animate);
+}
+
 EffectsHandler* effects = nullptr;
 
 

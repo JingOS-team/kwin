@@ -15,6 +15,8 @@
 #include <KLocalizedString>
 #include <QMouseEvent>
 #include <QAction>
+#include "kwingltexture.h"
+#include "kwinglutils.h"
 
 namespace KWin
 {
@@ -27,7 +29,6 @@ const qreal MAX_SCALE_SHOW_LIST = 0.9;
 
 const QString CLEAR_BTN_BG = "/usr/share/kwin_icons/task/jt_clear_%1.png";
 const QString CLOSE_BTN_BG = "/usr/share/kwin_icons/task/jt_close_%1.png";
-
 TaskPanel::TaskPanel()
     :  m_activateAction(new QAction(this))
     , m_activateAction2(new QAction(this))
@@ -44,6 +45,7 @@ TaskPanel::TaskPanel()
     connect(effects, &EffectsHandler::windowAdded, this, &TaskPanel::slotWindowAdded);
     connect(effects, &EffectsHandler::windowClosed, this, &TaskPanel::slotWindowDeleted);
     connect(effects, &EffectsHandler::windowDeleted, this, &TaskPanel::slotWindowDeleted);
+    connect(effects, &EffectsHandler::triggerTask, this, &TaskPanel::toggle);
 
     connect(effects, &EffectsHandler::screenAboutToLock, this, [this]() {
         if (keyboardGrab) {
@@ -76,6 +78,12 @@ TaskPanel::TaskPanel()
 
     QRect area = effects->clientArea(WorkArea, 0, effects->currentDesktop());
     _lastPos = area.topLeft();
+
+    if (!m_clearTexture) {
+        QImage image("/usr/share/kwin_icons/task/jt_clear_normal.png");
+        m_clearTexture.reset(new GLTexture(image));
+        m_clearTexture->setWrapMode(GL_CLAMP_TO_EDGE);
+    }
 }
 
 void TaskPanel::prePaintScreen(ScreenPrePaintData &data, std::chrono::milliseconds presentTime)
@@ -95,7 +103,8 @@ void TaskPanel::paintScreen(int mask, const QRegion &region, ScreenPaintData &da
     if (taskManager->getTaskState() == TaskManager::TS_Task) {
         for (EffectQuickScene *view : m_clearButtons) {
             //view->rootItem()->setOpacity(_animateProgress);
-            effects->renderEffectQuickView(view);
+            // effects->renderEffectQuickView(view);
+            effects->renderTexture(m_clearTexture.data(), infiniteRegion(), view->geometry());
         }
     }
 }
@@ -192,6 +201,7 @@ void TaskPanel::toTaskGride(EffectWindow * window)
     if (_taskList.getItems().size() > 0) {
         _taskList.toGrideModel(window);
 
+        _screenScale = effects->screenScale(0);
         addClearBtn();
 
         taskManager->setTaskState(TaskManager::TS_TaskAnimating);
@@ -249,6 +259,7 @@ void TaskPanel::paintWindow(EffectWindow *w, int mask, QRegion region, WindowPai
 
     for (int screen = 0; screen < effects->numScreens(); screen++) {
         if (_taskList.isManageWindow(w) || _taskList.isRemoving(w)) {
+
             WindowItem *pItem = _taskList.getWindowItem(w);
             if (pItem == nullptr) {
                 pItem = _taskList.getRemoveWindowItem(w);
@@ -256,6 +267,33 @@ void TaskPanel::paintWindow(EffectWindow *w, int mask, QRegion region, WindowPai
             if (pItem == nullptr) {
                 return;
             }
+
+            qreal panelHeight = 0.;
+            if (!isTaskPanelState() && !w->isJingApp()) {
+                GLVertexBuffer* vbo = GLVertexBuffer::streamingBuffer();
+                vbo->reset();
+
+                ShaderBinder binder(ShaderTrait::UniformColor);
+                glEnable(GL_BLEND);
+                glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+                vbo->setUseColor(true);
+                vbo->setColor(effects->panelBgColor());
+                QVector<float> verts;
+                verts.reserve(12);
+                panelHeight = effects->panelGeometry().height() * pItem->_curScale.height();
+                QRectF r = QRectF(pItem->_curPos.x(), pItem->_curPos.y() - panelHeight, w->width() * pItem->_curScale.width(), panelHeight);
+                verts << r.x() + r.width() << r.y();
+                verts << r.x() << r.y();
+                verts << r.x() << r.y() + r.height();
+                verts << r.x() << r.y() + r.height();
+                verts << r.x() + r.width() << r.y() + r.height();
+                verts << r.x() + r.width() << r.y();
+                vbo->setData(verts.size() / 2, 2, verts.data(), nullptr);
+                vbo->render(GL_TRIANGLES);
+                glDisable(GL_BLEND);
+            }
+
             WindowQuadList screenQuads;
             foreach (const WindowQuad & quad, data.quads)
                 screenQuads.append(quad);
@@ -269,6 +307,27 @@ void TaskPanel::paintWindow(EffectWindow *w, int mask, QRegion region, WindowPai
             d.setYScale(pItem->_curScale.height());
             d += QPointF(pItem->_curPos.x() - w->x(), pItem->_curPos.y() - w->y());
             effects->paintWindow(w, mask, effects->clientArea(ScreenArea, w->screen(), 0), d);
+
+            if (!isTaskPanelState()) {
+                auto panel = effects->panel();
+                WindowPrePaintData panelPrePaintData;
+                panelPrePaintData.mask = mask | PAINT_WINDOW_TRANSLUCENT;
+               // panel->resetPaintingEnabled();
+                panelPrePaintData.paint = infiniteRegion(); // no clipping, so doesn't really matter
+                panelPrePaintData.clip = QRegion();
+                panelPrePaintData.quads = panel->buildQuads();
+                // preparation step
+                effects->prePaintWindow(panel, panelPrePaintData, std::chrono::milliseconds::zero());
+
+                WindowPaintData panelData(panel, data.screenProjectionMatrix());
+
+                panelData.quads = panelPrePaintData.quads;
+                panelData.setXScale(pItem->_curScale.width());
+                panelData.setYScale(pItem->_curScale.height());
+                panelData += QPointF(pItem->_curPos.x() - panel->x(), pItem->_curPos.y() - panel->y() - panelHeight);
+                effects->paintWindow(panel, mask, effects->clientArea(ScreenArea, w->screen(), 0), panelData);
+            }
+
         } else {
             if (w->isDesktop()) {
                 if (taskManager->getTaskState() == TaskManager::TS_ToDesktop) {
@@ -356,7 +415,6 @@ void TaskPanel::windowInputMouseEvent(QEvent *e)
         }
     }
 
-    effects->defineCursor(Qt::ClosedHandCursor);
 
     if (e->type() == QEvent::MouseButtonPress && me->buttons() == Qt::LeftButton) {
         EffectWindow* w =  windowAt(me->pos());
@@ -379,7 +437,7 @@ void TaskPanel::windowInputMouseEvent(QEvent *e)
 
          QPointF moveSize = QPointF(me->pos() - _startPressPos);
          if (_isDragging) {
-             if (moveSize.y() < -100) {
+             if (moveSize.y() < -100 / _screenScale) {
                  _taskList.remove(_activeWindow);
              } else {
                  effects->setElevatedWindow(_activeWindow, false);
@@ -417,7 +475,7 @@ void TaskPanel::windowInputMouseEvent(QEvent *e)
         if (!_isMoveing && !_isDragging) {
             QPointF moveDistance = QPointF(me->pos() - _startPressPos);
             if (std::abs(moveDistance.y()) >= std::abs(moveDistance.x()) && _activeWindow != nullptr && (!_taskList.isSliding() || std::abs(moveDistance.y()) >= std::abs(moveDistance.x())*1.5)) {
-                if (std::abs(moveDistance.y()) >= 50) {
+                if (std::abs(moveDistance.y()) >= 50 / _screenScale) {
                     _taskList.stopSlide();
                     _isDragging = true;
                     auto item = _taskList.getWindowItem(_activeWindow);
@@ -425,11 +483,11 @@ void TaskPanel::windowInputMouseEvent(QEvent *e)
                     if (item != nullptr) {
                         item->_oriPos = item->_curPos;
                         item->_oriScale = item->_curScale;
-                        item->_curScale *= 1.1;
+                        item->_curScale *= 1 + (0.1 / _screenScale);
                     }
                     _taskList.moveItem(QSizeF(moveDistance.x(), moveDistance.y()), _activeWindow);
                 }
-            } else if (std::abs(moveDistance.x()) > 50) {
+            } else if (std::abs(moveDistance.x()) > 50 / _screenScale) {
                 _isMoveing = true;
                 onMove(QSizeF(moveDistance.x(), moveDistance.y()), 0);
             }
@@ -540,7 +598,7 @@ bool TaskPanel::touchMotion(qint32 id, const QPointF &pos, quint32 time)
     if (!_isMoveing && !_isDragging) {
         QPointF moveDistance = QPointF(pos - _startPressPos);
         if (std::abs(moveDistance.y()) >= std::abs(moveDistance.x()) && _activeWindow != nullptr && (!_taskList.isSliding() || std::abs(moveDistance.y()) >= std::abs(moveDistance.x())*1.5)) {
-            if (std::abs(moveDistance.y()) >= 50) {
+            if (std::abs(moveDistance.y()) >= 50 / _screenScale) {
                 _taskList.stopSlide();
                 _isDragging = true;
                 auto item = _taskList.getWindowItem(_activeWindow);
@@ -548,11 +606,11 @@ bool TaskPanel::touchMotion(qint32 id, const QPointF &pos, quint32 time)
                 if (item != nullptr) {
                     item->_oriPos = item->_curPos;
                     item->_oriScale = item->_curScale;
-                    item->_curScale *= 1.1;
+                    item->_curScale *= 1 + (0.1 / _screenScale);
                 }
                 _taskList.moveItem(QSizeF(moveDistance.x(), moveDistance.y()), _activeWindow);
             }
-        } else if (std::abs(moveDistance.x()) > 50) {
+        } else if (std::abs(moveDistance.x()) > 50 / _screenScale) {
             _isMoveing = true;
             onMove(QSizeF(moveDistance.x(), moveDistance.y()), 0);
         }
@@ -596,7 +654,7 @@ bool TaskPanel::touchUp(qint32 id, quint32 time)
 
     QPointF moveSize = QPointF(_lastPressPos - _startPressPos);
     if (_isDragging) {
-        if (moveSize.y() < -100) {
+        if (moveSize.y() < -100 / _screenScale) {
             _taskList.remove(_activeWindow);
         } else {
             effects->setElevatedWindow(_activeWindow, false);
@@ -732,7 +790,9 @@ void TaskPanel::onTaskStateChanged(TaskManager::TaskState taskState, TaskManager
         _resetTimer.stop();
         if (!keyboardGrab) {
             keyboardGrab = effects->grabKeyboard(this);
-            effects->startMouseInterception(this, Qt::PointingHandCursor);
+            QTimer::singleShot(150, this, [this]() {
+                effects->startMouseInterception(this, Qt::ArrowCursor);
+            });
             effects->setActiveFullScreenEffect(this);
         }
     } else {
@@ -750,7 +810,9 @@ void TaskPanel::onTaskStateChanged(TaskManager::TaskState taskState, TaskManager
                 effects->ungrabKeyboard();
             keyboardGrab = false;
 
-            effects->stopMouseInterception(this);
+            QTimer::singleShot(150, this, [this]() {
+                effects->stopMouseInterception(this);
+            });
             effects->setActiveFullScreenEffect(nullptr);
             _startMoveFromDesktop = false;
         }
@@ -876,6 +938,7 @@ void TaskPanel::showDesktop(bool direct)
 {
     _taskList.hideItem(direct ? nullptr : currentWindow());
     taskManager->setTaskState(TaskManager::TS_ToDesktop);
+    effects->showDockBg(false, false);
 }
 
 bool TaskPanel::isShowingDesktop()
@@ -952,10 +1015,13 @@ bool TaskPanel::isSystemUI(EffectWindow *w)
 
 void TaskPanel::addClearBtn()
 {
+    QSize screenSize = effects->screenSize(0);
+
     auto it = m_clearButtons.begin();
     const int n =  effects->numScreens();
     for (int i = 0; i < n; ++i) {
         EffectQuickScene *view;
+        //QSize size;
         if (it == m_clearButtons.end()) {
             view = new EffectQuickScene(this);
 
@@ -972,17 +1038,19 @@ void TaskPanel::addClearBtn()
                 continue;
             }
 
+           // size = QSize(rootItem->implicitWidth(), rootItem->implicitHeight());
             m_clearButtons.append(view);
             it = m_clearButtons.end(); // changed through insert!
         } else {
             view = *it;
             ++it;
         }
-        QSize size(120, 120);
+
         const QRect screenRect = effects->clientArea(FullScreenArea, i, 1);
+        QSize size(120 / _screenScale, 120 / _screenScale);
         view->show(); // pseudo show must happen before geometry changes
-        const QPoint position(screenRect.right() - screenRect.width()/2 - size.width()/2,
-                              screenRect.bottom() - size.height() - 36);
+        const QPoint position(screenRect.left() + (screenRect.width() - size.width()) / 2,
+                              screenRect.bottom() - size.height() - 18 / 472.0 * screenSize.height());
         view->setGeometry(QRect(position, size));
     }
     while (it != m_clearButtons.end()) {

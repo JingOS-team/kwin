@@ -32,12 +32,14 @@
 #include <KScreenLocker/KsldApp>
 
 #include <KLocalizedString>
+#include "screenlockerwatcher.h"
 
 #include <QHoverEvent>
 #include <QWindow>
 #include <QPainter>
 
 #include <linux/input.h>
+#include <cmath>
 
 namespace KWin
 {
@@ -110,6 +112,10 @@ PointerInputRedirection::~PointerInputRedirection() = default;
 void PointerInputRedirection::init()
 {
     Q_ASSERT(!inited());
+    m_pointerTimer = new QTimer();
+    m_pointerTimer->setInterval(100);
+    connect(m_pointerTimer, &QTimer::timeout, this, &PointerInputRedirection::setPointState);
+
     m_cursor = new CursorImage(this);
     setInited(true);
     InputDeviceHandler::init();
@@ -251,6 +257,8 @@ void PointerInputRedirection::processMotion(const QPointF &pos, const QSizeF &de
 
     PositionUpdateBlocker blocker(this);
     updatePosition(pos);
+
+    pointPreProcess(pos, delta);
     MouseEvent event(QEvent::MouseMove, m_pos, Qt::NoButton, m_qtButtons,
                      input()->keyboardModifiers(), time,
                      delta, deltaNonAccelerated, timeUsec, device);
@@ -278,7 +286,7 @@ void PointerInputRedirection::processButton(uint32_t button, InputRedirection::P
     }
 
     updateButton(button, state);
-
+    buttonPreProcess(type, m_pos, time);
     MouseEvent event(type, m_pos, buttonToQtMouseButton(button), m_qtButtons,
                      input()->keyboardModifiers(), time, QSizeF(), QSizeF(), 0, device);
     event.setModifiersRelevantForGlobalShortcuts(input()->modifiersRelevantForGlobalShortcuts());
@@ -410,6 +418,201 @@ void PointerInputRedirection::processPinchGestureCancelled(quint32 time, KWin::L
 
     input()->processSpies(std::bind(&InputEventSpy::pinchGestureCancelled, std::placeholders::_1, time));
     input()->processFilters(std::bind(&InputEventFilter::pinchGestureCancelled, std::placeholders::_1, time));
+}
+
+void PointerInputRedirection::setPointState()
+{
+    m_pointerTimer->stop();
+    switch(m_pcs) {
+    case PCS_TOBEONTOPLEFT:
+        m_pcs = PCS_ONTOPLEFTING;
+        break;
+    case PCS_TOBEONTOPRIGHT:
+        m_pcs = PCS_ONTOPRIGHTING;
+        break;
+    case PCS_TOBEONBOTTOMLEFT:
+        m_pcs = PCS_ONBOTTOMLEFTING;
+        break;
+    case PCS_TOBEONBOTTOMRIGHT:
+        m_pcs = PCS_ONBOTTOMRIGHTING;
+        break;
+    case PCS_ONBOTTOMRIGHTING:
+    case PCS_ONBOTTOMLEFTING:
+    case PCS_ONTOPRIGHTING:
+    case PCS_ONTOPLEFTING:
+    case PCS_ONBOTTOMRIGHT:
+    case PCS_ONBOTTOMLEFT:
+    case PCS_ONTOPRIGHT:
+    case PCS_ONTOPLEFT:
+        m_delta = 0;
+        getPointPCSState();
+        break;
+    default:
+        qWarning()<<"PointerInputRedirection::setPointState unknow state.";
+        break;
+    }
+}
+
+void PointerInputRedirection::getPointPCSState()
+{
+    QRect screenGeometry = screens()->geometry(0);
+    if (m_pos == screenGeometry.bottomLeft()) {
+        m_pcs = PCS_TOBEONBOTTOMLEFT;
+        m_pointerTimer->start();
+    } else if (m_pos == screenGeometry.bottomRight()) {
+        m_pcs = PCS_TOBEONBOTTOMRIGHT;
+        m_pointerTimer->start();
+    } else if (m_pos == screenGeometry.topLeft()) {
+        m_pcs = PCS_TOBEONTOPLEFT;
+        m_pointerTimer->start();
+    } else if (m_pos == screenGeometry.topRight()) {
+        m_pcs = PCS_TOBEONTOPRIGHT;
+        m_pointerTimer->start();
+    } else {
+        m_pcs = PCS_NONE;
+        m_pointerTimer->stop();
+        m_delta = 0;
+    }
+}
+
+const int MAX_DELTA = 150;
+void PointerInputRedirection::pointPreProcess(const QPointF &pos, const QSizeF &delta)
+{
+    if (!inited() && !ScreenLockerWatcher::self()->isLocked() && m_qtButtons == Qt::LeftButton) {
+        return;
+    }
+    QRect screenGeometry = screens()->geometry(0);
+
+    switch(m_pcs) {
+    case PCS_NONE:
+        getPointPCSState();
+        break;
+    case PCS_ONTOPLEFTING:
+        if (m_pos == screenGeometry.topLeft()) {
+            m_delta += (pos - screenGeometry.topLeft()).manhattanLength();
+            m_pointerTimer->start();
+            if(m_delta > MAX_DELTA) {
+                workspace()->mouseOnTopLeftConer();
+                m_delta = 0;
+                m_pointerTimer->stop();
+                m_pcs = PCS_ONTOPLEFT;
+            }
+        } else {
+            getPointPCSState();
+        }
+        break;
+    case PCS_ONTOPRIGHTING:
+        if (m_pos == screenGeometry.topRight()) {
+            m_delta +=  (pos - screenGeometry.topRight()).manhattanLength();
+            m_pointerTimer->start();
+            if(m_delta > MAX_DELTA) {
+                workspace()->mouseOnTopRightConer();
+                m_delta = 0;
+                m_pcs = PCS_ONTOPRIGHT;
+            }
+        } else {
+            getPointPCSState();
+        }
+        break;
+    case PCS_ONBOTTOMLEFTING:
+        if (m_pos == screenGeometry.bottomLeft()) {
+            m_delta +=  (pos - screenGeometry.bottomLeft()).manhattanLength();
+            m_pointerTimer->start();
+            if(m_delta > MAX_DELTA) {
+                Workspace::self()->triggerDesktop();
+                m_delta = 0;
+                m_pcs = PCS_ONBOTTOMLEFT;
+            }
+        } else {
+            getPointPCSState();
+        }
+        break;
+    case PCS_ONBOTTOMRIGHTING:
+        if (m_pos == screenGeometry.bottomRight()) {
+            m_delta +=  (pos - screenGeometry.bottomRight()).manhattanLength();
+            m_pointerTimer->start();
+            if(m_delta > MAX_DELTA) {
+                effects->toTriggerTask();
+                m_delta = 0;
+                m_pcs = PCS_ONBOTTOMRIGHT;
+            }
+        } else {
+            getPointPCSState();
+        }
+        break;
+    case PCS_ONTOPLEFT:
+    case PCS_ONTOPRIGHT:
+    case PCS_ONBOTTOMLEFT:
+    case PCS_ONBOTTOMRIGHT:
+    case PCS_TOBEONTOPLEFT:
+    case PCS_TOBEONTOPRIGHT:
+    case PCS_TOBEONBOTTOMLEFT:
+    case PCS_TOBEONBOTTOMRIGHT:
+        m_pointerTimer->start();
+        break;
+    default:
+        getPointPCSState();
+        break;
+    }
+}
+
+const uint32_t BUTTON_INTERVAL = 800;
+void PointerInputRedirection::buttonPreProcess(QEvent::Type type, const QPointF &pos, uint32_t time)
+{
+    if (!inited() && !ScreenLockerWatcher::self()->isLocked() && m_qtButtons == Qt::NoButton) {
+        return;
+    }
+
+    QRect screenGeometry = screens()->geometry(0);
+    qreal screenScale = screens()->scale(0);
+    QRectF bottomRight(0, 0, 32 / screenScale, 32 / screenScale);
+    QRectF bottomLeft(0, 0, 32 / screenScale, 32 / screenScale);
+    bottomRight.moveBottomRight(screenGeometry.bottomRight());
+    bottomLeft.moveBottomLeft(screenGeometry.bottomLeft());
+
+    auto init = [this]() {
+        m_lastButtonTime = 0;
+        m_bcs = BCS_NONE;
+    };
+
+    if (nullptr == m_buttonTimer) {
+        m_buttonTimer = new QTimer();
+        m_buttonTimer->setInterval(BUTTON_INTERVAL);
+        m_buttonTimer->setSingleShot(true);
+        connect(m_buttonTimer, &QTimer::timeout, this, init);
+    }
+
+    if (bottomRight.contains(pos)) {
+        if (BCS_NONE == m_bcs &&  QEvent::MouseButtonPress == type) {
+            m_bcs = BCS_BOTTOMRIGHT;
+            m_lastButtonTime = time;
+            m_buttonTimer->start();
+        } else if (QEvent::MouseButtonRelease == type && time - m_lastButtonTime < BUTTON_INTERVAL) {
+            if (BCS_BOTTOMRIGHT == m_bcs) {
+                m_bcs = BCS_BOTTOMRIGHT_ONECE;
+            } else if (BCS_BOTTOMRIGHT_ONECE == m_bcs) {
+                init();
+                effects->toTriggerTask();
+            }
+        } else if (time - m_lastButtonTime > BUTTON_INTERVAL) {
+            init();
+        }
+    } else if (bottomLeft.contains(pos)) {
+        if (BCS_NONE == m_bcs &&  QEvent::MouseButtonPress == type) {
+            m_bcs = BCS_BOTTOMLEFT;
+            m_lastButtonTime = time;
+            m_buttonTimer->start();
+        } else if (QEvent::MouseButtonRelease == type && time - m_lastButtonTime < BUTTON_INTERVAL) {
+            if (BCS_BOTTOMLEFT == m_bcs) {
+                m_bcs = BCS_BOTTOMLEFT_ONECE;
+            } else if (BCS_BOTTOMLEFT_ONECE == m_bcs) {
+                init();
+                Workspace::self()->triggerDesktop();
+            }
+        } else if (time - m_lastButtonTime > BUTTON_INTERVAL) {
+            init();
+        }
+    }
 }
 
 bool PointerInputRedirection::areButtonsPressed() const
@@ -1005,6 +1208,11 @@ void CursorImage::markAsRendered()
     cursorSurface->frameRendered(m_surfaceRenderedTimer.elapsed());
 }
 
+void CursorImage::onChanged()
+{
+    emit changed();
+}
+
 void CursorImage::update()
 {
     if (s_cursorUpdateBlocking) {
@@ -1041,7 +1249,7 @@ void CursorImage::updateDecorationCursor()
     if (AbstractClient *c = deco.isNull() ? nullptr : deco->client()) {
         loadThemeCursor(c->cursor(), &m_decorationCursor);
         if (m_currentSource == CursorSource::Decoration) {
-            emit changed();
+            onChanged();
         }
     }
     reevaluteSource();
@@ -1053,7 +1261,7 @@ void CursorImage::updateMoveResize()
     if (AbstractClient *c = workspace()->moveResizeClient()) {
         loadThemeCursor(c->cursor(), &m_moveResizeCursor);
         if (m_currentSource == CursorSource::MoveResize) {
-            emit changed();
+            onChanged();
         }
     }
     reevaluteSource();
@@ -1067,36 +1275,43 @@ void CursorImage::updateServerCursor()
     auto p = waylandServer()->seat()->focusedPointer();
     if (!p) {
         if (needsEmit) {
-            emit changed();
+            onChanged();
         }
         return;
     }
     auto c = p->cursor();
     if (!c) {
         if (needsEmit) {
-            emit changed();
+            onChanged();
         }
         return;
     }
     auto cursorSurface = c->surface();
     if (cursorSurface.isNull()) {
         if (needsEmit) {
-            emit changed();
+            onChanged();
         }
         return;
     }
     auto buffer = cursorSurface.data()->buffer();
     if (!buffer) {
         if (needsEmit) {
-            emit changed();
+            onChanged();
         }
         return;
     }
-    m_serverCursor.cursor.hotspot = c->hotspot();
+
+
+    int screenScale = std::ceil(effects->screenScale(0));
+    if (screenScale != cursorSurface->bufferScale()) {
+        m_serverCursor.cursor.hotspot = c->hotspot() / screenScale;
+    } else {
+        m_serverCursor.cursor.hotspot = c->hotspot();
+    }
     m_serverCursor.cursor.image = buffer->data().copy();
-    m_serverCursor.cursor.image.setDevicePixelRatio(cursorSurface->bufferScale());
+    m_serverCursor.cursor.image.setDevicePixelRatio(screenScale);
     if (needsEmit) {
-        emit changed();
+        onChanged();
     }
 }
 
@@ -1104,7 +1319,7 @@ void CursorImage::setEffectsOverrideCursor(Qt::CursorShape shape)
 {
     loadThemeCursor(shape, &m_effectsCursor);
     if (m_currentSource == CursorSource::EffectsOverride) {
-        emit changed();
+        onChanged();
     }
     reevaluteSource();
 }
@@ -1122,7 +1337,7 @@ void CursorImage::setWindowSelectionCursor(const QByteArray &shape)
         loadThemeCursor(shape, &m_windowSelectionCursor);
     }
     if (m_currentSource == CursorSource::WindowSelector) {
-        emit changed();
+        onChanged();
     }
     reevaluteSource();
 }
@@ -1163,28 +1378,28 @@ void CursorImage::updateDragCursor()
     auto p = waylandServer()->seat()->dragPointer();
     if (!p) {
         if (needsEmit) {
-            emit changed();
+            onChanged();
         }
         return;
     }
     auto c = p->cursor();
     if (!c) {
         if (needsEmit) {
-            emit changed();
+            onChanged();
         }
         return;
     }
     auto cursorSurface = c->surface();
     if (cursorSurface.isNull()) {
         if (needsEmit) {
-            emit changed();
+            onChanged();
         }
         return;
     }
     auto buffer = cursorSurface.data()->buffer();
     if (!buffer) {
         if (needsEmit) {
-            emit changed();
+            onChanged();
         }
         return;
     }
@@ -1225,7 +1440,7 @@ void CursorImage::updateDragCursor()
     }
 
     if (needsEmit) {
-        emit changed();
+        onChanged();
     }
     // TODO: add the cursor image
 }
@@ -1358,7 +1573,7 @@ void CursorImage::setSource(CursorSource source)
         return;
     }
     m_currentSource = source;
-    emit changed();
+    onChanged();
 }
 
 QImage CursorImage::image() const

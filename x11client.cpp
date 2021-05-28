@@ -1267,6 +1267,10 @@ bool X11Client::isFullScreenable() const
 
 bool X11Client::noBorder() const
 {
+    if (isDefaultMaxApp()) {
+        return true;
+    }
+
     return userNoBorder() || isFullScreen();
 }
 
@@ -2432,17 +2436,18 @@ void X11Client::updateAllowedActions(bool force)
         return;
     NET::Actions old_allowed_actions = NET::Actions(allowed_actions);
     allowed_actions = NET::Actions();
-    if (isMovable())
-        allowed_actions |= NET::ActionMove;
-    if (isResizable())
-        allowed_actions |= NET::ActionResize;
-    if (isMinimizable())
-        allowed_actions |= NET::ActionMinimize;
+    // Jing_os no action for window
+//    if (isMovable())
+//        allowed_actions |= NET::ActionMove;
+//    if (isResizable())
+//        allowed_actions |= NET::ActionResize;
+//    if (isMinimizable())
+//        allowed_actions |= NET::ActionMinimize;
     if (isShadeable())
         allowed_actions |= NET::ActionShade;
     // Sticky state not supported
-    if (isMaximizable())
-        allowed_actions |= NET::ActionMax;
+//    if (isMaximizable())
+//        allowed_actions |= NET::ActionMax;
     if (userCanSetFullScreen())
         allowed_actions |= NET::ActionFullScreen;
     allowed_actions |= NET::ActionChangeDesktop; // Always (Pagers shouldn't show Docks etc.)
@@ -4654,11 +4659,14 @@ void X11Client::setFullScreen(bool set, bool user)
     updateDecoration(false, false);
 
     if (set) {
+        QRect rect;
         if (info->fullscreenMonitors().isSet()) {
-            setFrameGeometry(fullscreenMonitorsArea(info->fullscreenMonitors()));
+            rect = fullscreenMonitorsArea(info->fullscreenMonitors());
         } else {
-            setFrameGeometry(workspace()->clientArea(FullScreenArea, this));
+            rect = workspace()->clientArea(FullScreenArea, this);
         }
+        rect.setSize(rect.size()/getAppScale());
+        setFrameGeometry(rect);
     } else {
         Q_ASSERT(!geom_fs_restore.isNull());
         const int currentScreen = screen();

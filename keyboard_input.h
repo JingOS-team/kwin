@@ -78,6 +78,9 @@ public:
 
     void sendBackKey(uint32_t time);
 
+    void sendFakeKey(uint32_t keySym, InputRedirection::KeyboardKeyState, uint32_t time);
+
+
 Q_SIGNALS:
     void ledsChanged(KWin::Xkb::LEDs);
 

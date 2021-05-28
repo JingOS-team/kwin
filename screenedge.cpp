@@ -251,8 +251,8 @@ bool Edge::check(const QPoint &cursorPos, const QDateTime &triggerTime, bool for
         handle(cursorPos);
         return true;
     } else {
-        pushCursorBack(cursorPos);
-        m_triggeredPoint = cursorPos;
+//        pushCursorBack(cursorPos);
+//        m_triggeredPoint = cursorPos;
     }
     return false;
 }

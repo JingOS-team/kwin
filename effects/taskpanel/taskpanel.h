@@ -82,7 +82,9 @@ private:
     bool isManageWindowType(EffectWindow *w);
     bool isSystemUI(EffectWindow *w);
 
+    QScopedPointer<GLTexture> m_clearTexture;
 private:
+    qreal _screenScale = 1.;
     bool _delayReset = false;
     bool _isActive = false;
     qreal _curBrightness = 1;

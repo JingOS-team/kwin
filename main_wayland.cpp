@@ -226,7 +226,11 @@ void ApplicationWayland::startInputMethod()
                 QProcessEnvironment environment = processStartupEnvironment();
                 environment.insert(QStringLiteral("WAYLAND_SOCKET"), QByteArray::number(socket));
                 environment.insert(QStringLiteral("QT_QPA_PLATFORM"), QStringLiteral("wayland"));
-                environment.remove("DISPLAY");
+                if (m_inputMethodServerToStart.contains("fcitx")) {
+                    environment.remove("QT_QPA_PLATFORM");
+                } else {
+                    environment.remove("DISPLAY");
+                }
                 environment.remove("WAYLAND_DISPLAY");
                 QProcess *p = new Process(this);
                 p->setProcessChannelMode(QProcess::ForwardedErrorChannel);

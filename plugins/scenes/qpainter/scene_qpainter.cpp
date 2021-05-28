@@ -152,6 +152,11 @@ void SceneQPainter::paintEffectQuickView(EffectQuickView *w)
     painter->drawImage(w->geometry(), buffer);
 }
 
+void SceneQPainter::paintTexture(GLTexture *, const QRegion &, const QRect &)
+{
+
+}
+
 Scene::Window *SceneQPainter::createWindow(Toplevel *toplevel)
 {
     return new SceneQPainter::Window(this, toplevel);

@@ -29,6 +29,9 @@ public:
 
     static bool supported();
 
+    void hideDockBg(bool animate = true);
+    void showDockBg(bool animate = true);
+
     Q_SCRIPTABLE void showDesktop();
     Q_SCRIPTABLE void enterControlBar();
     Q_SCRIPTABLE void leaveControlBar();
@@ -43,6 +46,9 @@ private slots:
     void slotShowingDesktopChanged(bool show);
 
 private:
+    bool _isShowingDockBg = false;
+    TimeLine _timeLine;
+    qreal _dockBgAlphaRate = 1.0;
     TimeLine _bottomAnimationTimeLine;
     bool _hasTouchDown = false;
     QPoint _lastPressPos;

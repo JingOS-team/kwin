@@ -57,6 +57,7 @@ private Q_SLOTS:
 
 private:
     void setEnabled(bool enable);
+    bool enabled();
     void updateSni();
     void updateInputPanelState();
     void adoptInputMethodContext();
@@ -71,6 +72,7 @@ private:
 
     bool m_enabled = false;
     bool m_shown = false;
+    bool m_alwaysShowVirtualKeyboard = false;
     KStatusNotifierItem *m_sni = nullptr;
     QPointer<AbstractClient> m_inputClient;
     QPointer<AbstractClient> m_trackedClient;

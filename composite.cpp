@@ -669,7 +669,7 @@ void Compositor::performCompositing()
     // window should not get focus before it's displayed, handle unredirected windows properly and
     // so on.
     for (Toplevel *win : windows) {
-        if (!win->readyForPainting()) {
+        if (!win->readyForPainting() || !win->visible()) {
             windows.removeAll(win);
         }
 
@@ -978,6 +978,7 @@ void X11Compositor::start()
     m_xrrRefreshRate = KWin::currentRefreshRate();
     startupWithWorkspace();
 }
+
 void X11Compositor::performCompositing()
 {
     if (scene()->usesOverlayWindow() && !isOverlayWindowVisible()) {

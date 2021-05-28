@@ -118,11 +118,11 @@ qreal AbstractWaylandOutput::scale() const
 
 void AbstractWaylandOutput::setScale(qreal scale)
 {
-    auto config = KSharedConfig::openConfig(QStringLiteral("kwindisplayrc"))->group("Display");
-    qreal defaultScale = config.readEntry("scaleDefault", -1);
-    if (defaultScale > 0) {
-        scale = defaultScale;
-    }
+//    auto config = KSharedConfig::openConfig(QStringLiteral("kwindisplayrc"))->group("Display");
+//    qreal defaultScale = config.readEntry("scaleDefault", -1);
+//    if (defaultScale > 0) {
+//        scale = defaultScale;
+//    }
     m_waylandOutputDevice->setScaleF(scale);
 
     // this is the scale that clients will ideally use for their buffers

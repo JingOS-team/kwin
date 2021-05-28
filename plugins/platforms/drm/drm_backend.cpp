@@ -430,8 +430,19 @@ void DrmBackend::readOutputsConfiguration()
         const auto outputConfig = configGroup.group((*it)->uuid());
         (*it)->setGlobalPos(outputConfig.readEntry<QPoint>("Position", pos));
         // TODO: add mode
-        if (outputConfig.hasKey("Scale"))
+        if (outputConfig.hasKey("Scale")) {
             (*it)->setScale(outputConfig.readEntry("Scale", 1.0));
+        } else {
+            const qreal dpi = (*it)->modeSize().height() / ((*it)->physicalSize().height() / 25.4);
+            qreal scale = 1.0;
+            if (dpi > 96 * 2.6) {
+                scale = 3.0;
+            } else if (dpi > 96 * 1.5) {
+                scale = 2.0;
+            }
+
+            (*it)->setScale(scale);
+        }
 
         (*it)->setTransform(stringToTransform(outputConfig.readEntry("Transform", "normal")));
         pos.setX(pos.x() + (*it)->geometry().width());

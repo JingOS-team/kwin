@@ -28,6 +28,8 @@
 // Qt
 #include <QKeyEvent>
 
+#include <linux/input-event-codes.h>
+
 namespace KWin
 {
 
@@ -171,6 +173,7 @@ void KeyboardInputRedirection::update()
         found = workspace()->activeClient();
     }
     if (found && found->surface()) {
+        qDebug()<<"yanggx found:"<<found->pid()<<" "<<found->resourceName()<<" "<<found->resourceClass()<<" "<<found->sessionId)()<<" "<<found->isDesktop()<<" "<<found->isDock()<<" "<<found->geometry()<<" "<<found->windowRole();
         if (found->surface() != seat->focusedKeyboardSurface()) {
             seat->setFocusedKeyboardSurface(found->surface());
         }
@@ -259,6 +262,43 @@ void KeyboardInputRedirection::sendBackKey(uint32_t time) {
                    nullptr);
 
     m_input->processFilters(std::bind(&InputEventFilter::keyEvent, std::placeholders::_1, &event_release));
+}
+
+void KeyboardInputRedirection::sendFakeKey(uint32_t keySym, InputRedirection::KeyboardKeyState state, uint32_t time)
+{
+    uint32_t key_code = KEY_UNKNOWN;
+
+    switch(keySym) {
+    case XKB_KEY_BackSpace:
+        key_code = KEY_BACKSPACE;
+        break;
+    case XKB_KEY_Return:
+        key_code = KEY_ENTER;
+        break;
+    case XKB_KEY_space:
+        key_code = KEY_SPACE;
+        break;
+    case XKB_KEY_Left:
+        key_code = KEY_LEFT;
+        break;
+    case XKB_KEY_Right:
+        key_code = KEY_RIGHT;
+        break;
+    case XKB_KEY_Up:
+        key_code = KEY_UP;
+        break;
+    case XKB_KEY_Down:
+        key_code = KEY_DOWN;
+        break;
+    default:
+        key_code = KEY_UNKNOWN;
+        break;
+    }
+
+    if (KEY_UNKNOWN == key_code)
+        return;
+
+    processKey(key_code, state, time);
 }
 
 void KeyboardInputRedirection::processModifiers(uint32_t modsDepressed, uint32_t modsLatched, uint32_t modsLocked, uint32_t group)

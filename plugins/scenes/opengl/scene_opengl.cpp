@@ -604,7 +604,7 @@ void SceneOpenGL2::paintCursor(const QRegion &rendered)
 
     // handle transparence
     glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
     // paint texture in cursor offset
     m_cursorTexture->bind();
@@ -836,6 +836,26 @@ void SceneOpenGL::paintEffectQuickView(EffectQuickView *w)
     glDisable(GL_BLEND);
 
     ShaderManager::instance()->popShader();
+}
+
+void SceneOpenGL::paintTexture(GLTexture *texture, const QRegion &region, const QRect &rect)
+{
+//    QImage image("/usr/share/kwin_icons/task/jt_clear_normal.png");
+//    texture = new GLTexture(image);
+//    texture->setWrapMode(GL_CLAMP_TO_EDGE);
+
+    QMatrix4x4 mvp = projectionMatrix();
+    mvp.translate(rect.x(), rect.y());
+    // handle transparence
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+
+    texture->bind();
+    ShaderBinder binder(ShaderTrait::MapTexture);
+    binder.shader()->setUniform(GLShader::ModelViewProjectionMatrix, mvp);
+    texture->render(QRegion(infiniteRegion()), rect);
+    texture->unbind();
+    glDisable(GL_BLEND);
 }
 
 bool SceneOpenGL::makeOpenGLContextCurrent()

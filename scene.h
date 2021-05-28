@@ -244,6 +244,7 @@ protected:
 
     virtual void paintEffectQuickView(EffectQuickView *w) = 0;
 
+    virtual void paintTexture(GLTexture *texture, const QRegion &region, const QRect &rect) = 0;
     // saved data for 2nd pass of optimized screen painting
     struct Phase2Data {
         Window *window = nullptr;

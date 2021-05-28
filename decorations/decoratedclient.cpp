@@ -128,6 +128,19 @@ void DecoratedClientImpl::signalShadeChange() {
     emit decoratedClient()->shadedChanged(m_client->isShade());
 }
 
+bool DecoratedClientImpl::isMaximizeable() const {
+    return false;
+}
+bool DecoratedClientImpl::isMinimizeable() const {
+    return false;
+}
+bool DecoratedClientImpl::isMoveable() const {
+    return false;
+}
+bool DecoratedClientImpl::isResizeable() const {
+    return false;
+}
+
 #define DELEGATE(type, name, clientName) \
     type DecoratedClientImpl::name() const \
     { \
@@ -139,11 +152,11 @@ void DecoratedClientImpl::signalShadeChange() {
 DELEGATE2(QString, caption)
 DELEGATE2(bool, isActive)
 DELEGATE2(bool, isCloseable)
-DELEGATE(bool, isMaximizeable, isMaximizable)
-DELEGATE(bool, isMinimizeable, isMinimizable)
+//DELEGATE(bool, isMaximizeable, isMaximizable)
+//DELEGATE(bool, isMinimizeable, isMinimizable)
 DELEGATE2(bool, isModal)
-DELEGATE(bool, isMoveable, isMovable)
-DELEGATE(bool, isResizeable, isResizable)
+//DELEGATE(bool, isMoveable, isMovable)
+//DELEGATE(bool, isResizeable, isResizable)
 DELEGATE2(bool, isShadeable)
 DELEGATE2(bool, providesContextHelp)
 DELEGATE2(int, desktop)

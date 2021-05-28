@@ -53,7 +53,7 @@ protected:
     Scene::Window *createWindow(Toplevel *toplevel) override;
     void paintCursor(const QRegion &region) override;
     void paintEffectQuickView(EffectQuickView *w) override;
-
+    void paintTexture(GLTexture *texture, const QRegion &region, const QRect &rect) override;
 private:
     explicit SceneQPainter(QPainterBackend *backend, QObject *parent = nullptr);
     QScopedPointer<QPainterBackend> m_backend;

@@ -8,6 +8,9 @@
 */
 #include "globalswipegestures.h"
 
+// KF5
+#include <KLocalizedString>
+
 #include "screenedge.h"
 #include "input.h"
 
@@ -53,7 +56,6 @@ GlobalSwipeGestures::GlobalSwipeGestures(QObject *parent)
     _closeWindowTimer.setSingleShot(true);
     connect(&_closeWindowTimer, &QTimer::timeout, this, [this]() {
         _hasTriggerClose = false;
-        effects->setShowCloseNotice(false);
     });
 }
 
@@ -398,24 +400,29 @@ void GlobalSwipeGestures::showTaskPanel()
     }
     QDBusInterface iface( "org.kde.plasma.taskmanager", "/taskmanager", "org.kde.plasma.taskmanager", QDBusConnection::sessionBus());
     if (!iface.isValid()) {
-       qDebug() << qPrintable(QDBusConnection::sessionBus(). lastError().message());
+       qDebug()<<Q_FUNC_INFO<< qPrintable(QDBusConnection::sessionBus(). lastError().message());
        return;
     }
 
-    iface.call("setActivity", true);
+    iface.asyncCall("setActivity", true);
 }
 
 void GlobalSwipeGestures::showCloseNotice()
 {
     _hasTriggerClose = true;
-    effects->setShowCloseNotice(true);
+    QDBusInterface iface( "org.jingos.toast", "/org/jingos/toast", "org.jingos.toast", QDBusConnection::sessionBus());
+    if (!iface.isValid()) {
+       qDebug()<<Q_FUNC_INFO<< qPrintable(QDBusConnection::sessionBus(). lastError().message());
+       return;
+    }
+
+    iface.asyncCall("showText", i18n("Press again to close the window"));
     _closeWindowTimer.start();
 }
 
 void GlobalSwipeGestures::hideCloseNotice()
 {
     _closeWindowTimer.stop();
-    effects->setShowCloseNotice(false);
     _hasTriggerClose = false;
 }
 }

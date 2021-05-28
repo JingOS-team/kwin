@@ -148,7 +148,10 @@ bool TaskList::nextPage(bool toNormal)
     if (_curPageIndex  < _pageCount - 1) {
 
         ++_curPageIndex;
-        effects->activateWindowWhithoutAnimation(_itemsIndex[_curPageIndex].key());
+        auto w = _itemsIndex[_curPageIndex].key();
+
+        effects->showDockBg(w->isJingApp(), false);
+        effects->activateWindowWhithoutAnimation(w);
 
         resetAnimate(toNormal ? 400 : 300);
         for (WindowItem *item : _items.values()) {
@@ -191,7 +194,11 @@ bool TaskList::prePage(bool toNormal)
 {
     if (_curPageIndex >= 1 && _pageCount > 0) {
         --_curPageIndex;
-        effects->activateWindowWhithoutAnimation(_itemsIndex[_curPageIndex].key());
+
+        auto w = _itemsIndex[_curPageIndex].key();
+
+        effects->showDockBg(w->isJingApp(), false);
+        effects->activateWindowWhithoutAnimation(w);
 
         resetAnimate(toNormal ? 400 : 300);
         for (WindowItem *item : _items.values()) {
@@ -381,7 +388,7 @@ void TaskList::hideList(EffectWindow* curWindow)
     } else {
         if (lIndex > 0) {
             auto pIt = _itemsIndex[lIndex - 1];
-            (pIt).value()->_destPos = QPointF(pIt.value()->_curPos.x() ,(_verticalLayoutDirection == BottomToTop) ? 0 : pageSize().height());
+            (pIt).value()->_destPos = QPointF(pIt.value()->_curPos.x() ,(_verticalLayoutDirection == BottomToTop) ? 0 : pageHeight(pIt.key()));
             pIt.value()->_isPosAnimating = true;
             pIt.value()->_srcPos = pIt.value()->_curPos;
         }
@@ -389,7 +396,7 @@ void TaskList::hideList(EffectWindow* curWindow)
         if (lIndex < _itemsIndex.size() - 1) {
             auto nIt = _itemsIndex[lIndex + 1];
             nIt.value()->_isPosAnimating = true;
-            nIt.value()->_destPos = QPointF(nIt.value()->_curPos.x() ,(_verticalLayoutDirection == BottomToTop) ? pageSize().height() : 0);
+            nIt.value()->_destPos = QPointF(nIt.value()->_curPos.x() ,(_verticalLayoutDirection == BottomToTop) ? pageHeight(nIt.key()) : 0);
             nIt.value()->_srcPos = nIt.value()->_curPos;
         }
     }
@@ -439,6 +446,12 @@ void TaskList::showList(qreal x, qreal y, EffectWindow *curWindow)
             nIt.value()->_srcPos = nIt.value()->_curPos;
         }
     }
+
+    qDebug()<<Q_FUNC_INFO<<pCurItem->_curPos;
+    if (!pCurItem->w->isJingApp()) {
+        pCurItem->_curPos += QPointF(0., effects->panelGeometry().height() * pCurItem->_curScale.height());
+    }
+    qDebug()<<Q_FUNC_INFO<<pCurItem->_curPos;
 }
 
 void TaskList::moveItem(QSizeF size, EffectWindow *window)
@@ -493,7 +506,6 @@ void TaskList::translateItems(qreal x, qreal y, EffectWindow* w, qreal scale)
         if (it != _items.end()) {
             WindowItem *pCurItem = it.value();
             pCurItem->_curPos = curPos;
-
             lIndex =  _itemsIndex.indexOf(it);
         }
     }
@@ -505,15 +517,25 @@ void TaskList::translateItems(qreal x, qreal y, EffectWindow* w, qreal scale)
             int direction =  (_layoutDirection == RightToLeft) ? 1 : -1;
             if (item->_isPosAnimating) {
                 item->_destPos = curPos - (QPointF((pageSize().width() *  scale + MARGIN) * num, 0)) * direction;
+                qDebug()<<Q_FUNC_INFO<<__LINE__<<item->_destPos<<" "<<effects->panelGeometry()<<" "<<item->_curScale;
+                if (!item->w->isJingApp()) {
+                    item->_destPos += QPointF(0., effects->panelGeometry().height() * item->_curScale.height());
+                }
+                qDebug()<<Q_FUNC_INFO<<__LINE__<<item->_destPos;
             } else {
                 item->_curPos = curPos - (QPointF((pageSize().width() *  scale + MARGIN) * num, 0)) * direction;
+                qDebug()<<Q_FUNC_INFO<<__LINE__<<item->_curPos<<" "<<effects->panelGeometry()<<" "<<item->_curScale;
+                if (!item->w->isJingApp()) {
+                    item->_curPos += QPointF(0., effects->panelGeometry().height() * item->_curScale.height());
+                }
+                qDebug()<<Q_FUNC_INFO<<__LINE__<<item->_curPos;
             }
         } else {
             int direction =  (_verticalLayoutDirection == BottomToTop) ? 1 : -1;
             if (item->_isPosAnimating) {
-                item->_destPos = curPos - (QPointF(0, (pageSize().height() *  scale + MARGIN) * num)) * direction;
+                item->_destPos = curPos - (QPointF(0, (pageHeight(item->w) *  scale + MARGIN) * num)) * direction;
             } else {
-                item->_curPos = curPos - (QPointF(0, (pageSize().height() *  scale + MARGIN) * num)) * direction;
+                item->_curPos = curPos - (QPointF(0, (pageHeight(item->w) *  scale + MARGIN) * num)) * direction;
             }
         }
     }
@@ -528,6 +550,11 @@ void TaskList::translateItem(qreal x, qreal y, EffectWindow *w)
     }
     WindowItem *pCurItem = it.value();
     pCurItem->_curPos =  QPointF(x, y);
+    qDebug()<<Q_FUNC_INFO<<pCurItem->_curPos;
+    if (!w->isJingApp()) {
+        pCurItem->_curPos += QPointF(0., effects->panelGeometry().height() * pCurItem->_curScale.height());
+    }
+    qDebug()<<Q_FUNC_INFO<<pCurItem->_curPos;
 }
 
 void TaskList::setItemOpacity(qreal opacity)
@@ -655,6 +682,11 @@ void TaskList::updateTime(std::chrono::milliseconds presentTime)
     emit isAnimatingChanged(isAnimating, progress);
 }
 
+qreal TaskList::pageHeight(EffectWindow* w)
+{
+    return pageSize().height() -  w->isJingApp() ? 0 : effects->panelGeometry().height();
+}
+
 void TaskList::resetAnimate(int time, QEasingCurve::Type type)
 {
     _lastPresentTime =  std::chrono::milliseconds::zero();
@@ -676,16 +708,13 @@ void TaskList::makeupGride(QList<QHash<EffectWindow*, WindowItem*>::iterator> it
     int rows = ROW_COUNT;
     int columns = int(ceil(items.count() / double(rows)));
 
-    int hM = 10;
-    int vM = 10;
-
-    hM = 43;
-    vM = 27;
-    area.adjust(186 + hM, 68 + vM, -186 - hM, -164 - vM);
+    _hM = 28 / 640.0 * area.width();
+    _vM = 48 / 472.0 * area.height();
+    area.adjust(26 / 640.0 * area.width(), 30 / 472.0 * area.height(), -26 / 640.0 * area.width(), -68 / 472.0 * area.height());
 
     // Assign slots
-    int slotWidth = area.width() * 0.5;
-    int slotHeight = area.height() * 0.5;
+    int slotWidth = (area.width() + _hM) / 2.5;
+    int slotHeight = area.height() / 2;
 
     int curColumnIndex = curIndex / rows;
     QPointF start;
@@ -722,7 +751,7 @@ breakLoop:
         QRect target(_pageSize.width() - (slot / rows + 1) * slotWidth + start.x(),
                     area.y() + (slot % rows) * slotHeight + start.y(),
                     slotWidth, slotHeight);
-        target.adjust(hM, vM, -hM, -vM);   // Borders
+        target.adjust(_hM/4, _vM/4, -_hM/4, -_vM/4);   // Borders
 
         double scale;
         if (target.width() / double(w->width()) < target.height() / double(w->height())) {
@@ -734,14 +763,14 @@ breakLoop:
             scale = target.height() / double(w->height());
             target.moveLeft(target.left() + (target.width() - int(w->width() * scale)) / 2);
         }
-        // Don't scale the windows too much
-        if (scale > 2.0 || (scale > 1.0 && (w->width() > 300 || w->height() > 300))) {
-            scale = (w->width() > 300 || w->height() > 300) ? 1.0 : 2.0;
-            target = QRect(
-                        target.center().x() - int(w->width() * scale) / 2,
-                        target.center().y() - int(w->height() * scale) / 2,
-                        scale * w->width(), scale * w->height());
-        }
+//        // Don't scale the windows too much
+//        if (scale > 2.0 || (scale > 1.0 && (w->width() > 300 || w->height() > 300))) {
+//            scale = (w->width() > 300 || w->height() > 300) ? 1.0 : 2.0;
+//            target = QRect(
+//                        target.center().x() - int(w->width() * scale) / 2,
+//                        target.center().y() - int(w->height() * scale) / 2,
+//                        scale * w->width(), scale * w->height());
+//        }
 
         bool shownNow = QRectF(item->_curPos, QSizeF(item->w->size().width() * item->_curScale.width(), item->w->size().height() * item->_curScale.height())).intersects(area);
         item->_destScale = QSizeF(scale, scale);
@@ -795,11 +824,11 @@ bool TaskList::boundCheck()
                 if (distance > 0) {
                     rebound(QSize(distance, 0));
                     result = false;
-                } else if (endItem->_curPos.x() > 0) {
+                } else if (endItem->_curPos.x() > _hM / 2) {
                     if (_bigThenOnPage) {
-                        rebound(QSize(0 - endItem->_curPos.x(), 0));
+                        rebound(QSize( _hM / 2 - endItem->_curPos.x(), 0));
                     } else {
-                        rebound(QSize(distance, 0));
+                        rebound(QSize(distance,  _hM / 2));
                     }
                     result = false;
                 }
@@ -810,9 +839,9 @@ bool TaskList::boundCheck()
                 if (distance > 0) {
                     rebound(QSize(distance, 0));
                     result = false;
-                } else if (endItem->_curPos.y() +  _elementSize.height() < pageSize().height()) {
+                } else if (endItem->_curPos.y() +  _elementSize.height() <  pageSize().height()) {
                     if (_bigThenOnPage) {
-                        rebound(QSize(0, pageSize().height() - (endItem->_curPos.y() +  _elementSize.height())));
+                        rebound(QSize(0,  pageSize().height() - (endItem->_curPos.y() +  _elementSize.height())));
                     } else {
                         rebound(QSize(0, distance));
                     }
@@ -881,9 +910,9 @@ void TaskList::setupWindowItems(EffectWindowList windowlist, int screen, EffectW
             }
         } else {
             if (_verticalLayoutDirection == TopToBottom) {
-                item->_destPos = QPointF(0,  (pageSize().height() + MARGIN) * (i + start - lIndex));
+                item->_destPos = QPointF(0,  (pageHeight(item->w) + MARGIN) * (i + start - lIndex));
             } else {
-                item->_destPos =  QPointF(0, 0 - (pageSize().height() + MARGIN) * (i + start - lIndex));
+                item->_destPos =  QPointF(0, 0 - (pageHeight(item->w) + MARGIN) * (i + start - lIndex));
             }
         }
 

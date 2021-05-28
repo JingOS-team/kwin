@@ -15,6 +15,7 @@
 #include "wayland_server.h"
 #include "workspace.h"
 #include "screenlockerwatcher.h"
+#include "dbusinterface.h"
 
 #include <KWaylandServer/display.h>
 #include <KWaylandServer/seat_interface.h>
@@ -65,6 +66,12 @@ void InputMethod::init()
         );
     }
 
+    DBusInterface *dbusInterface = workspace()->dbusInterface();
+    m_alwaysShowVirtualKeyboard = dbusInterface->alwaysShowVirtualKeyboard();
+    connect(dbusInterface, &DBusInterface::alwaysShowVirtualKeyboardChanged, this, [this] (bool set) {
+       m_alwaysShowVirtualKeyboard = set;
+    });
+
     qCDebug(KWIN_VIRTUALKEYBOARD) << "Registering the SNI";
     m_sni = new KStatusNotifierItem(QStringLiteral("kwin-virtual-keyboard"), this);
     m_sni->setStandardActionsEnabled(false);
@@ -81,7 +88,7 @@ void InputMethod::init()
 
     auto dbus = new VirtualKeyboardDBus(this);
     qCDebug(KWIN_VIRTUALKEYBOARD) << "Registering the DBus interface";
-    dbus->setEnabled(m_enabled);
+    dbus->setEnabled(enabled());
     connect(dbus, &VirtualKeyboardDBus::activateRequested, this, &InputMethod::setEnabled);
     connect(this, &InputMethod::enabledChanged, dbus, &VirtualKeyboardDBus::setEnabled);
     connect(input(), &InputRedirection::keyStateChanged, this, &InputMethod::hide);
@@ -298,6 +305,11 @@ void InputMethod::setEnabled(bool enabled)
     QDBusConnection::sessionBus().asyncCall(msg);
 }
 
+bool InputMethod::enabled()
+{
+    return m_enabled || m_alwaysShowVirtualKeyboard;
+}
+
 static quint32 keysymToKeycode(quint32 sym)
 {
     switch(sym) {
@@ -464,7 +476,7 @@ void InputMethod::adoptInputMethodContext()
 // jing_kwin virtual input not show when has keyboard device
 bool InputMethod::setInputActivate()
 {
-    if (!m_enabled) {
+    if (!enabled()) {
         waylandServer()->inputMethod()->sendDeactivate();
         return false;
     }
@@ -479,7 +491,7 @@ void InputMethod::updateSni()
     if (!m_sni) {
         return;
     }
-    if (m_enabled) {
+    if (enabled()) {
         m_sni->setIconByName(QStringLiteral("input-keyboard-virtual-on"));
         m_sni->setTitle(i18n("Virtual Keyboard: enabled"));
     } else {

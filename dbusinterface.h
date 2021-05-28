@@ -65,15 +65,28 @@ public Q_SLOTS: // METHODS
 
     void setAppDefaultScale(qreal scale);
     qreal getAppDefaultScale();
+
+    bool hasAlphaNumericKeyboard();
+
+    bool alwaysShowVirtualKeyboard();
+    void setAlwaysShowVirtualKeyboard(bool set);
+
+    void sendFakeKey(uint32_t keySym, uint32_t state);
+
 private Q_SLOTS:
     void becomeKWinService(const QString &service);
 
 Q_SIGNALS:
     void appDefaultScaleChanged(qreal scale);
+    void hasAlphaNumericKeyboardChanged(bool set);
+    void alwaysShowVirtualKeyboardChanged(bool set);
 
+    void mouseOnTopLeftConer();
+    void mouseOnTopRightConer();
 private:
     void announceService();
     QString m_serviceName;
+    bool m_alwaysShowVirtualKeyboard = false;
     QDBusMessage m_replyQueryWindowInfo;
 };
 

@@ -19,6 +19,7 @@
 #include <QObject>
 #include <QPointer>
 #include <QPointF>
+#include <QTimer>
 
 class QWindow;
 
@@ -131,7 +132,38 @@ public:
      */
     void processPinchGestureCancelled(quint32 time, KWin::LibInput::Device *device = nullptr);
 
+private slots:
+    void setPointState();
+
 private:
+    enum PointerConerState {
+        PCS_NONE,
+        PCS_TOBEONTOPLEFT,
+        PCS_ONTOPLEFTING,
+        PCS_ONTOPLEFT,
+        PCS_TOBEONTOPRIGHT,
+        PCS_ONTOPRIGHTING,
+        PCS_ONTOPRIGHT,
+        PCS_TOBEONBOTTOMLEFT,
+        PCS_ONBOTTOMLEFTING,
+        PCS_ONBOTTOMLEFT,
+        PCS_TOBEONBOTTOMRIGHT,
+        PCS_ONBOTTOMRIGHTING,
+        PCS_ONBOTTOMRIGHT
+    };
+
+    enum ButtonConerState {
+        BCS_NONE,
+        BCS_BOTTOMLEFT_ONECE,
+        BCS_BOTTOMLEFT,
+        BCS_BOTTOMRIGHT_ONECE,
+        BCS_BOTTOMRIGHT
+    };
+
+    void getPointPCSState();
+    void pointPreProcess(const QPointF &pos, const QSizeF &delta);
+    void buttonPreProcess(QEvent::Type type, const QPointF &pos, uint32_t time);
+
     void cleanupInternalWindow(QWindow *old, QWindow *now) override;
     void cleanupDecoration(Decoration::DecoratedClientImpl *old, Decoration::DecoratedClientImpl *now) override;
 
@@ -164,6 +196,13 @@ private:
     bool m_confined = false;
     bool m_locked = false;
     bool m_enableConstraints = true;
+    int m_delta = 0;
+    PointerConerState m_pcs = PCS_NONE;
+    ButtonConerState m_bcs = BCS_NONE;
+    QTimer *m_pointerTimer = nullptr;
+    QTimer *m_buttonTimer = nullptr;
+    uint32_t m_lastButtonTime = 0;
+
 };
 
 class WaylandCursorImage : public QObject
@@ -211,6 +250,7 @@ Q_SIGNALS:
     void changed();
 
 private:
+    void onChanged();
     void reevaluteSource();
     void update();
     void updateServerCursor();

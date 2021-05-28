@@ -192,6 +192,7 @@ private:
     void updateMaximizeMode(MaximizeMode maximizeMode);
     void updateFullScreenMode(bool set);
     void updateShowOnScreenEdge();
+    void updateJintWindowType(KWaylandServer::PlasmaShellSurfaceInterface *surface);
     void updateClientArea();
     void setupWindowManagementIntegration();
     void setupPlasmaShellIntegration();

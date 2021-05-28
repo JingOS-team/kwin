@@ -11,6 +11,7 @@
 #include <QQuickItem>
 #include <QQmlContext>
 #include <QMouseEvent>
+#include "kwinglutils.h"
 
 namespace KWin
 {
@@ -24,11 +25,21 @@ const qreal BOTTOM_CONTROL_SCALE_X = 0.2;
 ShowSysInfo::ShowSysInfo()
 {
     connect(effects, &EffectsHandler::showingDesktopChanged, this, &ShowSysInfo::slotShowingDesktopChanged);
+
+    connect(effects, &EffectsHandler::onShowDockBgChanged, this, [this] (bool show, bool animate){
+        if (show) {
+            showDockBg(animate);
+        } else {
+            hideDockBg(animate);
+        }
+    });
+
     _noticeView = new EffectQuickScene(this);
 
     connect(_noticeView, &EffectQuickView::repaintNeeded, this, []() {
         effects->addRepaintFull();
     });
+
 
     _noticeView->setSource(QUrl(QStandardPaths::locate(QStandardPaths::GenericDataLocation, QStringLiteral("kwin/effects/showsysinfo/notice.qml"))));
 
@@ -42,24 +53,27 @@ ShowSysInfo::ShowSysInfo()
     _noticeView->rootItem()->setOpacity(0.8);
     _noticeView->setGeometry(QRect(0, 0, 300, 300));
 
-    _bottomControlview = new EffectQuickScene(this);
+//    _bottomControlview = new EffectQuickScene(this);
 
-    connect(_bottomControlview, &EffectQuickView::repaintNeeded, this, []() {
-        effects->addRepaintFull();
-    });
+//    connect(_bottomControlview, &EffectQuickView::repaintNeeded, this, []() {
+//        effects->addRepaintFull();
+//    });
 
-    _bottomControlview->rootContext()->setContextProperty("showSysInfo", this);
-    _bottomControlview->setSource(QUrl(QStandardPaths::locate(QStandardPaths::GenericDataLocation, QStringLiteral("kwin/effects/showsysinfo/main.qml"))));
+//    _bottomControlview->rootContext()->setContextProperty("showSysInfo", this);
+//    _bottomControlview->setSource(QUrl(QStandardPaths::locate(QStandardPaths::GenericDataLocation, QStringLiteral("kwin/effects/showsysinfo/main.qml"))));
 
-    rootItem = _bottomControlview->rootItem();
-    if (!rootItem) {
-        delete _bottomControlview;
-        _bottomControlview = nullptr;
-        return;
-    }
+//    rootItem = _bottomControlview->rootItem();
+//    if (!rootItem) {
+//        delete _bottomControlview;
+//        _bottomControlview = nullptr;
+//        return;
+//    }
 
-    _bottomControlview->setGeometry(QRect(0, 0, 300, 300));
-    _bottomControlview->show();
+//    _bottomControlview->setGeometry(QRect(0, 0, 300, 300));
+//    _bottomControlview->show();
+
+    _timeLine.setEasingCurve(QEasingCurve::OutQuart);
+    _timeLine.setDuration(std::chrono::milliseconds(static_cast<int>(Effect::animationTime(150))));
 
     _bottomAnimationTimeLine.setEasingCurve(QEasingCurve::OutQuart);
     _bottomAnimationTimeLine.setDuration(std::chrono::milliseconds(static_cast<int>(Effect::animationTime(150))));
@@ -73,6 +87,7 @@ void ShowSysInfo::prePaintScreen(ScreenPrePaintData &data, std::chrono::millisec
     }
     _lastPresentTime = presentTime;
 
+    _timeLine.update(delta);
     _bottomAnimationTimeLine.update(delta);
 
     effects->prePaintScreen(data, presentTime);
@@ -89,31 +104,29 @@ void ShowSysInfo::postPaintScreen()
         effects->renderEffectQuickView(_noticeView);
     }
 
-    if (!effects->showingDesktop() && effects->activeWindow() && _bottomControlview && !effects->isScreenLocked()) {
-        QSize screenSize =  effects->screenSize(0);
+//    if (!effects->showingDesktop() && effects->activeWindow() && _bottomControlview && !effects->isScreenised()) {
+//        QSize screenSize =  effects->screenSize(0);
 
-        int height = (1 - BOTTOM_CONTROL_SCALE_Y * _bottomAnimationTimeLine.value()) * BOTTOM_CONTROL_HEIGHT;
-        int width = (1 - BOTTOM_CONTROL_SCALE_X * _bottomAnimationTimeLine.value()) * BOTTOM_CONTROL_WIDTH;
+//        int height = (1 - BOTTOM_CONTROL_SCALE_Y * _bottomAnimationTimeLine.value()) * BOTTOM_CONTROL_HEIGHT;
+//        int width = (1 - BOTTOM_CONTROL_SCALE_X * _bottomAnimationTimeLine.value()) * BOTTOM_CONTROL_WIDTH;
 
-        _bottomRect = QRect((screenSize.width()- width) / 2, screenSize.height() - height - 5, width, height);
-        _bottomControlview->setGeometry(_bottomRect);
+//        _bottomRect = QRect((screenSize.width()- width) / 2, screenSize.height() - height - 5, width, height);
+//        _bottomControlview->setGeometry(_bottomRect);
 
-        _bottomControlview->rootContext()->setContextProperty("barScale", _barScale);
-        effects->renderEffectQuickView(_bottomControlview);
-    }
+//        _bottomControlview->rootContext()->setContextProperty("barScale", _barScale);
+//        effects->renderEffectQuickView(_bottomControlview);
+//    }
 
     effects->postPaintScreen();
 
     if (!_bottomAnimationTimeLine.done()) {
         effects->addRepaintFull();
-    } else {
-        _lastPresentTime = std::chrono::milliseconds::zero();
     }
 }
 
 bool ShowSysInfo::isActive() const
 {
-    bool isActive = taskManager->getTaskState() == TaskManager::TS_None && effects->activeWindow();
+    bool isActive = taskManager->getTaskState() == TaskManager::TS_None && effects->activeWindow() && !effects->isScreenLocked();;
     return isActive;
     //  && !effects->isScreenLocked() && (effects->showCloseNotice() || effects->activeWindow()->isNormalWindow())
 }
@@ -125,11 +138,11 @@ bool ShowSysInfo::pointerEvent(QMouseEvent *e)
          && e->type() != QEvent::MouseButtonRelease))  // Block user input during animations
         return false;
 
-    QMouseEvent* me = static_cast< QMouseEvent* >(e);
-    _bottomControlview->forwardMouseEvent(me);
-    if (e->isAccepted()) {
-        return true;
-    }
+//    QMouseEvent* me = static_cast< QMouseEvent* >(e);
+//    _bottomControlview->forwardMouseEvent(me);
+//    if (e->isAccepted()) {
+//        return true;
+//    }
 
     return false;
 }
@@ -156,12 +169,43 @@ void ShowSysInfo::prePaintWindow(EffectWindow *w, WindowPrePaintData &data, std:
                 data.quads = data.quads.splitAtY(screenGeom.y() + screenGeom.height() - w->y());
         }
     }
+
     effects->prePaintWindow(w, data, presentTime);
 }
 
 void ShowSysInfo::paintWindow(EffectWindow *w, int mask, QRegion region, WindowPaintData &data)
 {
-    if (w->isBackApp()) {
+    if (w->isDock() && !effects->showingDesktop()) {
+        GLVertexBuffer* vbo = GLVertexBuffer::streamingBuffer();
+        vbo->reset();
+
+        ShaderBinder binder(ShaderTrait::UniformColor);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+        vbo->setUseColor(true);
+        qreal progress = _timeLine.value();
+        QColor bgColor = effects->panelBgColor();
+        vbo->setColor(QColor(bgColor.red(), bgColor.green(), bgColor.blue(), 255 * progress));
+        QVector<float> verts;
+        QRegion paintRegin = region.intersected(w->geometry());
+        verts.reserve(paintRegin.rectCount() * 12);
+        for (const QRect &r : paintRegin) {
+            verts << r.x() + r.width() << r.y();
+            verts << r.x() << r.y();
+            verts << r.x() << r.y() + r.height();
+            verts << r.x() << r.y() + r.height();
+            verts << r.x() + r.width() << r.y() + r.height();
+            verts << r.x() + r.width() << r.y();
+        }
+        vbo->setData(verts.size() / 2, 2, verts.data(), nullptr);
+        vbo->render(GL_TRIANGLES);
+        glDisable(GL_BLEND);
+        if(!_timeLine.done()) {
+            effects->addRepaintFull();
+        }
+    }
+    if (w->isBackApp() || w->isDeleted()) {
         return;
     }
     if (isActive() && w->isScaleApp() && !w->isBackApp()) {
@@ -189,6 +233,32 @@ void ShowSysInfo::paintWindow(EffectWindow *w, int mask, QRegion region, WindowP
 bool ShowSysInfo::supported()
 {
     return effects->isOpenGLCompositing() && effects->animationsSupported();
+}
+
+void ShowSysInfo::hideDockBg(bool animate)
+{
+    if (_isShowingDockBg) {
+        _isShowingDockBg = false;
+        _timeLine.setDirection(TimeLine::Backward);
+        _timeLine.reset();
+
+        if (!animate) {
+            _timeLine.stop();
+        }
+    }
+}
+
+void ShowSysInfo::showDockBg(bool animate)
+{
+    if (!_isShowingDockBg) {
+        _isShowingDockBg = true;
+        _timeLine.setDirection(TimeLine::Forward);
+        _timeLine.reset();
+
+        if (!animate) {
+            _timeLine.stop();
+        }
+    }
 }
 
 void ShowSysInfo::showDesktop()
@@ -223,10 +293,10 @@ bool ShowSysInfo::isShowNextWindow()
 
 void ShowSysInfo::slotShowingDesktopChanged(bool show)
 {
-    _barScale = 1.0;
-    if (!effects->showingDesktop() && effects->activeWindow() && _bottomControlview) {
-        _bottomControlview->rootContext()->setContextProperty("barScale", _barScale);
-    }
+//    _barScale = 1.0;
+//    if (!effects->showingDesktop() && effects->activeWindow() && _bottomControlview) {
+//        _bottomControlview->rootContext()->setContextProperty("barScale", _barScale);
+//    }
 }
 
 }

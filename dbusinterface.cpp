@@ -45,11 +45,18 @@ DBusInterface::DBusInterface(QObject *parent)
     (void) new KWinAdaptor(this);
 
     qreal _scale = workspace()->getAppDefaultScale();
+    connect(workspace(), &Workspace::onMouseOnTopLeftConer, this, &DBusInterface::mouseOnTopLeftConer);
+    connect(workspace(), &Workspace::onMouseOnTopRightConer, this, &DBusInterface::mouseOnTopRightConer);
+
     auto scaleSchemeConfig = KSharedConfig::openConfig("applications-scale", KConfig::SimpleConfig);
     auto scaleGgroup = KConfigGroup(scaleSchemeConfig, QStringLiteral("ApplicationScale"));
     _scale = scaleGgroup.readEntry("default", APP_DEFAULT_SCALE);
 
     workspace()->setAppDefaultScale(_scale > 0 ? _scale : APP_DEFAULT_SCALE);
+
+
+    KConfigGroup kwinConfig(KSharedConfig::openConfig("kwinrc"), "SystemSetings");
+    m_alwaysShowVirtualKeyboard = kwinConfig.readEntry("alwaysShowVirtualKeyboard", false);
 
     QDBusConnection dbus = QDBusConnection::sessionBus();
     dbus.registerObject(QStringLiteral("/KWin"), this);
@@ -72,6 +79,9 @@ DBusInterface::DBusInterface(QObject *parent)
             emit appDefaultScaleChanged(workspace()->getAppDefaultScale());
         }
     });
+    connect(input(), &InputRedirection::hasAlphaNumericKeyboardChanged, this, [this](bool set) {
+        emit hasAlphaNumericKeyboardChanged(hasAlphaNumericKeyboard());
+    });
 }
 
 void DBusInterface::becomeKWinService(const QString &service)
@@ -81,6 +91,23 @@ void DBusInterface::becomeKWinService(const QString &service)
     if (service == m_serviceName && QDBusConnection::sessionBus().registerService(m_serviceName) && sender()) {
         sender()->deleteLater(); // bye doggy :'(
         announceService();
+    }
+}
+
+bool DBusInterface::alwaysShowVirtualKeyboard()
+{
+    return m_alwaysShowVirtualKeyboard;
+}
+
+void DBusInterface::setAlwaysShowVirtualKeyboard(bool set)
+{
+    if (set != m_alwaysShowVirtualKeyboard) {
+        m_alwaysShowVirtualKeyboard = set;
+
+        KConfigGroup kwinConfig(KSharedConfig::openConfig("kwinrc"), "SystemSetings");
+        kwinConfig.writeEntry("alwaysShowVirtualKeyboard", set);
+        emit hasAlphaNumericKeyboardChanged(hasAlphaNumericKeyboard());
+        emit alwaysShowVirtualKeyboardChanged(set);
     }
 }
 
@@ -278,6 +305,16 @@ void DBusInterface::setAppDefaultScale(qreal scale)
 qreal DBusInterface::getAppDefaultScale()
 {
     return workspace()->getAppDefaultScale();
+}
+
+bool DBusInterface::hasAlphaNumericKeyboard()
+{
+    return !m_alwaysShowVirtualKeyboard && input()->hasAlphaNumericKeyboard();
+}
+
+void DBusInterface::sendFakeKey(uint32_t keySym, uint32_t state)
+{
+    input()->sendFakeKey(keySym, state > 0 ? InputRedirection::KeyboardKeyPressed : InputRedirection::KeyboardKeyReleased);
 }
 
 CompositorDBusInterface::CompositorDBusInterface(Compositor *parent)

@@ -141,6 +141,30 @@ void AbstractClient::setSkipSwitcher(bool set)
     emit skipSwitcherChanged();
 }
 
+void AbstractClient::setRequestVisible(bool visible)
+{
+    if (m_requestVisible != visible) {
+        m_requestVisible = visible;
+
+        effects->addRepaint(visibleRect());
+        emit requestVisibileChanged();
+    }
+}
+
+void AbstractClient::setJingWindowType(JingWindowType windowType)
+{
+    if (m_jingWindowType != windowType) {
+        m_jingWindowType = windowType;
+
+        emit jingWindowTypeChanged();
+    }
+}
+
+JingWindowType AbstractClient::jingWindowType()
+{
+    return m_jingWindowType;
+}
+
 void AbstractClient::setSkipPager(bool b)
 {
     b = rules()->checkSkipPager(b);
@@ -2862,7 +2886,12 @@ void AbstractClient::setIsBackApp(bool isBack)
     }
 }
 
-bool AbstractClient::isDefaultMaxApp()
+bool AbstractClient::visible()
+{
+    return requestVisible();
+}
+
+bool AbstractClient::isDefaultMaxApp() const
 {
     return (isNormalWindow() || isDialog()) && (!transientFor() || pid() != transientFor()->pid()) && isResizable();
 }

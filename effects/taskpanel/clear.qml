@@ -25,8 +25,8 @@ Plasma.Button {
   }
 */
     Image {
-      width: 100
-      height: 100
+      width: 120
+      height: 120
       source: '/usr/share/kwin_icons/task/jt_clear_normal.png'
       MouseArea {
           anchors.fill: parent

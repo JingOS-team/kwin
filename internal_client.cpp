@@ -217,6 +217,9 @@ bool InternalClient::isPlaceable() const
 
 bool InternalClient::noBorder() const
 {
+    if (isDefaultMaxApp()) {
+        return true;
+    }
     return m_userNoBorder || m_internalWindowFlags.testFlag(Qt::FramelessWindowHint) || m_internalWindowFlags.testFlag(Qt::Popup);
 }
 

@@ -54,6 +54,7 @@ protected:
     void paintDesktop(int desktop, int mask, const QRegion &region, ScreenPaintData &data) override;
     void paintCursor(const QRegion &region) override;
     void paintEffectQuickView(EffectQuickView *w) override;
+    void paintTexture(GLTexture *texture, const QRegion &region, const QRect &rect) override;
 private:
     explicit SceneXrender(XRenderBackend *backend, QObject *parent = nullptr);
     static ScreenPaintData screen_paint;

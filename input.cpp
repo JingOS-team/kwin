@@ -1108,7 +1108,8 @@ public:
         case QEvent::MouseMove: {
             QHoverEvent e(QEvent::HoverMove, p, p);
             QCoreApplication::instance()->sendEvent(decoration->decoration(), &e);
-            decoration->client()->processDecorationMove(p.toPoint(), event->globalPos());
+            // Jingos_app do not move or resize window
+            // decoration->client()->processDecorationMove(p.toPoint(), event->globalPos());
             return true;
         }
         case QEvent::MouseButtonPress:
@@ -1120,12 +1121,13 @@ public:
             QMouseEvent e(event->type(), p, event->globalPos(), event->button(), event->buttons(), event->modifiers());
             e.setAccepted(false);
             QCoreApplication::sendEvent(decoration->decoration(), &e);
-            if (!e.isAccepted() && event->type() == QEvent::MouseButtonPress) {
-                decoration->client()->processDecorationButtonPress(&e);
-            }
-            if (event->type() == QEvent::MouseButtonRelease) {
-                decoration->client()->processDecorationButtonRelease(&e);
-            }
+            // Jingos_app do not max window by user
+//            if (!e.isAccepted() && event->type() == QEvent::MouseButtonPress) {
+//                decoration->client()->processDecorationButtonPress(&e);
+//            }
+//            if (event->type() == QEvent::MouseButtonRelease) {
+//                decoration->client()->processDecorationButtonRelease(&e);
+//            }
             return true;
         }
         default:
@@ -1275,6 +1277,7 @@ public:
             TabBox::TabBox::self()->keyPress(event->modifiers() | event->key());
         } else if (static_cast<KeyEvent*>(event)->modifiersRelevantForGlobalShortcuts() == Qt::NoModifier) {
             TabBox::TabBox::self()->modifiersReleased();
+            return false;
         }
         return true;
     }
@@ -2651,6 +2654,11 @@ bool InputRedirection::isSelectingWindow() const
 void InputRedirection::forwardBackKey(uint32_t time)
 {
     m_keyboard->sendBackKey(time);
+}
+
+void InputRedirection::sendFakeKey(uint32_t keySym, InputRedirection::KeyboardKeyState state)
+{
+    m_keyboard->sendFakeKey(keySym, state, 0);
 }
 
 InputDeviceHandler::InputDeviceHandler(InputRedirection *input)

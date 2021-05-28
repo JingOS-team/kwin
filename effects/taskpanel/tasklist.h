@@ -157,6 +157,7 @@ Q_SIGNALS:
     void isAnimatingChanged(bool, qreal);
 
 private:
+    qreal pageHeight(EffectWindow* w);
     void resetAnimate(int time, QEasingCurve::Type type = QEasingCurve::OutQuint);
     void makeupGride(QList<QHash<EffectWindow*, WindowItem*>::iterator> items, int screen, int curIndex);
     bool boundCheck();
@@ -164,6 +165,8 @@ private:
     void resetSpeadLine(int time);
 
 private:
+    int _hM = 10;
+    int _vM = 10;
     bool _waitForNextAnimate = false;
     bool _isSliding = false;
     bool _resetingGride = false;

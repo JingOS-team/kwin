@@ -147,6 +147,7 @@ public:
     void addRepaint(int x, int y, int w, int h) override;
     int activeScreen() const override;
     int numScreens() const override;
+    qreal screenScale(int screen) override;
     int screenNumber(const QPoint& pos) const override;
     QRect clientArea(clientAreaOption, int screen, int desktop) const override;
     QRect clientArea(clientAreaOption, const EffectWindow* c) const override;
@@ -264,6 +265,7 @@ public:
     Effect *findEffect(const QString &name) const;
 
     void renderEffectQuickView(EffectQuickView *effectQuickView) const override;
+    void renderTexture(GLTexture *texture, const QRegion &region, const QRect &rect);
 
     SessionState sessionState() const override;
 
@@ -280,6 +282,11 @@ public:
     virtual void setCloseWindowToDesktop(bool toDesktop) override;
 
     virtual qreal getAppDefaultScale() override;
+
+    void toTriggerTask() override;
+
+    bool isTopClientJingApp() override;
+
 public Q_SLOTS:
     void slotCurrentTabAboutToChange(EffectWindow* from, EffectWindow* to);
     void slotTabAdded(EffectWindow* from, EffectWindow* to);
@@ -373,6 +380,7 @@ private:
     EffectLoader *m_effectLoader;
     int m_trackingCursorChanges;
     std::unique_ptr<WindowPropertyNotifyX11Filter> m_x11WindowPropertyNotify;
+    QPoint m_lastPos = QPoint(-1, -1);
 };
 
 class EffectWindowImpl : public EffectWindow
@@ -528,6 +536,8 @@ public:
     bool isBackApp() const override;
     void setIsBackApp(bool isBack) override;
     bool isTransient() const override;
+
+    bool isJingApp() override;
 private Q_SLOTS:
     void thumbnailDestroyed(QObject *object);
     void thumbnailTargetChanged();

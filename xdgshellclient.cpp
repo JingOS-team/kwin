@@ -587,6 +587,9 @@ bool XdgToplevelClient::userCanSetNoBorder() const
 
 bool XdgToplevelClient::noBorder() const
 {
+    if (isDefaultMaxApp()) {
+        return true;
+    }
     if (m_serverDecoration) {
         switch (m_serverDecoration->mode()) {
         case ServerSideDecorationManagerInterface::Mode::Server:
@@ -1442,6 +1445,17 @@ void XdgToplevelClient::installPlasmaShellSurface(PlasmaShellSurfaceInterface *s
     connect(shellSurface, &PlasmaShellSurfaceInterface::skipSwitcherChanged, this, [this] {
         setSkipSwitcher(m_plasmaShellSurface->skipSwitcher());
     });
+
+    // JINGOS extend protocols
+    setRequestVisible(shellSurface->visible());
+    connect(shellSurface, &PlasmaShellSurfaceInterface::visibleChanged, this, [this] {
+        setRequestVisible(m_plasmaShellSurface->visible());
+    });
+    updateJintWindowType(shellSurface);
+    connect(shellSurface, &PlasmaShellSurfaceInterface::windowTypeChanged, this, [this] {
+        updateJintWindowType(m_plasmaShellSurface);
+    });
+    // JINGOS extend protocols end
 }
 
 void XdgToplevelClient::updateShowOnScreenEdge()
@@ -1520,6 +1534,102 @@ void XdgToplevelClient::updateShowOnScreenEdge()
     } else {
         ScreenEdges::self()->reserve(this, ElectricNone);
     }
+}
+
+void XdgToplevelClient::updateJintWindowType(PlasmaShellSurfaceInterface *surface)
+{
+    JingWindowType windowType = JingWindowType::TYPE_APPLICATION;
+    switch (surface->windowType()) {
+    case PlasmaShellSurfaceInterface::WindowType::TYPE_WALLPAPER:
+        windowType = JingWindowType::TYPE_WALLPAPER;
+        break;
+    case PlasmaShellSurfaceInterface::WindowType::TYPE_DESKTOP:
+        windowType =JingWindowType::TYPE_DESKTOP;
+        break;
+    case PlasmaShellSurfaceInterface::WindowType::TYPE_DIALOG:
+        windowType = JingWindowType::TYPE_DIALOG;
+        break;
+    case PlasmaShellSurfaceInterface::WindowType::TYPE_SYS_SPLASH:
+        windowType = JingWindowType::TYPE_SYS_SPLASH;
+        break;
+    case PlasmaShellSurfaceInterface::WindowType::TYPE_SEARCH_BAR:
+        windowType = JingWindowType::TYPE_SEARCH_BAR;
+        break;
+    case PlasmaShellSurfaceInterface::WindowType::TYPE_NOTIFICATION:
+        windowType = JingWindowType::TYPE_NOTIFICATION;
+        break;
+    case PlasmaShellSurfaceInterface::WindowType::TYPE_CRITICAL_NOTIFICATION:
+        windowType = JingWindowType::TYPE_CRITICAL_NOTIFICATION;
+        break;
+    case PlasmaShellSurfaceInterface::WindowType::TYPE_INPUT_METHOD:
+        windowType = JingWindowType::TYPE_INPUT_METHOD;
+        break;
+    case PlasmaShellSurfaceInterface::WindowType::TYPE_INPUT_METHOD_DIALOG:
+        windowType = JingWindowType::TYPE_INPUT_METHOD_DIALOG;
+        break;
+    case  PlasmaShellSurfaceInterface::WindowType::TYPE_DND:
+        windowType = JingWindowType::TYPE_DND;
+        break;
+    case PlasmaShellSurfaceInterface::WindowType::TYPE_DOCK:
+        windowType = JingWindowType::TYPE_DOCK;
+        break;
+    case PlasmaShellSurfaceInterface::WindowType::TYPE_APPLICATION_OVERLAY:
+        windowType = JingWindowType::TYPE_APPLICATION_OVERLAY;
+        break;
+    case PlasmaShellSurfaceInterface::WindowType::TYPE_STATUS_BAR:
+        windowType = JingWindowType::TYPE_STATUS_BAR;
+        break;
+    case PlasmaShellSurfaceInterface::WindowType::TYPE_STATUS_BAR_PANEL:
+        windowType = JingWindowType::TYPE_STATUS_BAR_PANEL;
+        break;
+    case PlasmaShellSurfaceInterface::WindowType::TYPE_TOAST:
+        windowType = JingWindowType::TYPE_TOAST;
+        break;
+    case PlasmaShellSurfaceInterface::WindowType::TYPE_KEYGUARD:
+        windowType = JingWindowType::TYPE_KEYGUARD;
+        break;
+    case PlasmaShellSurfaceInterface::WindowType::TYPE_PHONE:
+        windowType = JingWindowType::TYPE_PHONE;
+        break;
+    case PlasmaShellSurfaceInterface::WindowType::TYPE_SYSTEM_DIALOG:
+        windowType = JingWindowType::TYPE_SYSTEM_DIALOG;
+        break;
+    case PlasmaShellSurfaceInterface::WindowType::TYPE_SYSTEM_ERROR:
+        windowType = JingWindowType::TYPE_SYSTEM_ERROR;
+        break;
+    case PlasmaShellSurfaceInterface::WindowType::TYPE_VOICE_INTERACTION:
+        windowType = JingWindowType::TYPE_VOICE_INTERACTION;
+        break;
+    case PlasmaShellSurfaceInterface::WindowType::TYPE_SCREENSHOT:
+        windowType = JingWindowType::TYPE_SCREENSHOT;
+        break;
+    case PlasmaShellSurfaceInterface::WindowType::TYPE_BOOT_PROGRESS:
+        windowType = JingWindowType::TYPE_BOOT_PROGRESS;
+        break;
+    case PlasmaShellSurfaceInterface::WindowType::TYPE_POINTER:
+        windowType = JingWindowType::TYPE_POINTER;
+        break;
+    case PlasmaShellSurfaceInterface::WindowType::TYPE_LAST_SYS_LAYER:
+        windowType = JingWindowType::TYPE_LAST_SYS_LAYER;
+        break;
+    case PlasmaShellSurfaceInterface::WindowType::TYPE_BASE_APPLICATION:
+        windowType = JingWindowType::TYPE_BASE_APPLICATION;
+        break;
+    case PlasmaShellSurfaceInterface::WindowType::TYPE_APPLICATION:
+        windowType = JingWindowType::TYPE_APPLICATION;
+        break;
+    case PlasmaShellSurfaceInterface::WindowType::TYPE_APPLICATION_STARTING:
+        windowType = JingWindowType::TYPE_APPLICATION_STARTING;
+        break;
+    case PlasmaShellSurfaceInterface::WindowType::TYPE_LAST_APPLICATION_WINDOW:
+        windowType = JingWindowType::TYPE_LAST_APPLICATION_WINDOW;
+        break;
+    default:
+        windowType = JingWindowType::TYPE_APPLICATION;
+        break;
+    }
+
+    setJingWindowType(windowType);
 }
 
 void XdgToplevelClient::updateClientArea()

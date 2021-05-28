@@ -1181,6 +1181,11 @@ void KWin::SceneXrender::paintCursor(const QRegion &region)
     Q_UNUSED(region)
 }
 
+void KWin::SceneXrender::paintTexture(GLTexture *, const QRegion &, const QRect &)
+{
+
+}
+
 void KWin::SceneXrender::paintEffectQuickView(KWin::EffectQuickView *w)
 {
     const QImage buffer = w->bufferAsImage();

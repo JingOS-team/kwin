@@ -97,7 +97,7 @@ drmModeConnectorPtr DrmOutput::getAddNewMode(int fd, uint32_t connectorId, bool 
         hasInitNewMode = true;
     }
 
-    int count_modes = conn->count_modes + 1;
+    int count_modes = conn->count_modes;
     drmModeModeInfoPtr oldModes =  conn->modes;
     conn->modes = (drmModeModeInfoPtr)drmMalloc(count_modes*sizeof(struct drm_mode_modeinfo));
 
@@ -106,11 +106,11 @@ drmModeConnectorPtr DrmOutput::getAddNewMode(int fd, uint32_t connectorId, bool 
         memcpy(pos, U642VOID(oldModes)+(sizeof(struct drm_mode_modeinfo)*i), sizeof(struct drm_mode_modeinfo));
         pos = (pos + (sizeof(struct drm_mode_modeinfo)));
     }
-    if (bSuport) {
-        memcpy(pos, &m_newmode, sizeof(struct drm_mode_modeinfo));
-    } else {
-        memcpy(pos, &m_newmode_1080, sizeof(struct drm_mode_modeinfo));
-    }
+//    if (bSuport) {
+//        memcpy(pos, &m_newmode, sizeof(struct drm_mode_modeinfo));
+//    } else {
+//        memcpy(pos, &m_newmode_1080, sizeof(struct drm_mode_modeinfo));
+//    }
 
     conn->count_modes  = count_modes;
 

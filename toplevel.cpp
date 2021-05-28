@@ -586,11 +586,11 @@ void Toplevel::updateShadow()
     const QRect oldVisibleRect = visibleRect();
     addWorkspaceRepaint(oldVisibleRect);
     if (shadow()) {
-        dirtyRect = shadow()->shadowRegion().boundingRect();
-        if (!effectWindow()->sceneWindow()->shadow()->updateShadow()) {
-            effectWindow()->sceneWindow()->updateShadow(nullptr);
-        }
-        emit shadowChanged();
+//        dirtyRect = shadow()->shadowRegion().boundingRect();
+//        if (!effectWindow()->sceneWindow()->shadow()->updateShadow()) {
+//            effectWindow()->sceneWindow()->updateShadow(nullptr);
+//        }
+//        emit shadowChanged();
     } else {
         Shadow::createShadow(this);
     }
@@ -828,10 +828,6 @@ bool Toplevel::isScaleApp() const
 
 void Toplevel::setIsScaleApp(bool isScale)
 {
-    m_isScaleApp = isScale;
-    if (m_isScaleApp) {
-        sendScale(getAppScale());
-    }
 }
 
 bool Toplevel::isLogoutWindow() const
@@ -857,11 +853,12 @@ void Toplevel::kill()
 
 void Toplevel::sendScale(qreal scale)
 {
-    if (surface()  && !m_hasSendScaleInfo) {
-        m_hasSendScaleInfo = true;
-        surface()->setInputAreaScale(getAppScale());
-        screens()->setClientScale(surface()->client()->client(), getAppScale());
-    }
+
+}
+
+bool Toplevel::visible()
+{
+    return true;
 }
 
 QPoint Toplevel::mapToFrame(const QPoint &point) const

@@ -19,6 +19,7 @@
 
 #include <QElapsedTimer>
 #include <QPointer>
+#include <KWaylandServer/plasmashell_interface.h>
 
 namespace KWaylandServer
 {
@@ -334,6 +335,14 @@ public:
     }
     void setSkipSwitcher(bool set);
 
+    bool requestVisible() const {
+        return m_requestVisible;
+    }
+    void setRequestVisible(bool visible);
+
+    void setJingWindowType(JingWindowType windowType);
+
+    JingWindowType jingWindowType();
     bool skipTaskbar() const {
         return m_skipTaskbar;
     }
@@ -874,7 +883,9 @@ public:
 
     void setIsBackApp(bool isBack) override;
 
-    virtual bool isDefaultMaxApp();
+    bool visible() override;
+
+    virtual bool isDefaultMaxApp() const;
 
 public Q_SLOTS:
     virtual void closeWindow() = 0;
@@ -884,6 +895,8 @@ Q_SIGNALS:
     void skipTaskbarChanged();
     void skipPagerChanged();
     void skipSwitcherChanged();
+    void requestVisibileChanged();
+    void jingWindowTypeChanged();
     void iconChanged();
     void activeChanged();
     void keepAboveChanged(bool);
@@ -1242,8 +1255,10 @@ private:
     /**
      * Unaffected by KWin
      */
+    JingWindowType m_jingWindowType = JingWindowType::TYPE_APPLICATION;
     bool m_originalSkipTaskbar = false;
     bool m_skipPager = false;
+    bool m_requestVisible = true;
     bool m_skipSwitcher = false;
     QIcon m_icon;
     bool m_active = false;

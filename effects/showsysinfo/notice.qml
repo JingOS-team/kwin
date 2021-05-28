@@ -17,7 +17,7 @@ Rectangle {
     Text {
         anchors.centerIn : parent
         color: "#FFFFFF"
-        text: "Press again to close the window"
+        text: i18n("Press again to close the window")
     }
 }
 

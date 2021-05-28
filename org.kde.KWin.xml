@@ -53,8 +53,29 @@
         <annotation name="org.qtproject.QtDBus.QtTypeName.Out0" value="QVariantMap"/>
         <arg type="d" direction="out"/>
     </method>
+    <method name="hasAlphaNumericKeyboard">
+        <arg type="b" direction="out"/>
+    </method>
+    <method name="sendFakeKey">
+        <arg type="u" direction="in"/>
+        <arg type="u" direction="in"/>
+    </method>
     <signal name="appDefaultScaleChanged">
        <arg name="scale" type="d"/>
+    </signal>
+    <signal name="hasAlphaNumericKeyboardChanged">
+       <arg name="set" type="b"/>
+    </signal>
+    <signal name="mouseOnTopLeftConer" />
+    <signal name="mouseOnTopRightConer" />
+    <method name="setAlwaysShowVirtualKeyboard">
+        <arg type="b" direction="in"/>
+    </method>
+    <method name="alwaysShowVirtualKeyboard">
+        <arg type="b" direction="out"/>
+    </method>
+    <signal name="alwaysShowVirtualKeyboardChanged">
+       <arg name="set" type="b"/>
     </signal>
   </interface>
 </node>

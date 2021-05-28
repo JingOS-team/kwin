@@ -356,6 +356,7 @@ T *ScreenEdgeEffect::createEdgeGlow(ElectricBorder border, const QSize &size)
 
 bool ScreenEdgeEffect::isActive() const
 {
+    return false;
     return !m_borders.isEmpty() && !effects->isScreenLocked();
 }
 

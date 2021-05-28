@@ -421,6 +421,10 @@ void EffectsHandlerImpl::prePaintWindow(EffectWindow* w, WindowPrePaintData& dat
 
 void EffectsHandlerImpl::paintWindow(EffectWindow* w, int mask, const QRegion &region, WindowPaintData& data)
 {
+    if (w->isDock() && w->y() == 0) {
+        setPanelGeometry(w->geometry());
+        setPanel(w);
+    }
     if (m_currentPaintWindowIterator != m_activeEffects.constEnd()) {
         (*m_currentPaintWindowIterator++)->paintWindow(w, mask, region, data);
         --m_currentPaintWindowIterator;
@@ -1260,6 +1264,11 @@ int EffectsHandlerImpl::numScreens() const
     return screens()->count();
 }
 
+qreal EffectsHandlerImpl::screenScale(int screen)
+{
+    return screens()->scale(screen);
+}
+
 int EffectsHandlerImpl::screenNumber(const QPoint& pos) const
 {
     return screens()->number(pos);
@@ -1734,6 +1743,11 @@ void EffectsHandlerImpl::renderEffectQuickView(EffectQuickView *w) const
     scene()->paintEffectQuickView(w);
 }
 
+void EffectsHandlerImpl::renderTexture(GLTexture *texture, const QRegion &region, const QRect &rect)
+{
+    scene()->paintTexture(texture, region, rect);
+}
+
 SessionState EffectsHandlerImpl::sessionState() const
 {
     return Workspace::self()->sessionManager()->state();
@@ -1785,6 +1799,16 @@ void EffectsHandlerImpl::setCloseWindowToDesktop(bool toDesktop)
 qreal EffectsHandlerImpl::getAppDefaultScale()
 {
     return workspace()->getAppDefaultScale();
+}
+
+void EffectsHandlerImpl::toTriggerTask()
+{
+    emit triggerTask();
+}
+
+bool EffectsHandlerImpl::isTopClientJingApp()
+{
+    return Workspace::self()->isTopClientJingApp();
 }
 
 //****************************************
@@ -2199,6 +2223,16 @@ bool EffectWindowImpl::isTransient() const
     AbstractClient *client = qobject_cast<AbstractClient *>(toplevel);
      if (client) {
         return client->isTransient();
+     }
+
+     return false;
+}
+
+bool EffectWindowImpl::isJingApp()
+{
+    AbstractClient *client = qobject_cast<AbstractClient *>(toplevel);
+     if (client) {
+        return workspace()->isJingOSApp(client);
      }
 
      return false;

@@ -82,6 +82,7 @@ QString DecorationBridge::readPlugin()
 
 static bool readNoPlugin()
 {
+    return false;
     return kwinApp()->config()->group(s_pluginName).readEntry("NoPlugin", false);
 }
 

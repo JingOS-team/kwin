@@ -79,6 +79,7 @@ class WindowPrePaintData;
 class WindowPaintData;
 class ScreenPrePaintData;
 class ScreenPaintData;
+class GLTexture;
 
 typedef QPair< QString, Effect* > EffectPair;
 typedef QList< KWin::EffectWindow* > EffectWindowList;
@@ -1375,6 +1376,8 @@ public:
      * @since 5.18
      */
     virtual void renderEffectQuickView(EffectQuickView *effectQuickView) const = 0;
+
+    virtual void renderTexture(GLTexture *texture, const QRegion &region, const QRect &rect) = 0;
     /**
      * The status of the session i.e if the user is logging out
      * @since 5.18
@@ -1396,7 +1399,25 @@ public:
     virtual void setCloseWindowToDesktop(bool toDesktop) = 0;
 
     virtual qreal getAppDefaultScale() = 0;
+
+    virtual qreal screenScale(int screen) = 0;
+
+    virtual void toTriggerTask() = 0;
+
+    virtual bool isTopClientJingApp() = 0;
+
+    virtual QColor panelBgColor();
+
+    virtual void setPanelGeometry(const QRect &geometry);
+    virtual QRect panelGeometry();
+
+    virtual void setPanel(EffectWindow* panel);
+    virtual EffectWindow* panel();
+
+    virtual void showDockBg(bool show, bool animate);
+
 Q_SIGNALS:
+    void onShowDockBgChanged(bool show, bool animate);
     /**
      * Signal emitted when the current desktop changed.
      * @param oldDesktop The previously current desktop
@@ -1842,7 +1863,11 @@ Q_SIGNALS:
     void sessionStateChanged();
 
     void switchWindows(bool toRight);
+
+    void triggerTask();
 protected:
+    EffectWindow* _panel = nullptr;
+    QRect _panelGeometry;
     QVector< EffectPair > loaded_effects;
     //QHash< QString, EffectFactory* > effect_factories;
     CompositingType compositing_type;
@@ -2526,6 +2551,7 @@ public:
     virtual void setIsBackApp(bool isBack) = 0;
     virtual bool isTransient() const = 0;
 
+    virtual bool isJingApp()  = 0;
     Q_SCRIPTABLE void kill();
 private:
     class Private;
@@ -2816,7 +2842,6 @@ public:
      * @see setRotationAxis
      */
     QVector3D rotationAxis() const;
-
 protected:
     PaintData();
     PaintData(const PaintData &other);

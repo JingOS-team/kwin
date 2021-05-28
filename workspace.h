@@ -54,6 +54,8 @@ class UserActionsMenu;
 class X11Client;
 class X11EventFilter;
 enum class Predicate;
+class DBusInterface;
+class EffectWindow;
 
 class X11EventFilterContainer : public QObject
 {
@@ -78,6 +80,9 @@ public:
     static Workspace* self() {
         return _self;
     }
+
+    void mouseOnTopLeftConer();
+    void mouseOnTopRightConer();
 
     bool workspaceEvent(xcb_generic_event_t*);
     bool workspaceEvent(QEvent*);
@@ -173,7 +178,7 @@ public:
 
     AbstractClient* clientUnderMouse(int screen) const;
 
-    void activateClient(AbstractClient*, bool force = false, bool avoid_animation = false);
+    void activateClient(AbstractClient*, bool force = false, bool avoid_animation = false, bool isTrigger = false);
     bool requestFocus(AbstractClient* c, bool force = false);
     enum ActivityFlag {
         ActivityFocus = 1 << 0, // focus the window
@@ -253,6 +258,7 @@ public:
 
     SessionManager *sessionManager() const;
 
+    void triggerDesktop();
 public:
     QPoint cascadeOffset(const AbstractClient *c) const;
 
@@ -326,7 +332,7 @@ public:
     void setCurrentScreen(int new_screen);
 
     void minimizeAllWindow();
-    void setShowingDesktop(bool showing, bool activeNext = true);
+    void setShowingDesktop(bool showing, bool activeNext = true, bool isTrigger = false);
     bool showingDesktop() const;
 
     void removeClient(X11Client *);   // Only called from X11Client::destroyClient() or X11Client::releaseWindow()
@@ -430,6 +436,12 @@ public:
 
     void setCloseWindowToDesktop(bool toDesktop) {
         m_showDesktopWhenWindowClosed = toDesktop;
+    }
+    bool isSystemUI(EffectWindow *w) const;
+    bool isManageWindowType(EffectWindow *w);
+
+    DBusInterface *dbusInterface() {
+        return m_dbusInterface;
     }
 public Q_SLOTS:
     void performWindowOperation(KWin::AbstractClient* c, Options::WindowOperation op);
@@ -554,6 +566,8 @@ Q_SIGNALS:
 
     void loginChanged(bool login);
 
+    void onMouseOnTopLeftConer();
+    void onMouseOnTopRightConer();
 private:
     void init();
     void initializeX11();
@@ -701,6 +715,9 @@ private:
     qreal _appDefaultScale = APP_DEFAULT_SCALE;
     bool m_showDesktopWhenWindowClosed = true;
     bool _hasLogin = false;
+
+    DBusInterface *m_dbusInterface;
+    AbstractClient *m_triggerWindow = nullptr;
 private:
     friend bool performTransiencyCheck();
     friend Workspace *workspace();

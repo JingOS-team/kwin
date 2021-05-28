@@ -260,6 +260,9 @@ public:
     bool isSelectingWindow() const;
 
     void forwardBackKey(uint32_t time);
+
+    void sendFakeKey(uint32_t keySym, InputRedirection::KeyboardKeyState state);
+
 Q_SIGNALS:
     /**
      * @brief Emitted when the global pointer position changed

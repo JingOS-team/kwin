@@ -15,6 +15,7 @@
 
 */
 
+#include "effects.h"
 #include "x11client.h"
 #include "cursor.h"
 #include "focuschain.h"
@@ -278,12 +279,22 @@ void Workspace::setActiveClient(AbstractClient* c)
  * @see setActiveClient
  * @see requestFocus
  */
-void Workspace::activateClient(AbstractClient* c, bool force, bool avoid_animation)
+void Workspace::activateClient(AbstractClient* c, bool force, bool avoid_animation, bool isTrigger)
 {
     if (c == nullptr) {
         focusToNull();
         setActiveClient(nullptr);
         return;
+    }
+
+    if (isJingOSApp(c) || c->isDesktop()) {
+        effects->showDockBg(false, true);
+    } else if (!isSystemUI(c->effectWindow())) {
+        effects->showDockBg(true, true);
+    }
+
+    if (!isTrigger) {
+        m_triggerWindow = nullptr;
     }
     raiseClient(c);
     if (!c->isOnCurrentDesktop()) {
@@ -343,6 +354,12 @@ bool Workspace::takeActivity(AbstractClient* c, ActivityFlags flags)
     if (!c) {
         focusToNull();
         return true;
+    }
+
+    if (isJingOSApp(c) || c->isDesktop()) {
+        effects->showDockBg(false, true);
+    } else if (!isSystemUI(c->effectWindow())) {
+        effects->showDockBg(true, true);
     }
 
     if (flags & ActivityFocus) {
