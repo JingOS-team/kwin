@@ -388,7 +388,7 @@ void CoverSwitchEffect::paintWindow(EffectWindow* w, int mask, QRegion region, W
 {
     if (mActivated || stop || stopRequested) {
         if (!(mask & PAINT_WINDOW_TRANSFORMED) && !w->isDesktop()) {
-            if ((start || stop) && w->isDock()) {
+            if ((start || stop) && w->isStatusBar()) {
                 data.setOpacity(1.0 - timeLine.value());
                 if (stop)
                     data.setOpacity(timeLine.value());

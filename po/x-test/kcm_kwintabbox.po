@@ -1,0 +1,227 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR This file is copyright:
+# This file is distributed under the same license as the kwin package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: kcm_kwintabbox\n"
+"Report-Msgid-Bugs-To: https://bugs.kde.org\n"
+"POT-Creation-Date: 2020-10-15 02:32+0200\n"
+"PO-Revision-Date: 2020-06-27 03:51+0000\n"
+"Last-Translator: transxx.py program <null@kde.org>\n"
+"Language-Team: KDE Test Language <kde-i18n-doc@kde.org>\n"
+"Language: x-test\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+#: kwintabboxconfigform.cpp:77
+#, kde-format
+msgid "KWin"
+msgstr "xxKWinxx"
+
+#: layoutpreview.cpp:147
+#, kde-format
+msgctxt "An example Desktop Name"
+msgid "Desktop 1"
+msgstr "xxDesktop 1xx"
+
+#: main.cpp:61
+#, kde-format
+msgid "Main"
+msgstr "xxMainxx"
+
+#: main.cpp:62
+#, kde-format
+msgid "Alternative"
+msgstr "xxAlternativexx"
+
+#: main.cpp:64
+#, kde-format
+msgid "Get New Task Switchers..."
+msgstr "xxGet New Task Switchers...xx"
+
+#: main.cpp:74
+#, kde-format
+msgid ""
+"Focus policy settings limit the functionality of navigating through windows."
+msgstr ""
+"xxFocus policy settings limit the functionality of navigating through "
+"windows.xx"
+
+#. i18n: ectx: property (title), widget (QGroupBox, groupBox_3)
+#: main.ui:32
+#, kde-format
+msgid "Content"
+msgstr "xxContentxx"
+
+#. i18n: ectx: property (text), widget (QCheckBox, showDesktop)
+#: main.ui:41
+#, kde-format
+msgid "Include \"Show Desktop\" icon"
+msgstr "xxInclude \"Show Desktop\" iconxx"
+
+#. i18n: ectx: property (text), item, widget (KComboBox, switchingModeCombo)
+#: main.ui:55
+#, kde-format
+msgid "Recently used"
+msgstr "xxRecently usedxx"
+
+#. i18n: ectx: property (text), item, widget (KComboBox, switchingModeCombo)
+#: main.ui:60
+#, kde-format
+msgid "Stacking order"
+msgstr "xxStacking orderxx"
+
+#. i18n: ectx: property (text), widget (QCheckBox, oneAppWindow)
+#: main.ui:68
+#, kde-format
+msgid "Only one window per application"
+msgstr "xxOnly one window per applicationxx"
+
+#. i18n: ectx: property (text), widget (QLabel, label_8)
+#: main.ui:78
+#, kde-format
+msgid "Sort order:"
+msgstr "xxSort order:xx"
+
+#. i18n: ectx: property (title), widget (QGroupBox, groupBox)
+#: main.ui:104
+#, kde-format
+msgid "Filter windows by"
+msgstr "xxFilter windows byxx"
+
+#. i18n: ectx: property (text), widget (QCheckBox, filterDesktops)
+#: main.ui:113
+#, kde-format
+msgid "Virtual desktops"
+msgstr "xxVirtual desktopsxx"
+
+#. i18n: ectx: property (text), widget (QRadioButton, currentDesktop)
+#: main.ui:157
+#, kde-format
+msgid "Current desktop"
+msgstr "xxCurrent desktopxx"
+
+#. i18n: ectx: property (text), widget (QRadioButton, otherDesktops)
+#: main.ui:164
+#, kde-format
+msgid "All other desktops"
+msgstr "xxAll other desktopsxx"
+
+#. i18n: ectx: property (text), widget (QCheckBox, filterActivities)
+#: main.ui:174
+#, kde-format
+msgid "Activities"
+msgstr "xxActivitiesxx"
+
+#. i18n: ectx: property (text), widget (QRadioButton, currentActivity)
+#: main.ui:218
+#, kde-format
+msgid "Current activity"
+msgstr "xxCurrent activityxx"
+
+#. i18n: ectx: property (text), widget (QRadioButton, otherActivities)
+#: main.ui:225
+#, kde-format
+msgid "All other activities"
+msgstr "xxAll other activitiesxx"
+
+#. i18n: ectx: property (text), widget (QCheckBox, filterScreens)
+#: main.ui:235
+#, kde-format
+msgid "Screens"
+msgstr "xxScreensxx"
+
+#. i18n: ectx: property (text), widget (QRadioButton, currentScreen)
+#: main.ui:279
+#, kde-format
+msgid "Current screen"
+msgstr "xxCurrent screenxx"
+
+#. i18n: ectx: property (text), widget (QRadioButton, otherScreens)
+#: main.ui:286
+#, kde-format
+msgid "All other screens"
+msgstr "xxAll other screensxx"
+
+#. i18n: ectx: property (text), widget (QCheckBox, filterMinimization)
+#: main.ui:296
+#, kde-format
+msgid "Minimization"
+msgstr "xxMinimizationxx"
+
+#. i18n: ectx: property (text), widget (QRadioButton, visibleWindows)
+#: main.ui:340
+#, kde-format
+msgid "Visible windows"
+msgstr "xxVisible windowsxx"
+
+#. i18n: ectx: property (text), widget (QRadioButton, hiddenWindows)
+#: main.ui:347
+#, kde-format
+msgid "Hidden windows"
+msgstr "xxHidden windowsxx"
+
+#. i18n: ectx: property (title), widget (QGroupBox, groupBox_4)
+#: main.ui:386
+#, kde-format
+msgid "Shortcuts"
+msgstr "xxShortcutsxx"
+
+#. i18n: ectx: property (text), widget (QLabel, label_3)
+#. i18n: ectx: property (text), widget (QLabel, label_5)
+#: main.ui:395 main.ui:438
+#, kde-format
+msgid "Forward"
+msgstr "xxForwardxx"
+
+#. i18n: ectx: property (text), widget (QLabel, label)
+#: main.ui:418
+#, kde-format
+msgid "All windows"
+msgstr "xxAll windowsxx"
+
+#. i18n: ectx: property (text), widget (QLabel, label_4)
+#. i18n: ectx: property (text), widget (QLabel, label_6)
+#: main.ui:428 main.ui:448
+#, kde-format
+msgid "Reverse"
+msgstr "xxReversexx"
+
+#. i18n: ectx: property (text), widget (QLabel, label_2)
+#: main.ui:470
+#, kde-format
+msgid "Current application"
+msgstr "xxCurrent applicationxx"
+
+#. i18n: ectx: property (title), widget (QGroupBox, groupBox_2)
+#: main.ui:489
+#, kde-format
+msgid "Visualization"
+msgstr "xxVisualizationxx"
+
+#. i18n: ectx: property (toolTip), widget (QComboBox, effectCombo)
+#: main.ui:519
+#, kde-format
+msgid "The effect to replace the list window when desktop effects are active."
+msgstr ""
+"xxThe effect to replace the list window when desktop effects are active.xx"
+
+#. i18n: ectx: property (toolTip), widget (QCheckBox, kcfg_HighlightWindows)
+#: main.ui:549
+#, kde-format
+msgid ""
+"The currently selected window will be highlighted by fading out all other "
+"windows. This option requires desktop effects to be active."
+msgstr ""
+"xxThe currently selected window will be highlighted by fading out all other "
+"windows. This option requires desktop effects to be active.xx"
+
+#. i18n: ectx: property (text), widget (QCheckBox, kcfg_HighlightWindows)
+#: main.ui:552
+#, kde-format
+msgid "Show selected window"
+msgstr "xxShow selected windowxx"

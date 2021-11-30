@@ -21,6 +21,7 @@ namespace KWin
 
 #define BUTTON_COUNT 3
 
+namespace  Effects {
 class MouseEvent
 {
 public:
@@ -172,4 +173,6 @@ private:
 
 } // namespace
 
+
+}
 #endif

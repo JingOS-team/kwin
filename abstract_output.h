@@ -25,6 +25,8 @@ class OutputChangeSet;
 namespace KWin
 {
 
+class RenderLoop;
+
 class KWIN_EXPORT GammaRamp
 {
 public:
@@ -103,6 +105,11 @@ public:
     virtual QByteArray uuid() const;
 
     /**
+     * Returns @c true if the output is enabled; otherwise returns @c false.
+     */
+    virtual bool isEnabled() const;
+
+    /**
      * Enable or disable the output.
      *
      * Default implementation does nothing
@@ -178,6 +185,17 @@ public:
      */
     virtual QString serialNumber() const;
 
+    /**
+     * Returns the RenderLoop for this output. This function returns @c null if the
+     * underlying platform doesn't support per-screen rendering mode.
+     */
+    virtual RenderLoop *renderLoop() const;
+
+    void inhibitDirectScanout();
+    void uninhibitDirectScanout();
+
+    bool directScanoutInhibited() const;
+
     // casper_yang for scale
     virtual void setClientScale(wl_client* client, qreal scale) = 0;
     virtual void unsetClientScale(wl_client* client) = 0;
@@ -188,9 +206,14 @@ Q_SIGNALS:
      * This signal is emitted when the geometry of this output has changed.
      */
     void geometryChanged();
+    /**
+     * This signal is emitted when the output has been enabled or disabled.
+     */
+    void enabledChanged();
 
 private:
     Q_DISABLE_COPY(AbstractOutput)
+    int m_directScanoutCount = 0;
 };
 
 } // namespace KWin

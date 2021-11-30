@@ -1,0 +1,20 @@
+Tests: testsuite
+Depends: breeze,
+         cmake,
+         dbus (>= 1.8),
+         debhelper,
+         dmz-cursor-theme,
+         kded5,
+         libkf5service-bin,
+         mesa-utils,
+         oxygen-icon-theme,
+         xauth,
+         xserver-xephyr,
+         xvfb,
+         xwayland,
+         @
+Restrictions: build-needed, allow-stderr
+
+Tests: acc
+Depends: dh-acc, exuberant-ctags, @
+Restrictions: allow-stderr

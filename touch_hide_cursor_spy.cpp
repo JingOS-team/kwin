@@ -10,19 +10,36 @@
 #include "main.h"
 #include "platform.h"
 
+#include <QTimer>
+
 namespace KWin
 {
+
+TouchHideCursorSpy::TouchHideCursorSpy()
+    : QObject(nullptr)
+{
+    m_hideCursorTimer = new QTimer(this);
+    m_hideCursorTimer->setInterval(12 * 1000);
+    m_hideCursorTimer->setSingleShot(true);
+    connect(m_hideCursorTimer, &QTimer::timeout, this, [this]() {
+        hideCursor();
+    });
+
+    m_hideCursorTimer->start(15 * 1000);
+}
 
 void TouchHideCursorSpy::pointerEvent(MouseEvent *event)
 {
     Q_UNUSED(event)
     showCursor();
+    m_hideCursorTimer->start();
 }
 
 void TouchHideCursorSpy::wheelEvent(KWin::WheelEvent *event)
 {
     Q_UNUSED(event)
     showCursor();
+    m_hideCursorTimer->start();
 }
 
 void TouchHideCursorSpy::touchDown(qint32 id, const QPointF &pos, quint32 time)
@@ -40,6 +57,7 @@ void TouchHideCursorSpy::showCursor()
     }
     m_cursorHidden = false;
     kwinApp()->platform()->showCursor();
+    m_hideCursorTimer->start();
 }
 
 void TouchHideCursorSpy::hideCursor()

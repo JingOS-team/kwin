@@ -9,6 +9,7 @@
 #include "toplevel.h"
 
 #include "abstract_client.h"
+#include "abstract_output.h"
 #ifdef KWIN_BUILD_ACTIVITIES
 #include "activities.h"
 #endif
@@ -453,7 +454,7 @@ void Toplevel::addRepaint(const QRegion &region)
     if (!effectWindow() || !effectWindow()->sceneWindow()) {
         return;
     }
-    effectWindow()->sceneWindow()->addRepaint(region);
+    effectWindow()->sceneWindow()->addLayerRepaint(region.translated(pos()));
 }
 
 void Toplevel::addLayerRepaint(const QRect &rect)
@@ -476,7 +477,7 @@ void Toplevel::addLayerRepaint(const QRegion &region)
 
 void Toplevel::addRepaintFull()
 {
-    addRepaint(visibleRect().translated(-pos()));
+    addLayerRepaint(visibleRect());
 }
 
 void Toplevel::addWorkspaceRepaint(int x, int y, int w, int h)
@@ -496,14 +497,6 @@ void Toplevel::addWorkspaceRepaint(const QRegion &region)
     if (compositing()) {
         Compositor::self()->addRepaint(region);
     }
-}
-
-bool Toplevel::wantsRepaint() const
-{
-    if (!effectWindow() || !effectWindow()->sceneWindow()) {
-        return false;
-    }
-    return effectWindow()->sceneWindow()->wantsRepaint();
 }
 
 void Toplevel::setReadyForPainting()
@@ -578,6 +571,11 @@ bool Toplevel::isOnScreen(int screen) const
 bool Toplevel::isOnActiveScreen() const
 {
     return isOnScreen(screens()->current());
+}
+
+bool Toplevel::isOnOutput(AbstractOutput *output) const
+{
+    return output->geometry().intersects(frameGeometry());
 }
 
 void Toplevel::updateShadow()
@@ -815,6 +813,10 @@ QMatrix4x4 Toplevel::inputTransformation() const
 
 bool Toplevel::hitTest(const QPoint &point) const
 {
+    if (!canAcceptEvent()) {
+        return false;
+    }
+
     if (m_surface && m_surface->isMapped()) {
         return m_surface->inputSurfaceAt(mapToLocal(point));
     }
@@ -826,7 +828,7 @@ bool Toplevel::isScaleApp() const
     return m_isScaleApp;
 }
 
-void Toplevel::setIsScaleApp(bool isScale)
+void Toplevel::setIsScaleApp(bool)
 {
 }
 
@@ -847,18 +849,42 @@ void Toplevel::setIsBackApp(bool isBack)
 
 void Toplevel::kill()
 {
-    QString cmd = QString("kill -9 %1").arg(pid());
-    system(cmd.toLocal8Bit().data());
+    workspace()->killWindow(this);
 }
 
-void Toplevel::sendScale(qreal scale)
+void Toplevel::sendScale(qreal )
 {
 
 }
 
-bool Toplevel::visible()
+bool Toplevel::visible() const
 {
     return true;
+}
+
+bool Toplevel::canAcceptEvent() const
+{
+    return true;
+}
+
+bool Toplevel::isSystemDialog() const
+{
+    return false;
+}
+
+QRegion Toplevel::fillBgRegion() const
+{
+    return QRegion();
+}
+
+QColor Toplevel::fillBgColor() const
+{
+    return QColor(0, 0, 0);
+}
+
+QRect Toplevel::taskGeometry() const
+{
+    return frameGeometry();
 }
 
 QPoint Toplevel::mapToFrame(const QPoint &point) const
@@ -874,6 +900,11 @@ QPoint Toplevel::mapToLocal(const QPoint &point) const
 QPointF Toplevel::mapToLocal(const QPointF &point) const
 {
     return point - bufferGeometry().topLeft();
+}
+
+bool Toplevel::isSystemUI() const
+{
+    return false;
 }
 
 QRect Toplevel::inputGeometry() const

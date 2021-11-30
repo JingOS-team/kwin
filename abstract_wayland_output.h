@@ -106,7 +106,7 @@ public:
         return m_waylandOutput;
     }
 
-    bool isEnabled() const;
+    bool isEnabled() const override;
     /**
      * Enable or disable the output.
      *
@@ -121,11 +121,14 @@ public:
      * Returns a matrix that can translate into the display's coordinates system
      */
     static QMatrix4x4 logicalToNativeMatrix(const QRect &rect, qreal scale, Transform transform);
-
     // casper_yang for scale
     void setClientScale(wl_client* client, qreal scale) override;
     void unsetClientScale(wl_client* client) override;
     void setDefaultClientScale(qreal scale) override;
+    void recordingStarted();
+    void recordingStopped();
+
+    bool isBeingRecorded();
 
 Q_SIGNALS:
     void modeChanged();
@@ -158,11 +161,8 @@ protected:
     virtual void updateDpms(KWaylandServer::OutputInterface::DpmsMode mode) {
         Q_UNUSED(mode);
     }
-    virtual int updateMode(int modeIndex) {
-        return modeIndex;
-    }
-    virtual void setWaylandMode() {
-
+    virtual void updateMode(int modeIndex) {
+        Q_UNUSED(modeIndex);
     }
     virtual void updateTransform(Transform transform) {
         Q_UNUSED(transform);
@@ -183,6 +183,7 @@ private:
 
     QString m_name;
     bool m_internal = false;
+    int m_recorders = 0;
 };
 
 }

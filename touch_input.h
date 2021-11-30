@@ -46,7 +46,7 @@ public:
     void processDown(qint32 id, const QPointF &pos, quint32 time, LibInput::Device *device = nullptr);
     void processUp(qint32 id, quint32 time, LibInput::Device *device = nullptr);
     void processMotion(qint32 id, const QPointF &pos, quint32 time, LibInput::Device *device = nullptr);
-    void deelWhithUp(qint32 id, quint32 time, LibInput::Device *device = nullptr);
+    void processCancel();
     void cancel();
     void frame();
 
@@ -71,6 +71,10 @@ public:
         return m_lastPosition;
     }
 
+    int touchPointCount() const {
+        return m_touches;
+    }
+
 private:
     void cleanupInternalWindow(QWindow *old, QWindow *now) override;
     void cleanupDecoration(Decoration::DecoratedClientImpl *old, Decoration::DecoratedClientImpl *now) override;
@@ -87,7 +91,7 @@ private:
     QMetaObject::Connection m_focusGeometryConnection;
     bool m_windowUpdatedInCycle = false;
     QPointF m_lastPosition;
-    QHash<LibInput::Device *, QList<qint32>> m_ids;
+
     int m_touches = 0;
 };
 

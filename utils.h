@@ -31,22 +31,7 @@ namespace KWin
 {
 
 const QPoint invalidPoint(INT_MIN, INT_MIN);
-const qreal APP_DEFAULT_SCALE = 1.2;
-enum Layer {
-    UnknownLayer = -1,
-    FirstLayer = 0,
-    DesktopLayer = FirstLayer,
-    BelowLayer,
-    NormalLayer,
-    DockLayer,
-    AboveLayer,
-    NotificationLayer, // layer for windows of type notification
-    ActiveLayer, // active fullscreen, or active dialog
-    CriticalNotificationLayer, // layer for notifications that should be shown even on top of fullscreen
-    OnScreenDisplayLayer, // layer for On Screen Display windows such as volume feedback
-    UnmanagedLayer, // layer for override redirect windows.
-    NumLayers // number of layers, must be last
-};
+const qreal APP_DEFAULT_SCALE = 1;
 
 enum StrutArea {
     StrutAreaInvalid = 0, // Null
@@ -115,7 +100,8 @@ Q_DECLARE_FLAGS(QuickTileMode, QuickTileFlag)
 const QList<QString> g_jing_app_list {
 "org.kde.jinggallery",
 "org.jingos.ub",
-"org.kde.media,org.kde.krecorder",
+"org.kde.media",
+"org.kde.krecorder",
 "org.kde.index",
 "org.kde.kalk",
 "org.kde.kclock",
@@ -123,7 +109,13 @@ const QList<QString> g_jing_app_list {
 "org.kde.mobile.plasmasettings",
 "org.kde.calindori",
 "userguide userguide",
-"userguide"
+"org.kde.camera",
+"userguide",
+"org.jingos.qaptupdator.desktop",
+"ksmserver-logout-greeter",
+"org.kde.plasmashell",
+"org.kde.discover.urlhandler",
+"org.kde.discover.apt.urlhandler"
 };
 
 const QList<QString> g_scale_black_list {
@@ -236,7 +228,7 @@ protected:
 
 } // namespace
 
-enum class JingWindowType {
+enum  JingWindowType {
     TYPE_WALLPAPER = 2000,
     TYPE_DESKTOP = 2001,
     TYPE_DIALOG = 2002,
@@ -248,25 +240,59 @@ enum class JingWindowType {
     TYPE_INPUT_METHOD_DIALOG = 2008,
     TYPE_DND = 2009,
     TYPE_DOCK = 2010,
-    TYPE_APPLICATION_OVERLAY = 2011,
-    TYPE_STATUS_BAR = 2012,
-    TYPE_STATUS_BAR_PANEL = 2013,
-    TYPE_TOAST = 2014,
-    TYPE_KEYGUARD = 2015,
-    TYPE_PHONE = 2016,
-    TYPE_SYSTEM_DIALOG = 2017,
-    TYPE_SYSTEM_ERROR = 2018,
-    TYPE_VOICE_INTERACTION = 2019,
+    TYPE_STATUS_BAR = 2011,
+    TYPE_STATUS_BAR_PANEL = 2012,
+    TYPE_TOAST = 2013,
+    TYPE_KEYGUARD = 2014,
+    TYPE_PHONE = 2015,
+    TYPE_SYSTEM_DIALOG = 2016,
+    TYPE_SYSTEM_ERROR = 2017,
+    TYPE_VOICE_INTERACTION = 2018,
+    TYPE_SYSTEM_OVERLAY = 2019,
     TYPE_SCREENSHOT = 2020,
     TYPE_BOOT_PROGRESS = 2021,
     TYPE_POINTER = 2022,
-    TYPE_LAST_SYS_LAYER = 2023,
+    TYPE_LAST_SYS_LAYER = 2099,
     TYPE_BASE_APPLICATION = 1,
     TYPE_APPLICATION = 2,
     TYPE_APPLICATION_STARTING = 3,
+    TYPE_APPLICATION_OVERLAY = 4,
     TYPE_LAST_APPLICATION_WINDOW = 99,
     TYPE_UNKNOW = -1
 };
+
+enum JingLayer {
+    LAYER_FIRST_LAYER = -1,
+    LAYER_WALLPAPER = 0,
+    LAYER_DESKTOP = 1,
+    LAYER_APPLICATION = 2,
+    LAYER_DIALOG = 3,
+    LAYER_SEARCH_BAR = 4,
+    LAYER_INPUT_METHOD = 5,
+    LAYER_INPUT_METHOD_DIALOG = 6,
+    LAYER_DND = 7,
+    LAYER_DOCK = 8,
+    LAYER_APPLICATION_OVERLAY = 9,
+    LAYER_STATUS_BAR = 10,
+    LAYER_STATUS_BAR_PANEL = 11,
+    LAYER_FULL_SCREEN = 12,
+    LAYER_SYS_SPLASH = 13,
+    LAYER_UNMANAGER = 14,
+    LAYER_SYSTEM_DIALOG = 15,
+    LAYER_TOAST = 17,
+    LAYER_KEYGUARD = 18,
+    LAYER_SYSTEM_OVERLAY = 19,
+    LAYER_NOTIFICATION = 20,
+    LAYER_CRITICAL_NOTIFICATION = 21,
+    LAYER_PHONE = 22,
+    LAYER_SYSTEM_ERROR = 23,
+    LAYER_SYSTEM_INTERACTION = 24,
+    LAYER_SCREENSHOT = 25,
+    LAYER_BOOT_PROGRESS = 26,
+    LAYER_POINTER = 27,
+    LAYER_LAST_LAYER = 28
+};
+
 // Must be outside namespace
 Q_DECLARE_OPERATORS_FOR_FLAGS(KWin::StrutAreas)
 Q_DECLARE_OPERATORS_FOR_FLAGS(KWin::QuickTileMode)

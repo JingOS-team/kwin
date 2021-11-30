@@ -80,7 +80,7 @@ class WindowPaintData;
 class ScreenPrePaintData;
 class ScreenPaintData;
 class GLTexture;
-
+class TabletEvent;
 typedef QPair< QString, Effect* > EffectPair;
 typedef QList< KWin::EffectWindow* > EffectWindowList;
 
@@ -627,9 +627,10 @@ public:
      * @since 5.8
      */
     virtual bool touchUp(qint32 id, quint32 time);
+    virtual void touchCancel();
 
     virtual bool pointerEvent(QMouseEvent* event);
-
+    virtual  bool tabletToolEvent(TabletEvent *event);
     static QPoint cursorPos();
 
     /**
@@ -668,6 +669,10 @@ public:
     static void setPositionTransformations(WindowPaintData& data, QRect& region, EffectWindow* w,
                                            const QRect& r, Qt::AspectRatioMode aspect);
 
+    /**
+     * overwrite this method to return false if your effect does not need to be drawn over opaque fullscreen windows
+     */
+    virtual bool blocksDirectScanout() const;
 
     virtual void onHideTaskManager();
     virtual void onBottomGestureToggled();
@@ -952,6 +957,7 @@ public:
     virtual void activateWindow(KWin::EffectWindow* c) = 0;
     virtual void activateWindowWhithoutAnimation(KWin::EffectWindow* c) = 0;
     virtual KWin::EffectWindow* activeWindow() const = 0 ;
+    virtual KWin::EffectWindow* foregroundTopLevel() const = 0;
     Q_SCRIPTABLE virtual void moveWindow(KWin::EffectWindow* w, const QPoint& pos, bool snap = false, double snapAdjust = 1.0) = 0;
 
     /**
@@ -1109,6 +1115,7 @@ public:
     // window will be temporarily painted as if being at the top of the stack
     Q_SCRIPTABLE virtual void setElevatedWindow(KWin::EffectWindow* w, bool set) = 0;
 
+    virtual void clearElevatedWindow() = 0;
     virtual void setTabBoxWindow(EffectWindow*) = 0;
     virtual void setTabBoxDesktop(int) = 0;
     virtual EffectWindowList currentTabBoxWindowList() const = 0;
@@ -1132,6 +1139,7 @@ public:
     Q_SCRIPTABLE virtual void addRepaint(const QRegion& r) = 0;
     Q_SCRIPTABLE virtual void addRepaint(int x, int y, int w, int h) = 0;
 
+    virtual bool isSystemUI(EffectWindow* win) const = 0;
     CompositingType compositingType() const;
     /**
      * @brief Whether the Compositor is OpenGL based (either GL 1 or 2).
@@ -1234,6 +1242,7 @@ public:
      */
     virtual bool isScreenLocked() const = 0;
 
+    virtual bool showFloatBall() const = 0;
     /**
      * @brief Makes the OpenGL compositing context current.
      *
@@ -1403,6 +1412,7 @@ public:
     virtual qreal screenScale(int screen) = 0;
 
     virtual void toTriggerTask() = 0;
+    virtual void closeTask(bool animate = true) = 0;
 
     virtual bool isTopClientJingApp() = 0;
 
@@ -1415,6 +1425,16 @@ public:
     virtual EffectWindow* panel();
 
     virtual void showDockBg(bool show, bool animate);
+
+    virtual void killWindow(EffectWindow *window) = 0;
+
+    virtual void killWindows(QList<EffectWindow *> windows) = 0;
+
+    virtual QString getDisplayName() = 0;
+
+    virtual bool isSetupMode() = 0;
+
+    virtual void changeDownloadWindowMode(int mode, int n) = 0;
 
 Q_SIGNALS:
     void onShowDockBgChanged(bool show, bool animate);
@@ -1865,12 +1885,24 @@ Q_SIGNALS:
     void switchWindows(bool toRight);
 
     void triggerTask();
+
+    void sigCloseTask(bool);
+
+    void hasPointerChanged(bool set);
+
+    void displayNameChanged(const QString &displayName);
+
+    void aboutToQuit();
+
+    void downloadWindowModeChange(int mode, int n);    // use for effects/showwindowinfo
+
 protected:
     EffectWindow* _panel = nullptr;
     QRect _panelGeometry;
     QVector< EffectPair > loaded_effects;
     //QHash< QString, EffectFactory* > effect_factories;
     CompositingType compositing_type;
+    bool m_schemeDark = false;
 };
 
 
@@ -1910,7 +1942,7 @@ class KWINEFFECTS_EXPORT EffectWindow : public QObject
      * Returns whether the window is a dock (i.e. a panel).
      * See _NET_WM_WINDOW_TYPE_DOCK at https://standards.freedesktop.org/wm-spec/wm-spec-latest.html .
      */
-    Q_PROPERTY(bool dock READ isDock)
+    Q_PROPERTY(bool dock READ isStatusBar)
     /**
      * Returns whether the window is a standalone (detached) toolbar window.
      * See _NET_WM_WINDOW_TYPE_TOOLBAR at https://standards.freedesktop.org/wm-spec/wm-spec-latest.html .
@@ -2193,6 +2225,7 @@ public:
     virtual qreal appScale() = 0;
     virtual void enablePainting(int reason) = 0;
     virtual void disablePainting(int reason) = 0;
+    virtual void setShowIgnoreDisible(bool ignore) = 0;
     virtual bool isPaintingEnabled() = 0;
     Q_SCRIPTABLE virtual void addRepaint(const QRect &r) = 0;
     Q_SCRIPTABLE virtual void addRepaint(int x, int y, int w, int h) = 0;
@@ -2239,6 +2272,7 @@ public:
     virtual int y() const = 0;
     virtual int width() const = 0;
     virtual int height() const = 0;
+    virtual QRect taskGeometry() const = 0;
     /**
      * By how much the window wishes to grow/shrink at least. Usually QSize(1,1).
      * MAY BE DISOBEYED BY THE WM! It's only for information, do NOT rely on it at all.
@@ -2301,21 +2335,27 @@ public:
     virtual void deleteProperty(long atom) const = 0;
 
     virtual QString caption() const = 0;
+    virtual QString title() const = 0;
     virtual QIcon icon() const = 0;
     virtual QString windowClass() const = 0;
     virtual QString windowRole() const = 0;
     virtual const EffectWindowGroup* group() const = 0;
 
+    virtual int jingWindowType() const = 0;
+
+    virtual int jingLayer() const = 0;
     /**
      * Returns whether the window is a desktop background window (the one with wallpaper).
      * See _NET_WM_WINDOW_TYPE_DESKTOP at https://standards.freedesktop.org/wm-spec/wm-spec-latest.html .
      */
     virtual bool isDesktop() const = 0;
+
+    virtual bool isWallPaper() const = 0;
     /**
      * Returns whether the window is a dock (i.e. a panel).
      * See _NET_WM_WINDOW_TYPE_DOCK at https://standards.freedesktop.org/wm-spec/wm-spec-latest.html .
      */
-    virtual bool isDock() const = 0;
+    virtual bool isStatusBar() const = 0;
     /**
      * Returns whether the window is a standalone (detached) toolbar window.
      * See _NET_WM_WINDOW_TYPE_TOOLBAR at https://standards.freedesktop.org/wm-spec/wm-spec-latest.html .
@@ -2550,9 +2590,17 @@ public:
     virtual bool isBackApp() const = 0;
     virtual void setIsBackApp(bool isBack) = 0;
     virtual bool isTransient() const = 0;
-
+    virtual bool hasParent() const = 0;
     virtual bool isJingApp()  = 0;
+
+    virtual bool isSystemDialog() = 0;
+
+    virtual void beginTaskMode() = 0;
+    virtual void endTaskMode() = 0;
     Q_SCRIPTABLE void kill();
+
+    virtual QRegion fillBgRegion() = 0;
+    virtual QColor fillBgColor() = 0;
 private:
     class Private;
     QScopedPointer<Private> d;
@@ -2842,6 +2890,7 @@ public:
      * @see setRotationAxis
      */
     QVector3D rotationAxis() const;
+
 protected:
     PaintData();
     PaintData(const PaintData &other);
@@ -3868,6 +3917,7 @@ private:
  * Pointer to the global EffectsHandler object.
  */
 extern KWINEFFECTS_EXPORT EffectsHandler* effects;
+
 /***************************************************************
  WindowVertex
 ***************************************************************/

@@ -131,7 +131,6 @@ void MouseSwipeMotionRecognizer::updateSwipeMotion(const QPointF &pos, qint64 ti
         return;
     }
 
-    MouseMotion::Direction direction;
     QSizeF delta(pos.x() - m_lastPos.x(), pos.y() - m_lastPos.y());
     if (std::abs(delta.width()) > std::abs(delta.height())) {
         m_lastAverageSeed = delta.width() / qreal(time - m_lastUpdateTime);

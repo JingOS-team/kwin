@@ -38,6 +38,7 @@ class GestureRecognizer;
 class ScreenEdges;
 class SwipeGesture;
 class GlobalSwipeGestures;   // jing_kwin gesture
+class GlobalPinchGestures;   // jing_kwin gesture
 
 class KWIN_EXPORT Edge : public QObject
 {
@@ -91,6 +92,9 @@ public:
 
     GlobalSwipeGestures *getSwipGesure() {
         return m_globalSwipeGestures;
+    }
+    GlobalPinchGestures *getPinchGesture() {
+        return m_globalPinchGestures;
     }
 public Q_SLOTS:
     void reserve();
@@ -150,6 +154,7 @@ private:
     QVector<QAction *> m_touchActions;
     // jing_kwin gesture
     GlobalSwipeGestures *m_globalSwipeGestures;
+    GlobalPinchGestures *m_globalPinchGestures;
 };
 
 /**

@@ -299,7 +299,8 @@ void BlurEffect::updateBlurRegion(EffectWindow *w) const
         // Set the data to a dummy value.
         // This is needed to be able to distinguish between the value not
         // being set, and being set to an empty region.
-        w->setData(WindowBlurBehindRole, 1);
+        // blur 区域需要明确指出，否则会误将全透明区域作为blur区域进行判断处理
+       // w->setData(WindowBlurBehindRole, 1);
     } else
         w->setData(WindowBlurBehindRole, region);
 }
@@ -512,7 +513,7 @@ void BlurEffect::prePaintWindow(EffectWindow* w, WindowPrePaintData& data, std::
     // in case this window has regions to be blurred
     const QRect screen = effects->virtualScreenGeometry();
     const QRegion blurArea = blurRegion(w).translated(w->pos()) & screen;
-    const QRegion expandedBlur = (w->isDock() ? blurArea : expand(blurArea)) & screen;
+    const QRegion expandedBlur = (w->isStatusBar() ? blurArea : expand(blurArea)) & screen;
 
     // if this window or a window underneath the blurred area is painted again we have to
     // blur everything
@@ -586,10 +587,10 @@ void BlurEffect::drawWindow(EffectWindow *w, int mask, const QRegion &region, Wi
         }
 
         EffectWindow* modal = w->transientFor();
-        const bool transientForIsDock = (modal ? modal->isDock() : false);
+        const bool transientForIsDock = (modal ? modal->isStatusBar() : false);
 
         if (!shape.isEmpty()) {
-            doBlur(shape, screen, data.opacity(), data.screenProjectionMatrix(), w->isDock() || transientForIsDock, w->geometry());
+            doBlur(shape, screen, data.opacity(), data.screenProjectionMatrix(), w->isStatusBar() || transientForIsDock, w->geometry());
         }
     }
 
@@ -637,7 +638,7 @@ void BlurEffect::generateNoiseTexture()
     m_noiseTexture.setWrapMode(GL_REPEAT);
 }
 
-void BlurEffect::doBlur(const QRegion& shape, const QRect& screen, const float opacity, const QMatrix4x4 &screenProjection, bool isDock, QRect windowRect)
+void BlurEffect::doBlur(const QRegion& shape, const QRect& screen, const float opacity, const QMatrix4x4 &screenProjection, bool isStatusBar, QRect windowRect)
 {
     // Blur would not render correctly on a secondary monitor because of wrong coordinates
     // BUG: 393723
@@ -668,7 +669,7 @@ void BlurEffect::doBlur(const QRegion& shape, const QRect& screen, const float o
      * We want to avoid this on panels, because it looks really weird and ugly
      * when maximized windows or windows near the panel affect the dock blur.
      */
-    if (isDock) {
+    if (isStatusBar) {
         m_renderTargets.last()->blitFromFramebuffer(sourceRect, destRect);
 
         if (useSRGB) {
@@ -816,6 +817,11 @@ void BlurEffect::copyScreenSampleTexture(GLVertexBuffer *vbo, int blurRectCount,
 bool BlurEffect::isActive() const
 {
     return !effects->isScreenLocked();
+}
+
+bool BlurEffect::blocksDirectScanout() const
+{
+    return false;
 }
 
 } // namespace KWin

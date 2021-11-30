@@ -36,6 +36,7 @@
         <arg type="s" direction="out"/>
     </method>
     <method name="showDebugConsole"/>
+    <method name="replace"/>
     <method name="queryWindowInfo">
         <annotation name="org.qtproject.QtDBus.QtTypeName.Out0" value="QVariantMap"/>
         <arg type="a{sv}" direction="out"/>
@@ -60,6 +61,28 @@
         <arg type="u" direction="in"/>
         <arg type="u" direction="in"/>
     </method>
+    <method name="updateVKBRegion">
+	<arg type="d" direction="in"/>
+        <arg type="d" direction="in"/>
+        <arg type="d" direction="in"/>
+        <arg type="d" direction="in"/>
+    </method>
+
+    <method name="updateVKRegion">
+        <arg type="i" direction="in"/>
+        <arg type="i" direction="in"/>
+        <arg type="i" direction="in"/>
+        <arg type="i" direction="in"/>
+    </method>
+    <method name="notifyVKStatus">
+        <arg type="b" direction="in"/>
+    </method>
+    <method name="updateVKBVisibility">
+        <arg type="b" direction="in"/>
+    </method>
+    <method name="screenOrientation">
+        <arg type="i" direction="out"/>
+    </method>
     <signal name="appDefaultScaleChanged">
        <arg name="scale" type="d"/>
     </signal>
@@ -68,11 +91,28 @@
     </signal>
     <signal name="mouseOnTopLeftConer" />
     <signal name="mouseOnTopRightConer" />
+    <signal name="screenOrientationChanged">
+       <arg name="orientation" type="b"/>
+    </signal>
+    <signal name="capsChanged">
+       <arg name="caps" type="b"/>
+    </signal>
     <method name="setAlwaysShowVirtualKeyboard">
         <arg type="b" direction="in"/>
     </method>
     <method name="alwaysShowVirtualKeyboard">
         <arg type="b" direction="out"/>
+    </method>
+    <method name="isCapsOn">
+        <arg type="b" direction="out"/>
+    </method>
+    <method name="changeDownloadWindowMode">
+        <arg type="i" direction="in"/>
+        <arg type="i" direction="in" default="0"/>
+        <arg type="b" direction="out"/>
+    </method>
+    <method name="focusChanged">
+	<arg type="b" direction="in"/>
     </method>
     <signal name="alwaysShowVirtualKeyboardChanged">
        <arg name="set" type="b"/>

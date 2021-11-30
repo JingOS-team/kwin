@@ -25,7 +25,11 @@ if(NOT WIN32)
     pkg_check_modules(PKG_androidheaders QUIET android-headers)
     pkg_check_modules(PKG_hwcomposerwindow QUIET hwcomposer-egl)
     pkg_check_modules(PKG_hybriseglplatform QUIET hybris-egl-platform)
-
+    pkg_check_modules(PKG_surface_flinger QUIET libsf)
+    pkg_check_modules(PKG_hwc2 QUIET libhwc2)
+    MESSAGE( STATUS "===================================Findlibhybris START===========================================")
+    ##############################################
+    # libhardware
     set(libhardware_DEFINITIONS ${PKG_libhardware_CFLAGS_OTHER})
     set(libhardware_VERSION ${PKG_libhardware_VERSION})
 
@@ -63,10 +67,21 @@ if(NOT WIN32)
     endif()
 
     mark_as_advanced(libhardware_LIBRARY libhardware_INCLUDE_DIR)
+    MESSAGE( STATUS "   =================")
+    MESSAGE( STATUS "    PKG_androidheaders_INCLUDE_DIRS    =  ${PKG_androidheaders_INCLUDE_DIRS}")
+    MESSAGE( STATUS "    PKG_libhardware_CFLAGS_OTHER       =  ${PKG_libhardware_CFLAGS_OTHER}")
+    MESSAGE( STATUS "    PKG_libhardware_VERSION            =  ${PKG_libhardware_VERSION}")
+    MESSAGE( STATUS "    PKG_libhardware_LIBRARY_DIRS       =  ${PKG_libhardware_LIBRARY_DIRS}")
+    MESSAGE( STATUS "    libhardware_LIBRARY                =  ${libhardware_LIBRARY}")
+    MESSAGE( STATUS "    libhardware_DEFINITIONS            =  ${libhardware_DEFINITIONS}")
+    MESSAGE( STATUS "    libhardware_INCLUDE_DIR            =  ${libhardware_INCLUDE_DIR}")
+    MESSAGE( STATUS "   =================")
+    # libhardware
+    ###############################################################################################
+
 
     ##############################################
     # hwcomposerWindow
-    ##############################################
     set(libhwcomposer_DEFINITIONS ${PKG_hwcomposerwindow_CFLAGS_OTHER})
     set(libhwcomposer_VERSION ${PKG_hwcomposerwindow_VERSION})
 
@@ -75,7 +90,9 @@ if(NOT WIN32)
             libhybris-hwcomposerwindow.so
         HINTS
             ${PKG_hwcomposerwindow_LIBRARY_DIRS}
+
     )
+
     find_path(libhwcomposer_INCLUDE_DIR
         NAMES
             hwcomposer_window.h
@@ -105,9 +122,134 @@ if(NOT WIN32)
 
     mark_as_advanced(libhwcomposer_LIBRARY libhwcomposer_INCLUDE_DIR)
 
+    MESSAGE( STATUS "   =================")
+    MESSAGE( STATUS "    PKG_hwcomposerwindow_CFLAGS_OTHER  =  ${PKG_hwcomposerwindow_CFLAGS_OTHER}")
+    MESSAGE( STATUS "    PKG_hwcomposerwindow_VERSION       =  ${PKG_hwcomposerwindow_VERSION}")
+    MESSAGE( STATUS "    PKG_hwcomposerwindow_LIBRARY_DIRS  =  ${PKG_hwcomposerwindow_LIBRARY_DIRS}")
+    MESSAGE( STATUS "    PKG_hwcomposerwindow_INCLUDE_DIRS  =  ${PKG_hwcomposerwindow_INCLUDE_DIRS}")
+    MESSAGE( STATUS "    libhwcomposer_LIBRARY              =  ${libhwcomposer_LIBRARY}")
+    MESSAGE( STATUS "    libhwcomposer_INCLUDE_DIR          =  ${libhwcomposer_INCLUDE_DIR}")
+    MESSAGE( STATUS "   =================")
+    # hwcomposerWindow
+    ###############################################################################################
+
+
+    ##############################################
+    # surface_flinger
+    set(libsurface_flinger_DEFINITIONS ${PKG_surface_flinger_CFLAGS_OTHER})
+    set(libsurface_flinger_VERSION     ${PKG_surface_flinger_VERSION})
+    find_library(libsurface_flinger_LIBRARY
+        NAMES
+            libsf.so
+        HINTS
+            ${PKG_surface_flinger_LIBRARY_DIRS}
+    )
+
+    find_path(libsurface_flinger_INCLUDE_DIRS
+        NAMES
+            hybris/surface_flinger/surface_flinger_compatibility_layer.h
+        HINTS
+            ${PKG_surface_flinger_INCLUDE_DIRS}
+    )
+
+    include(FindPackageHandleStandardArgs)
+    find_package_handle_standard_args(libsurface_flinger
+        FOUND_VAR
+            libsurface_flinger_FOUND
+        REQUIRED_VARS
+            libsurface_flinger_LIBRARY
+            libsurface_flinger_INCLUDE_DIRS
+        VERSION_VAR
+            libsurface_flinger_VERSION
+    )
+
+    if(libsurface_flinger_FOUND AND NOT TARGET libhybris::sf)
+        add_library(libhybris::sf UNKNOWN IMPORTED)
+        set_target_properties(libhybris::sf PROPERTIES
+            IMPORTED_LOCATION "${libsurface_flinger_LIBRARY}"
+            INTERFACE_COMPILE_OPTIONS "${libsurface_flinger_DEFINITIONS}"
+            INTERFACE_INCLUDE_DIRECTORIES "${libsurface_flinger_INCLUDE_DIRS}"
+        )
+    endif()
+    mark_as_advanced(libsurface_flinger_LIBRARY libsurface_flinger_INCLUDE_DIRS)
+    MESSAGE( STATUS "   ==============================================================================")
+    MESSAGE( STATUS "    PKG_surface_flinger_VERSION        =  ${PKG_surface_flinger_VERSION}")
+    MESSAGE( STATUS "    PKG_surface_flinger_CFLAGS_OTHER   =  ${PKG_surface_flinger_CFLAGS_OTHER}")
+    MESSAGE( STATUS "    libsurface_flinger_LIBRARY         =  ${libsurface_flinger_LIBRARY}")
+    MESSAGE( STATUS "    libsurface_flinger_INCLUDE_DIRS     =  ${libsurface_flinger_INCLUDE_DIRS}")
+    MESSAGE( STATUS "    PKG_surface_flinger_INCLUDE_DIRS   =  ${PKG_surface_flinger_INCLUDE_DIRS}")
+    MESSAGE( STATUS "    PKG_surface_flinger_LIBRARY_DIRS   =  ${PKG_surface_flinger_LIBRARY_DIRS}")
+    MESSAGE( STATUS "   ==============================================================================")
+    # surface_flinger
+    ###############################################################################################
+
+    ##############################################
+    # hwcomposer
+    set(libhwc2_DEFINITIONS ${PKG_hwc2_CFLAGS_OTHER})
+    set(libhwc2_VERSION     ${PKG_hwc2_VERSION})
+    find_library(libhwc2_LIBRARY
+        NAMES
+            libhwc2.so
+        HINTS
+            ${PKG_hwc2_LIBRARY_DIRS}
+    )
+
+    find_library(libsync_LIBRARY
+        NAMES
+            libsync.so
+        HINTS
+            ${PKG_hwc2_LIBRARY_DIRS}
+    )
+
+
+    find_path(libhwc2_INCLUDE_DIRS
+        NAMES
+            hybris/hwc2/hwc2_compatibility_layer.h
+        HINTS
+            ${PKG_hwc2_INCLUDE_DIRS}
+    )
+
+    include(FindPackageHandleStandardArgs)
+    find_package_handle_standard_args(libhwc2
+        FOUND_VAR
+            libhwc2_FOUND
+        REQUIRED_VARS
+            libhwc2_LIBRARY
+            libhwc2_INCLUDE_DIRS
+        VERSION_VAR
+            libhwc2_VERSION
+    )
+
+    if(libhwc2_FOUND AND NOT TARGET libhybris::hwc2 AND NOT TARGET libhybris::sync)
+        add_library(libhybris::hwc2 UNKNOWN IMPORTED)
+        set_target_properties(libhybris::hwc2 PROPERTIES
+            IMPORTED_LOCATION "${libhwc2_LIBRARY}"
+            INTERFACE_COMPILE_OPTIONS "${libhwc2_DEFINITIONS}"
+            INTERFACE_INCLUDE_DIRECTORIES "${libhwc2_INCLUDE_DIRS}"
+        )
+
+        add_library(libhybris::sync UNKNOWN IMPORTED)
+        set_target_properties(libhybris::sync PROPERTIES
+            IMPORTED_LOCATION "${libsync_LIBRARY}"
+            INTERFACE_COMPILE_OPTIONS "${libhwc2_DEFINITIONS}"
+            INTERFACE_INCLUDE_DIRECTORIES "${libhwc2_INCLUDE_DIR}"
+        )
+    endif()
+    mark_as_advanced(libhwc2_LIBRARY libhwc2_INCLUDE_DIRS)
+    MESSAGE( STATUS "   ==============================================================================")
+    MESSAGE( STATUS "    PKG_hwc2_VERSION        =  ${PKG_hwc2_VERSION}")
+    MESSAGE( STATUS "    PKG_hwc2_CFLAGS_OTHER   =  ${PKG_hwc2_CFLAGS_OTHER}")
+    MESSAGE( STATUS "    libhwc2_LIBRARY         =  ${libhwc2_LIBRARY}")
+    MESSAGE( STATUS "    libhwc2_INCLUDE_DIRS     =  ${libhwc2_INCLUDE_DIRS}")
+    MESSAGE( STATUS "    PKG_hwc2_INCLUDE_DIRS   =  ${PKG_hwc2_INCLUDE_DIRS}")
+    MESSAGE( STATUS "    PKG_hwc2_LIBRARY_DIRS   =  ${PKG_hwc2_LIBRARY_DIRS}")
+    MESSAGE( STATUS "   ==============================================================================")
+    # hwcomposer
+    ###############################################################################################
+
+
     ##############################################
     # hybriseglplatform
-    ##############################################
     set(hybriseglplatform_DEFINITIONS ${PKG_hybriseglplatform_CFLAGS_OTHER})
     set(hybriseglplatform_VERSION ${PKG_hybriseglplatform_VERSION})
 
@@ -146,7 +288,19 @@ if(NOT WIN32)
 
     mark_as_advanced(hybriseglplatform_LIBRARY hybriseglplatform_INCLUDE_DIR)
 
-    if(libhardware_FOUND AND libhwcomposer_FOUND AND hybriseglplatform_FOUND)
+    MESSAGE( STATUS "   =================")
+    MESSAGE( STATUS "    PKG_hybriseglplatform_CFLAGS_OTHER =  ${PKG_hybriseglplatform_CFLAGS_OTHER}")
+    MESSAGE( STATUS "    PKG_hybriseglplatform_VERSION      =  ${PKG_hybriseglplatform_VERSION}")
+    MESSAGE( STATUS "    PKG_hybriseglplatform_LIBRARY_DIRS =  ${PKG_hybriseglplatform_LIBRARY_DIRS}")
+    MESSAGE( STATUS "    PKG_hybriseglplatform_INCLUDE_DIRS =  ${PKG_hybriseglplatform_INCLUDE_DIRS}")
+    MESSAGE( STATUS "    hybriseglplatform_LIBRARY          =  ${hybriseglplatform_LIBRARY}")
+    MESSAGE( STATUS "    hybriseglplatform_DEFINITIONS      =  ${hybriseglplatform_DEFINITIONS}")
+    MESSAGE( STATUS "    hybriseglplatform_INCLUDE_DIR      =  ${hybriseglplatform_INCLUDE_DIR}")
+    MESSAGE( STATUS "   =================")
+    # hybriseglplatform
+    ###############################################################################################
+
+    if(libhardware_FOUND AND libhwcomposer_FOUND AND hybriseglplatform_FOUND AND libsurface_flinger_FOUND)
         set(libhybris_FOUND TRUE)
     else()
         set(libhybris_FOUND FALSE)
@@ -156,6 +310,8 @@ else()
     message(STATUS "Findlibhardware.cmake cannot find libhybris on Windows systems.")
     set(libhybris_FOUND FALSE)
 endif()
+
+MESSAGE( STATUS "===================================Findlibhybris END===========================================")
 
 include(FeatureSummary)
 set_package_properties(libhybris PROPERTIES

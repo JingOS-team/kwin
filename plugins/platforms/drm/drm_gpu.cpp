@@ -15,7 +15,6 @@
 #include "drm_object_crtc.h"
 #include "abstract_egl_backend.h"
 #include "logging.h"
-#include "drm_output.h"
 
 #if HAVE_GBM
 #include "egl_gbm_backend.h"
@@ -49,6 +48,13 @@ DrmGpu::DrmGpu(DrmBackend *backend, QByteArray devNode, int fd, int drmId) : m_b
         m_cursorSize.setHeight(64);
     }
 
+    int ret = drmGetCap(fd, DRM_CAP_TIMESTAMP_MONOTONIC, &capability);
+    if (ret == 0 && capability == 1) {
+        m_presentationClock = CLOCK_MONOTONIC;
+    } else {
+        m_presentationClock = CLOCK_REALTIME;
+    }
+
     // find out if this GPU is using the NVidia proprietary driver
     DrmScopedPointer<drmVersion> version(drmGetVersion(fd));
     m_useEglStreams = strstr(version->name, "nvidia-drm");
@@ -68,6 +74,11 @@ DrmGpu::~DrmGpu()
     qDeleteAll(m_connectors);
     qDeleteAll(m_planes);
     close(m_fd);
+}
+
+clockid_t DrmGpu::presentationClock() const
+{
+    return m_presentationClock;
 }
 
 void DrmGpu::tryAMS()
@@ -90,7 +101,7 @@ void DrmGpu::tryAMS()
             for (unsigned int i = 0; i < planeResources->count_planes; ++i) {
                 DrmScopedPointer<drmModePlane> kplane(drmModeGetPlane(m_fd, planeResources->planes[i]));
                 DrmPlane *p = new DrmPlane(kplane->plane_id, m_fd);
-                if (p->atomicInit()) {
+                if (p->init()) {
                     planes << p;
                     if (p->type() == DrmPlane::TypeIndex::Overlay) {
                         overlayPlanes << p;
@@ -135,15 +146,13 @@ bool DrmGpu::updateOutputs()
         auto it = std::find_if(m_connectors.constBegin(), m_connectors.constEnd(), [currentConnector] (DrmConnector *c) { return c->id() == currentConnector; });
         if (it == m_connectors.constEnd()) {
             auto c = new DrmConnector(currentConnector, m_fd);
-            if (m_atomicModeSetting) {
-                if (!c->atomicInit()) {
-                    delete c;
-                    continue;
-                }
-                if (c->isNonDesktop()) {
-                    delete c;
-                    continue;
-                }
+            if (!c->init()) {
+                delete c;
+                continue;
+            }
+            if (c->isNonDesktop()) {
+                delete c;
+                continue;
             }
             m_connectors << c;
         } else {
@@ -156,7 +165,7 @@ bool DrmGpu::updateOutputs()
         auto it = std::find_if(m_crtcs.constBegin(), m_crtcs.constEnd(), [currentCrtc] (DrmCrtc *c) { return c->id() == currentCrtc; });
         if (it == m_crtcs.constEnd()) {
             auto c = new DrmCrtc(currentCrtc, m_backend, this, i);
-            if (m_atomicModeSetting && !c->atomicInit()) {
+            if (!c->init()) {
                 delete c;
                 continue;
             }
@@ -203,15 +212,13 @@ bool DrmGpu::updateOutputs()
     }
 
     for (DrmConnector *con : qAsConst(pendingConnectors)) {
-        bool force = false;
-        DrmScopedPointer<drmModeConnector> connector(DrmOutput::getAddNewMode(m_fd, con->id(), force));
+        DrmScopedPointer<drmModeConnector> connector(drmModeGetConnector(m_fd, con->id()));
         if (!connector) {
             continue;
         }
         if (connector->count_modes == 0) {
             continue;
         }
-
         bool outputDone = false;
 
         QVector<uint32_t> encoders = con->encoders();
@@ -247,21 +254,9 @@ bool DrmGpu::updateOutputs()
                 output->m_conn = con;
                 crtc->setOutput(output);
                 output->m_crtc = crtc;
+                output->m_mode = connector->modes[0];
 
-                if (force) {
-                    output->setCurMode(connector->modes[connector->count_modes - 1]);
-                } else {
-                    if (modeCrtc->mode_valid) {
-
-                        // jing_kwin for surface resolution
-                        output->setCurMode(modeCrtc->mode);
-                    } else {
-
-                        // jing_kwin for surface resolution
-                        output->setCurMode(connector->modes[0]);
-                    }
-                }
-                qCDebug(KWIN_DRM) << "For new output use mode " << output->m_mode.name;
+                qCDebug(KWIN_DRM) << "For new output use mode " << output->m_mode.name << output->m_mode.hdisplay << output->m_mode.vdisplay;
                 if (!output->init(connector.data())) {
                     qCWarning(KWIN_DRM) << "Failed to create output for connector " << con->id();
                     delete output;

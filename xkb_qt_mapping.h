@@ -95,7 +95,7 @@ static const std::map<xkb_keysym_t, Qt::Key> s_mapping{
     { XKB_KEY_KP_End, Qt::Key_End },
     { XKB_KEY_KP_Begin, Qt::Key_Clear },
     { XKB_KEY_KP_Insert, Qt::Key_Insert },
-    { XKB_KEY_KP_Delete, Qt::     Key_Delete },
+    { XKB_KEY_KP_Delete, Qt::Key_Delete },
     { XKB_KEY_KP_Equal, Qt::Key_Equal },
     { XKB_KEY_KP_Multiply, Qt::Key_Asterisk },
     { XKB_KEY_KP_Add, Qt::Key_Plus },

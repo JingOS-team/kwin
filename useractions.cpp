@@ -126,7 +126,7 @@ void UserActionsMenu::show(const QRect &pos, AbstractClient *client)
     if (isShown()) {  // recursion
         return;
     }
-    if (cl->isDesktop() || cl->isDock()) {
+    if (cl->isDesktop() || cl->isStatusBar()) {
         return;
     }
     if (!KAuthorized::authorizeAction(QStringLiteral("kwin_rmb"))) {
@@ -1141,7 +1141,7 @@ static uint senderValue(QObject *sender)
     return -1;
 }
 
-#define USABLE_ACTIVE_CLIENT (active_client && !(active_client->isDesktop() || active_client->isDock()))
+#define USABLE_ACTIVE_CLIENT (active_client && !(active_client->isDesktop() || active_client->isStatusBar()))
 
 void Workspace::slotWindowToDesktop(uint i)
 {
@@ -1336,9 +1336,10 @@ void Workspace::slotSetupWindowShortcut()
 /**
  * Toggles show desktop.
  */
-void Workspace::slotToggleShowDesktop()
+void Workspace::slotShowDesktop()
 {
-    setShowingDesktop(!showingDesktop());
+    effects->closeTask();
+    setShowingDesktop(true);
 }
 
 template <typename Direction>
@@ -1350,7 +1351,7 @@ void windowToDesktop(AbstractClient *c)
     // TODO: why is options->isRollOverDesktops() not honored?
     const auto desktop = functor(nullptr, true);
     if (c && !c->isDesktop()
-            && !c->isDock()) {
+            && !c->isStatusBar()) {
         ws->setMoveResizeClient(c);
         vds->setCurrent(desktop);
         ws->setMoveResizeClient(nullptr);

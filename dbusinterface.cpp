@@ -79,8 +79,16 @@ DBusInterface::DBusInterface(QObject *parent)
             emit appDefaultScaleChanged(workspace()->getAppDefaultScale());
         }
     });
-    connect(input(), &InputRedirection::hasAlphaNumericKeyboardChanged, this, [this](bool set) {
+    connect(input(), &InputRedirection::hasAlphaNumericKeyboardChanged, this, [this]() {
         emit hasAlphaNumericKeyboardChanged(hasAlphaNumericKeyboard());
+    });
+
+    connect(input(), &InputRedirection::capsChanged, this, &DBusInterface::capsChanged);
+
+    connect(taskManager, &TaskManager::taskStateChanged, this, [this](TaskManager::TaskState ts, TaskManager::TaskState oldState) {
+        if (ts == TaskManager::TS_None || oldState == TaskManager::TS_None) {
+            emit hasAlphaNumericKeyboardChanged(hasAlphaNumericKeyboard());
+        }
     });
 }
 
@@ -109,6 +117,40 @@ void DBusInterface::setAlwaysShowVirtualKeyboard(bool set)
         emit hasAlphaNumericKeyboardChanged(hasAlphaNumericKeyboard());
         emit alwaysShowVirtualKeyboardChanged(set);
     }
+}
+
+bool DBusInterface::changeDownloadWindowMode(int mode, int n)
+{
+    switch (mode)
+    {
+        case 0:     // end
+            workspace()->changeDownloadWindowMode(mode, n);
+            return true;
+        case 1:     // start
+            workspace()->changeDownloadWindowMode(mode, n);
+            return true;
+        case 2:     // base on frame
+            if(n<=0)
+                return false;
+            workspace()->changeDownloadWindowMode(mode, n);
+            return true;
+        case 3:     // base on time 
+            if(n<=0)
+                return false;
+            workspace()->changeDownloadWindowMode(mode, n);
+            return true;
+    }
+    return false;
+}  
+
+bool DBusInterface::isCapsOn()
+{
+    return input()->isCapsOn();
+}
+
+void DBusInterface::focusChanged(bool set)
+{
+    qDebug()<<"yanggx focusChanged:"<<set;
 }
 
 DBusInterface::~DBusInterface()
@@ -221,6 +263,11 @@ void DBusInterface::showDebugConsole()
     console->show();
 }
 
+void DBusInterface::replace()
+{
+    QCoreApplication::exit(133);
+}
+
 namespace {
 QVariantMap clientToVariantMap(const AbstractClient *c)
 {
@@ -248,7 +295,10 @@ QVariantMap clientToVariantMap(const AbstractClient *c)
         {QStringLiteral("skipPager"), c->skipPager()},
         {QStringLiteral("skipSwitcher"), c->skipSwitcher()},
         {QStringLiteral("maximizeHorizontal"), c->maximizeMode() & MaximizeHorizontal},
-        {QStringLiteral("maximizeVertical"), c->maximizeMode() & MaximizeVertical}
+        {QStringLiteral("maximizeVertical"), c->maximizeMode() & MaximizeVertical},
+#ifdef KWIN_BUILD_ACTIVITIES
+        {QStringLiteral("activities"), c->activities()},
+#endif
     };
 }
 }
@@ -292,7 +342,6 @@ void DBusInterface::setAppDefaultScale(qreal scale)
     if (scale < 5 && scale > 0.1 && _scale != scale) {
         _scale = scale;
         workspace()->setAppDefaultScale(scale);
-        workspace()->killScaleApps();
         if (workspace()->hasLogin()) {
             emit appDefaultScaleChanged(scale);
         }
@@ -309,12 +358,52 @@ qreal DBusInterface::getAppDefaultScale()
 
 bool DBusInterface::hasAlphaNumericKeyboard()
 {
-    return !m_alwaysShowVirtualKeyboard && input()->hasAlphaNumericKeyboard();
+    return !m_alwaysShowVirtualKeyboard && input()->hasAlphaNumericKeyboard() && taskManager->isIsNoneState();
 }
 
 void DBusInterface::sendFakeKey(uint32_t keySym, uint32_t state)
 {
     input()->sendFakeKey(keySym, state > 0 ? InputRedirection::KeyboardKeyPressed : InputRedirection::KeyboardKeyReleased);
+}
+
+void DBusInterface::updateVKBRegion(double x, double y, double width, double height)
+{
+    workspace()->updateVKBRegion(x, y, width, height);
+}
+
+void DBusInterface::updateVKRegion(int x, int y, int width, int height)
+{
+    qDebug() << Q_FUNC_INFO << m_vkbVisible<<" "<<y<<" "<<height;
+    if (height > 0 && width > 0 ) {
+        if (m_vkbVisible) {
+            workspace()->updateVKBRegion(x, y - 66, width, height + 66);
+        } else {
+            m_blockVKBRect = QRectF(x, y - 66, width, height + 66);
+        }
+    } else {
+        workspace()->updateVKBRegion(x, y, width, height);
+    }
+}
+
+void DBusInterface::updateVKBVisibility(bool visible)
+{
+    qDebug() << Q_FUNC_INFO << visible<<" "<<m_blockVKBRect;
+    m_vkbVisible = visible;
+    workspace()->updateVKBVisibility(visible);
+    if (visible && !m_blockVKBRect.isEmpty()) {
+        workspace()->updateVKBRegion(m_blockVKBRect.x(), m_blockVKBRect.y(), m_blockVKBRect.width(), m_blockVKBRect.height());
+    }
+}
+
+void DBusInterface::notifyVKStatus(bool visible)
+{
+    updateVKBVisibility(visible);
+}
+
+int DBusInterface::screenOrientation()
+{
+    qDebug() << Q_FUNC_INFO << 0;
+    return 0;
 }
 
 CompositorDBusInterface::CompositorDBusInterface(Compositor *parent)

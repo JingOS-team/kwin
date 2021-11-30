@@ -41,7 +41,7 @@ class WindowStream : public PipeWireStream
 {
 public:
     WindowStream(Toplevel *toplevel, QObject *parent)
-        : PipeWireStream(toplevel->hasAlpha(), toplevel->clientSize() * toplevel->bufferScale(), parent)
+        : PipeWireStream(toplevel->hasAlpha(), toplevel->bufferGeometry().size() * toplevel->bufferScale(), parent)
         , m_toplevel(toplevel)
     {
         if (AbstractClient *client = qobject_cast<AbstractClient *>(toplevel)) {
@@ -121,7 +121,11 @@ void ScreencastManager::streamOutput(KWaylandServer::ScreencastStreamV1Interface
     };
     connect(stream, &PipeWireStream::startStreaming, waylandStream, [streamOutput, stream, bufferToStream] {
         Compositor::self()->addRepaint(streamOutput->geometry());
+        streamOutput->recordingStarted();
         connect(streamOutput, &AbstractWaylandOutput::outputChange, stream, bufferToStream);
+    });
+    connect(stream, &PipeWireStream::stopStreaming, waylandStream, [streamOutput]{
+        streamOutput->recordingStopped();
     });
     integrateStreams(waylandStream, stream);
 }

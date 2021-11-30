@@ -13,6 +13,7 @@
 #include "blur/blur.h"
 #include "colorpicker/colorpicker.h"
 #include "kscreen/kscreen.h"
+#include "showwindowinfo/showwindowinfo.h"
 #include "presentwindows/presentwindows.h"
 #include "screenedge/screenedgeeffect.h"
 #include "screenshot/screenshot.h"
@@ -25,6 +26,7 @@
 #include "magiclamp/magiclamp.h"
 #include "switchwindows/switchwindows.h"
 #include "showsysinfo/showsysinfo.h"
+#include "floatball/floatball.h"
 #include "taskpanel/taskpanel.h"
 #include "resize/resize.h"
 #include "showfps/showfps.h"
@@ -372,7 +374,7 @@ EFFECT_FALLBACK
         false,
         false,
 #ifdef EFFECT_BUILTINS
-        &createHelper<MouseClickEffect>,
+        &createHelper<KWin::Effects::MouseClickEffect>,
         nullptr,
         nullptr,
 #endif
@@ -705,12 +707,28 @@ EFFECT_FALLBACK
             QStringLiteral("Appearance"),
             QStringLiteral("showsysinfo"),
             QUrl(QStringLiteral("todo")),
-            false,
+            true,
             false,
     #ifdef EFFECT_BUILTINS
             &createHelper<ShowSysInfo>,
-            &SwitchWindows::supported,
             nullptr,
+            &TaskPanel::enabledByDefault,
+    #endif
+    EFFECT_FALLBACK
+            QStringLiteral("kwin_switchwindows_config")
+        },{
+            QStringLiteral("showwindowinfo"),
+            i18ndc("kwin_effects", "Name of a KWin Effect", "ShowSystemInfo"),
+            i18ndc("kwin_effects", "Comment describing the KWin Effect", "Show system infomation"),
+            QStringLiteral("Appearance"),
+            QStringLiteral("showwindowinfo"),
+            QUrl(QStringLiteral("todo")),
+            true,
+            false,
+    #ifdef EFFECT_BUILTINS
+            &createHelper<ShowWindowInfo>,
+            nullptr,
+            &TaskPanel::enabledByDefault,
     #endif
     EFFECT_FALLBACK
             QStringLiteral("kwin_showsysinfo_config")
@@ -721,15 +739,31 @@ EFFECT_FALLBACK
             QStringLiteral("Appearance"),
             QStringLiteral("taskpanel"),
             QUrl(QStringLiteral("todo")),
-            false,
+            true,
             false,
     #ifdef EFFECT_BUILTINS
             &createHelper<TaskPanel>,
-            &SwitchWindows::supported,
             nullptr,
+            &TaskPanel::enabledByDefault,
     #endif
     EFFECT_FALLBACK
-            QStringLiteral("kwin_showsysinfo_config")
+            QStringLiteral("kwin_taskpanel_config")
+        },{
+            QStringLiteral("floatball"),
+            i18ndc("kwin_effects", "Name of a KWin Effect", "FloatBallInfo"),
+            i18ndc("kwin_effects", "Comment describing the KWin Effect", "Float ball"),
+            QStringLiteral("Appearance"),
+            QStringLiteral("floatball"),
+            QUrl(QStringLiteral("todo")),
+            true,
+            false,
+    #ifdef EFFECT_BUILTINS
+            &createHelper<FloatBall>,
+            nullptr,
+            &FloatBall::enabledByDefault,
+    #endif
+    EFFECT_FALLBACK
+            QStringLiteral("kwin_floatball_config")
         },
     };
     return s_effectData;

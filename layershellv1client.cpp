@@ -58,6 +58,8 @@ LayerShellV1Client::LayerShellV1Client(LayerSurfaceV1Interface *shellSurface,
 
     connect(output, &AbstractOutput::geometryChanged,
             this, &LayerShellV1Client::scheduleRearrange);
+    connect(output, &AbstractOutput::enabledChanged,
+            this, &LayerShellV1Client::handleOutputEnabledChanged);
     connect(output, &AbstractOutput::destroyed,
             this, &LayerShellV1Client::handleOutputDestroyed);
 
@@ -192,24 +194,24 @@ void LayerShellV1Client::closeWindow()
     m_shellSurface->sendClosed();
 }
 
-Layer LayerShellV1Client::belongsToLayer() const
-{
-    if (!isNormalWindow()) {
-        return WaylandClient::belongsToLayer();
-    }
-    switch (m_shellSurface->layer()) {
-    case LayerSurfaceV1Interface::BackgroundLayer:
-        return DesktopLayer;
-    case LayerSurfaceV1Interface::BottomLayer:
-        return BelowLayer;
-    case LayerSurfaceV1Interface::TopLayer:
-        return AboveLayer;
-    case LayerSurfaceV1Interface::OverlayLayer:
-        return UnmanagedLayer;
-    default:
-        Q_UNREACHABLE();
-    }
-}
+//Layer LayerShellV1Client::belongsToLayer() const
+//{
+//    if (!isNormalWindow()) {
+//        return WaylandClient::belongsToLayer();
+//    }
+//    switch (m_shellSurface->layer()) {
+//    case LayerSurfaceV1Interface::BackgroundLayer:
+//        return DesktopLayer;
+//    case LayerSurfaceV1Interface::BottomLayer:
+//        return BelowLayer;
+//    case LayerSurfaceV1Interface::TopLayer:
+//        return AboveLayer;
+//    case LayerSurfaceV1Interface::OverlayLayer:
+//        return UnmanagedLayer;
+//    default:
+//        Q_UNREACHABLE();
+//    }
+//}
 
 bool LayerShellV1Client::acceptsFocus() const
 {
@@ -253,6 +255,14 @@ void LayerShellV1Client::handleAcceptsFocusChanged()
     case LayerSurfaceV1Interface::BackgroundLayer:
     case LayerSurfaceV1Interface::BottomLayer:
         break;
+    }
+}
+
+void LayerShellV1Client::handleOutputEnabledChanged()
+{
+    if (!m_output->isEnabled()) {
+        closeWindow();
+        destroyClient();
     }
 }
 

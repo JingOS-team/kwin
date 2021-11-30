@@ -1,0 +1,36 @@
+#!/bin/sh -e
+
+
+#DEBHELPER#
+
+#if [ "X$1" = "Xconfigure" ]; then
+    # Try to setcap or fall back to setuid.
+    # The specific setcap invocations also need to be whitelisted to make the
+    # build pass (in debian/setcap.yaml as a nested array of argument
+    # arrays).
+#    path="/usr/bin/kwin_wayland"
+#    if [ "X$ARCH" != "Xaarch64" ]; then
+#	    if command -v setcap > /dev/null; then
+#		    cap="CAP_SYS_NICE=+ep"
+#		    if setcap $cap $path; then
+#			    echo "Setcap worked for $path!"
+#		    else
+#			    echo "Setcap failed for $path"
+#		    fi
+#	    else
+#		    echo "Setcap is not installed, failed to setcap on $path" >&2
+#	    fi
+#    fi
+#fi
+
+UID=1000
+
+if id "$UID" > /dev/null 2>&1; then
+    USER="$(id "$UID" -u -n)"
+
+    if [ -e /home/$USER/.cache/kwin ]; then
+        rm -rf /home/$USER/.cache/kwin
+    fi
+fi
+
+exit 0

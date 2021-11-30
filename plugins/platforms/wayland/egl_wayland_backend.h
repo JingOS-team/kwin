@@ -71,7 +71,6 @@ public:
     SceneOpenGLTexturePrivate *createBackendTexture(SceneOpenGLTexture *texture) override;
     QRegion beginFrame(int screenId) override;
     void endFrame(int screenId, const QRegion &damage, const QRegion &damagedRegion) override;
-    bool usesOverlayWindow() const override;
     void init() override;
 
     bool havePlatformBase() const {
@@ -91,7 +90,6 @@ private:
     void cleanupOutput(EglWaylandOutput *output);
 
     bool makeContextCurrent(EglWaylandOutput *output);
-    void present() override;
     void presentOnSurface(EglWaylandOutput *output, const QRegion &damagedRegion);
 
     WaylandBackend *m_backend;

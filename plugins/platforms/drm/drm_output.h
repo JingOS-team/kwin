@@ -20,8 +20,6 @@
 #include <QSize>
 #include <QVector>
 #include <xf86drmMode.h>
-// KF
-#include <KSharedConfig>
 
 namespace KWin
 {
@@ -41,6 +39,9 @@ class KWIN_EXPORT DrmOutput : public AbstractWaylandOutput
 public:
     ///deletes the output, calling this whilst a page flip is pending will result in an error
     ~DrmOutput() override;
+
+    RenderLoop *renderLoop() const override;
+
     ///queues deleting the output after a page flip has completed.
     void teardown();
     void releaseGbm();
@@ -85,8 +86,6 @@ public:
 
     bool initCursor(const QSize &cursorSize);
 
-    bool supportsTransformations() const;
-
     /**
      * Drm planes might be capable of realizing the current output transform without usage
      * of compositing. This is a getter to query the current state of that
@@ -99,11 +98,7 @@ public:
         return m_gpu;
     }
 
-    static drmModeConnectorPtr getAddNewMode(int fd, uint32_t connectorId, bool &force);
-    static KSharedConfigPtr inputConfig();
-    static void clearResolutionDefConfig();
 private:
-    static void initNewMode();
     friend class DrmGpu;
     friend class DrmBackend;
     friend class DrmCrtc;   // TODO: For use of setModeLegacy. Remove later when we allow multiple connectors per crtc
@@ -141,11 +136,10 @@ private:
 
     bool atomicReqModesetPopulate(drmModeAtomicReq *req, bool enable);
     void updateDpms(KWaylandServer::OutputInterface::DpmsMode mode) override;
-    int updateMode(int modeIndex) override;
-    void setWaylandMode() override;
+    void updateMode(int modeIndex) override;
+    void updateMode(uint32_t width, uint32_t height, uint32_t refreshRate);
+    void setWaylandMode();
 
-    // jing_kwin for surface resolution
-    void setCurMode(drmModeModeInfo mode);
     void updateTransform(Transform transform) override;
 
     int gammaRampSize() const override;
@@ -162,6 +156,7 @@ private:
     DpmsMode m_dpmsMode = DpmsMode::On;
     DpmsMode m_dpmsModePending = DpmsMode::On;
     QByteArray m_uuid;
+    RenderLoop *m_renderLoop;
 
     uint32_t m_blobId = 0;
     DrmPlane *m_primaryPlane = nullptr;
@@ -182,9 +177,8 @@ private:
     int m_cursorIndex = 0;
     bool m_hasNewCursor = false;
     bool m_deleted = false;
-    static bool m_bFirstInit;
-    static bool hasInitNewMode;
 };
+
 }
 
 Q_DECLARE_METATYPE(KWin::DrmOutput*)

@@ -24,7 +24,6 @@ class AbstractEglDrmBackend : public AbstractEglBackend
 public:
     ~AbstractEglDrmBackend();
 
-    bool usesOverlayWindow() const override;
     void screenGeometryChanged(const QSize &size) override;
 
     virtual int screenCount() const = 0;
@@ -35,9 +34,6 @@ public:
         Q_UNUSED(format)
         Q_UNUSED(stride)
         return 0;
-    }
-    virtual void cleanupDmabufForSecondaryGpuOutput(AbstractOutput *output) {
-        Q_UNUSED(output)
     }
     virtual QRegion beginFrameForSecondaryGpu(AbstractOutput *output) {
         Q_UNUSED(output)

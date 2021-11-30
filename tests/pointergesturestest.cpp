@@ -16,15 +16,15 @@
 
 using namespace KWayland::Client;
 
-class TouchPinchGesture : public QQuickItem
+class PinchGesture : public QQuickItem
 {
     Q_OBJECT
     Q_PROPERTY(qreal scale READ scale NOTIFY scaleChanged)
     Q_PROPERTY(qreal progressScale READ progressScale NOTIFY progressScaleChanged)
 
 public:
-    explicit TouchPinchGesture(QQuickItem *parent = nullptr);
-    ~TouchPinchGesture() override;
+    explicit PinchGesture(QQuickItem *parent = nullptr);
+    ~PinchGesture() override;
 
     qreal scale() const {
         return m_scale;
@@ -53,20 +53,20 @@ private:
     qreal m_progressScale = 1.0;
 };
 
-TouchPinchGesture::TouchPinchGesture(QQuickItem* parent)
+PinchGesture::PinchGesture(QQuickItem* parent)
     : QQuickItem(parent)
 {
 }
 
 PinchGesture::~PinchGesture() = default;
 
-void TouchPinchGesture::componentComplete()
+void PinchGesture::componentComplete()
 {
     QQuickItem::componentComplete();
     initWayland();
 }
 
-void TouchPinchGesture::initWayland()
+void PinchGesture::initWayland()
 {
     auto c = ConnectionThread::fromApplication(this);
     Registry *r = new Registry(c);
@@ -106,7 +106,7 @@ void TouchPinchGesture::initWayland()
     c->roundtrip();
 }
 
-void TouchPinchGesture::setupGesture()
+void PinchGesture::setupGesture()
 {
     if (m_gesture || !m_pointerGestures || !m_pointer) {
         return;
@@ -141,7 +141,7 @@ int main(int argc, char *argv[])
     qputenv("QT_QPA_PLATFORM", QByteArrayLiteral("wayland"));
     QGuiApplication app(argc, argv);
 
-    qmlRegisterType<TouchPinchGesture>("org.kde.kwin.tests", 1, 0, "PinchGesture");
+    qmlRegisterType<PinchGesture>("org.kde.kwin.tests", 1, 0, "PinchGesture");
 
     QQuickView view;
     view.setSource(QUrl::fromLocalFile(QStringLiteral(DIR) +QStringLiteral("/pointergesturestest.qml")));

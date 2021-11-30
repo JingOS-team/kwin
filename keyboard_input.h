@@ -80,9 +80,14 @@ public:
 
     void sendFakeKey(uint32_t keySym, InputRedirection::KeyboardKeyState, uint32_t time);
 
+    bool isCapsOn();
 
+    bool preProcessKey(uint32_t key, InputRedirection::KeyboardKeyState state, uint32_t time, LibInput::Device *device);
+
+    Toplevel *at() const;
 Q_SIGNALS:
     void ledsChanged(KWin::Xkb::LEDs);
+    void capsChanged(bool);
 
 private:
     InputRedirection *m_input;
@@ -91,6 +96,7 @@ private:
     QMetaObject::Connection m_activeClientSurfaceChangedConnection;
     ModifiersChangedSpy *m_modifiersChangedSpy = nullptr;
     KeyboardLayout *m_keyboardLayout = nullptr;
+    Toplevel *m_at = nullptr;
 };
 
 }

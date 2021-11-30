@@ -59,6 +59,7 @@ public Q_SLOTS: // METHODS
     QString supportInformation();
     Q_NOREPLY void unclutterDesktop();
     Q_NOREPLY void showDebugConsole();
+    Q_NOREPLY void replace();
 
     QVariantMap queryWindowInfo();
     QVariantMap getWindowInfo(const QString &uuid);
@@ -73,6 +74,17 @@ public Q_SLOTS: // METHODS
 
     void sendFakeKey(uint32_t keySym, uint32_t state);
 
+    void updateVKBRegion(double x, double y, double width, double height);
+    void updateVKRegion(int x, int y, int width, int height);
+    void updateVKBVisibility(bool visible);
+    void notifyVKStatus(bool visible);
+    int screenOrientation();
+
+    bool changeDownloadWindowMode(int mode, int n);
+    bool isCapsOn();
+
+    void focusChanged(bool set);
+
 private Q_SLOTS:
     void becomeKWinService(const QString &service);
 
@@ -83,8 +95,15 @@ Q_SIGNALS:
 
     void mouseOnTopLeftConer();
     void mouseOnTopRightConer();
+
+    void screenOrientationChanged(int);
+
+    void capsChanged(bool);
+
 private:
     void announceService();
+    bool m_vkbVisible = false;
+    QRectF m_blockVKBRect = QRect();
     QString m_serviceName;
     bool m_alwaysShowVirtualKeyboard = false;
     QDBusMessage m_replyQueryWindowInfo;

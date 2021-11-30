@@ -39,6 +39,7 @@ class Deleted;
 class EffectFrameImpl;
 class EffectWindowImpl;
 class OverlayWindow;
+class RenderLoop;
 class Shadow;
 class WindowPixmap;
 class GLTexture;
@@ -55,6 +56,17 @@ public:
     class EffectFrame;
     class Window;
 
+    /**
+     * Schedules a repaint for the specified @a region.
+     */
+    void addRepaint(const QRegion &region);
+
+    /**
+     * Returns the repaints region for output with the specified @a screenId.
+     */
+    QRegion repaints(int screenId) const;
+    void resetRepaints(int screenId);
+
     // Returns true if the ctor failed to properly initialize.
     virtual bool initFailed() const = 0;
     virtual CompositingType compositingType() const = 0;
@@ -66,7 +78,7 @@ public:
     // returns the time since the last vblank signal - if there's one
     // ie. "what of this frame is lost to painting"
     virtual void paint(int screenId, const QRegion &damage, const QList<Toplevel *> &windows,
-                       std::chrono::milliseconds presentTime) = 0;
+                       RenderLoop *renderLoop) = 0;
 
     /**
      * Adds the Toplevel to the Scene.
@@ -133,10 +145,6 @@ public:
     };
     // types of filtering available
     enum ImageFilterType { ImageFilterFast, ImageFilterGood };
-    // there's nothing to paint (adjust time_diff later)
-    virtual void idle();
-    virtual bool blocksForRetrace() const;
-    virtual bool syncsToVBlank() const;
     virtual OverlayWindow* overlayWindow() const = 0;
 
     virtual bool makeOpenGLContextCurrent();
@@ -145,11 +153,6 @@ public:
     virtual bool supportsNativeFence() const;
 
     virtual QMatrix4x4 screenProjectionMatrix() const;
-
-    /**
-     * Whether the Scene uses an X11 overlay window to perform compositing.
-     */
-    virtual bool usesOverlayWindow() const = 0;
 
     virtual void triggerFence();
 
@@ -208,8 +211,7 @@ protected:
     void clearStackingOrder();
     // shared implementation, starts painting the screen
     void paintScreen(int *mask, const QRegion &damage, const QRegion &repaint,
-                     QRegion *updateRegion, QRegion *validRegion,
-                     std::chrono::milliseconds presentTime,
+                     QRegion *updateRegion, QRegion *validRegion, RenderLoop *renderLoop,
                      const QMatrix4x4 &projection = QMatrix4x4(),
                      const QRect &outputGeometry = QRect(), qreal screenScale = 1.0);
     // Render cursor texture in case hardware cursor is disabled/non-applicable
@@ -243,8 +245,9 @@ protected:
     virtual void paintDesktop(int desktop, int mask, const QRegion &region, ScreenPaintData &data);
 
     virtual void paintEffectQuickView(EffectQuickView *w) = 0;
-
+    
     virtual void paintTexture(GLTexture *texture, const QRegion &region, const QRect &rect) = 0;
+
     // saved data for 2nd pass of optimized screen painting
     struct Phase2Data {
         Window *window = nullptr;
@@ -265,13 +268,16 @@ protected:
     QRegion damaged_region;
     // The screen that is being currently painted
     int painted_screen = -1;
+
+    // windows in their stacking order
+    QVector< Window* > stacking_order;
 private:
     void paintWindowThumbnails(Scene::Window *w, const QRegion &region, qreal opacity, qreal brightness, qreal saturation);
     void paintDesktopThumbnails(Scene::Window *w);
     std::chrono::milliseconds m_expectedPresentTimestamp = std::chrono::milliseconds::zero();
+    void reallocRepaints();
     QHash< Toplevel*, Window* > m_windows;
-    // windows in their stacking order
-    QVector< Window* > stacking_order;
+    QVector<QRegion> m_repaints;
     // how many times finalPaintScreen() has been called
     int m_paintScreenCount = 0;
 };
@@ -321,6 +327,7 @@ public:
     // should the window be painted
     bool isPaintingEnabled() const;
     void resetPaintingEnabled();
+    void setShowIgnoreDisible(bool ignore);
     // Flags explaining why painting should be disabled
     enum {
         // Window will not be painted
@@ -358,11 +365,9 @@ public:
     void unreferencePreviousPixmap();
     void discardQuads();
     void preprocess();
-    void addRepaint(const QRegion &region);
     void addLayerRepaint(const QRegion &region);
     QRegion repaints(int screen) const;
     void resetRepaints(int screen);
-    bool wantsRepaint() const;
 
     virtual QSharedPointer<GLTexture> windowTexture() {
         return {};
@@ -400,17 +405,19 @@ protected:
     ImageFilterType filter;
     Shadow *m_shadow;
 private:
+    void scheduleRepaint();
+    void handleSurfaceCommitted(KWaylandServer::SurfaceInterface *surface);
     void reallocRepaints();
 
     QScopedPointer<WindowPixmap> m_currentPixmap;
     QScopedPointer<WindowPixmap> m_previousPixmap;
     QVector<QRegion> m_repaints;
-    QVector<QRegion> m_layerRepaints;
     SubSurfaceMonitor *m_subsurfaceMonitor = nullptr;
     int m_referencePixmapCounter;
     int disable_painting;
     mutable QRegion m_bufferShape;
     mutable bool m_bufferShapeIsValid = false;
+    bool ignoreShowDisible = false;
     mutable QScopedPointer<WindowQuadList> cached_quad_list;
     Q_DISABLE_COPY(Window)
 };
@@ -572,6 +579,8 @@ public:
      * @returns the surface this WindowPixmap references, might be @c null.
      */
     KWaylandServer::SurfaceInterface *surface() const;
+
+    WindowPixmap *topMostSurface();
 
 protected:
     explicit WindowPixmap(Scene::Window *window);

@@ -8,6 +8,7 @@
 */
 #include "x11_platform.h"
 #include "x11cursor.h"
+#include "x11placeholderoutput.h"
 #include "edge.h"
 #include "windowselector.h"
 #ifdef KWIN_HAVE_XRENDER_COMPOSITING
@@ -23,10 +24,9 @@
 #endif
 #include "abstract_client.h"
 #include "effects_x11.h"
-#include "eglonxbackend.h"
+#include "eglbackend.h"
 #include "keyboard_input.h"
 #include "logging.h"
-#include "screens_xrandr.h"
 #include "screenedges_filter.h"
 #include "options.h"
 #include "overlaywindow_x11.h"
@@ -35,6 +35,7 @@
 #include "x11_decoration_renderer.h"
 #include "x11_output.h"
 #include "xcbutils.h"
+#include "renderloop.h"
 
 #include <kwinxrenderutils.h>
 
@@ -49,9 +50,52 @@
 namespace KWin
 {
 
+class XrandrEventFilter : public X11EventFilter
+{
+public:
+    explicit XrandrEventFilter(X11StandalonePlatform *backend);
+
+    bool event(xcb_generic_event_t *event) override;
+
+private:
+    X11StandalonePlatform *m_backend;
+};
+
+XrandrEventFilter::XrandrEventFilter(X11StandalonePlatform *backend)
+    : X11EventFilter(Xcb::Extensions::self()->randrNotifyEvent())
+    , m_backend(backend)
+{
+}
+
+bool XrandrEventFilter::event(xcb_generic_event_t *event)
+{
+    Q_ASSERT((event->response_type & ~0x80) == Xcb::Extensions::self()->randrNotifyEvent());
+    // let's try to gather a few XRandR events, unlikely that there is just one
+    m_backend->scheduleUpdateOutputs();
+
+    // update default screen
+    auto *xrrEvent = reinterpret_cast<xcb_randr_screen_change_notify_event_t*>(event);
+    xcb_screen_t *screen = kwinApp()->x11DefaultScreen();
+    if (xrrEvent->rotation & (XCB_RANDR_ROTATION_ROTATE_90 | XCB_RANDR_ROTATION_ROTATE_270)) {
+        screen->width_in_pixels = xrrEvent->height;
+        screen->height_in_pixels = xrrEvent->width;
+        screen->width_in_millimeters = xrrEvent->mheight;
+        screen->height_in_millimeters = xrrEvent->mwidth;
+    } else {
+        screen->width_in_pixels = xrrEvent->width;
+        screen->height_in_pixels = xrrEvent->height;
+        screen->width_in_millimeters = xrrEvent->mwidth;
+        screen->height_in_millimeters = xrrEvent->mheight;
+    }
+
+    return false;
+}
+
 X11StandalonePlatform::X11StandalonePlatform(QObject *parent)
     : Platform(parent)
+    , m_updateOutputsTimer(new QTimer(this))
     , m_x11Display(QX11Info::display())
+    , m_renderLoop(new RenderLoop(this))
 {
 #if HAVE_X11_XINPUT
     if (!qEnvironmentVariableIsSet("KWIN_NO_XI2")) {
@@ -65,6 +109,9 @@ X11StandalonePlatform::X11StandalonePlatform(QObject *parent)
         }
     }
 #endif
+
+    m_updateOutputsTimer->setSingleShot(true);
+    connect(m_updateOutputsTimer, &QTimer::timeout, this, &X11StandalonePlatform::updateOutputs);
 
     setSupportsGammaControl(true);
     setPerScreenRenderingEnabled(false);
@@ -93,12 +140,11 @@ void X11StandalonePlatform::init()
     }
     XRenderUtils::init(kwinApp()->x11Connection(), kwinApp()->x11RootWindow());
     setReady(true);
-    emit screensQueried();
-}
+    initOutputs();
 
-Screens *X11StandalonePlatform::createScreens(QObject *parent)
-{
-    return new XRandRScreens(this, parent);
+    if (Xcb::Extensions::self()->isRandrAvailable()) {
+        m_randrEventFilter.reset(new XrandrEventFilter(this));
+    }
 }
 
 OpenGLBackend *X11StandalonePlatform::createOpenGLBackend()
@@ -107,7 +153,7 @@ OpenGLBackend *X11StandalonePlatform::createOpenGLBackend()
 #if HAVE_EPOXY_GLX
     case GlxPlatformInterface:
         if (hasGlx()) {
-            return new GlxBackend(m_x11Display);
+            return new GlxBackend(m_x11Display, this);
         } else {
             qCWarning(KWIN_X11STANDALONE) << "Glx not available, trying EGL instead.";
             // no break, needs fall-through
@@ -115,7 +161,7 @@ OpenGLBackend *X11StandalonePlatform::createOpenGLBackend()
         }
 #endif
     case EglPlatformInterface:
-        return new EglOnXBackend(m_x11Display);
+        return new EglBackend(m_x11Display, this);
     default:
         // no backend available
         return nullptr;
@@ -425,31 +471,35 @@ QVector<CompositingType> X11StandalonePlatform::supportedCompositors() const
 void X11StandalonePlatform::initOutputs()
 {
     doUpdateOutputs<Xcb::RandR::ScreenResources>();
+    updateRefreshRate();
+}
+
+void X11StandalonePlatform::scheduleUpdateOutputs()
+{
+    m_updateOutputsTimer->start();
 }
 
 void X11StandalonePlatform::updateOutputs()
 {
     doUpdateOutputs<Xcb::RandR::CurrentResources>();
+    updateRefreshRate();
 }
 
 template <typename T>
 void X11StandalonePlatform::doUpdateOutputs()
 {
     auto fallback = [this]() {
-        auto *o = new X11Output(this);
-        o->setGammaRampSize(0);
-        o->setRefreshRate(60000);
-        o->setName(QStringLiteral("Xinerama"));
-        m_outputs << o;
-        emit outputAdded(o);
-        emit outputEnabled(o);
+        X11PlaceholderOutput *dummyOutput = new X11PlaceholderOutput();
+        m_outputs << dummyOutput;
+        emit outputAdded(dummyOutput);
+        emit outputEnabled(dummyOutput);
     };
 
     // TODO: instead of resetting all outputs, check if new output is added/removed
     //       or still available and leave still available outputs in m_outputs
     //       untouched (like in DRM backend)
     while (!m_outputs.isEmpty()) {
-        X11Output *output = m_outputs.takeLast();
+        AbstractOutput *output = m_outputs.takeLast();
         emit outputDisabled(output);
         emit outputRemoved(output);
         delete output;
@@ -457,11 +507,13 @@ void X11StandalonePlatform::doUpdateOutputs()
 
     if (!Xcb::Extensions::self()->isRandrAvailable()) {
         fallback();
+        emit screensQueried();
         return;
     }
     T resources(rootWindow());
     if (resources.isNull()) {
         fallback();
+        emit screensQueried();
         return;
     }
     xcb_randr_crtc_t *crtcs = resources.crtcs();
@@ -547,6 +599,8 @@ void X11StandalonePlatform::doUpdateOutputs()
     if (m_outputs.isEmpty()) {
         fallback();
     }
+
+    emit screensQueried();
 }
 
 Outputs X11StandalonePlatform::outputs() const
@@ -557,6 +611,52 @@ Outputs X11StandalonePlatform::outputs() const
 Outputs X11StandalonePlatform::enabledOutputs() const
 {
     return m_outputs;
+}
+
+RenderLoop *X11StandalonePlatform::renderLoop() const
+{
+    return m_renderLoop;
+}
+
+static bool refreshRate_compare(const AbstractOutput *first, const AbstractOutput *smallest)
+{
+    return first->refreshRate() < smallest->refreshRate();
+}
+
+static int currentRefreshRate()
+{
+    const int refreshRate = qEnvironmentVariableIntValue("KWIN_X11_REFRESH_RATE");
+    if (refreshRate) {
+        return refreshRate;
+    }
+
+    const QVector<AbstractOutput *> outputs = kwinApp()->platform()->enabledOutputs();
+    if (outputs.isEmpty()) {
+        return 60000;
+    }
+
+    const QString syncDisplayDevice = qEnvironmentVariable("__GL_SYNC_DISPLAY_DEVICE");
+    if (!syncDisplayDevice.isEmpty()) {
+        for (const AbstractOutput *output : outputs) {
+            if (output->name() == syncDisplayDevice) {
+                return output->refreshRate();
+            }
+        }
+    }
+
+    auto syncIt = std::min_element(outputs.begin(), outputs.end(), refreshRate_compare);
+    return (*syncIt)->refreshRate();
+}
+
+void X11StandalonePlatform::updateRefreshRate()
+{
+    int refreshRate = currentRefreshRate();
+    if (refreshRate <= 0) {
+        qCWarning(KWIN_X11STANDALONE) << "Bogus refresh rate" << refreshRate;
+        refreshRate = 60000;
+    }
+
+    m_renderLoop->setRefreshRate(refreshRate);
 }
 
 }

@@ -180,7 +180,7 @@ bool DimInactiveEffect::canDimWindow(const EffectWindow *w) const
         return false;
     }
 
-    if (w->isDock() && !m_dimPanels) {
+    if (w->isStatusBar() && !m_dimPanels) {
         return false;
     }
 
@@ -207,7 +207,7 @@ bool DimInactiveEffect::canDimWindow(const EffectWindow *w) const
     return w->isNormalWindow()
         || w->isDialog()
         || w->isUtility()
-        || w->isDock()
+        || w->isStatusBar()
         || w->isDesktop();
 }
 

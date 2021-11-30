@@ -12,12 +12,15 @@
 #include "keyboard_layout.h"
 #include "keyboard_repeat.h"
 #include "abstract_client.h"
+#include "effects.h"
 #include "modifier_only_shortcuts.h"
 #include "utils.h"
 #include "screenlockerwatcher.h"
 #include "toplevel.h"
 #include "wayland_server.h"
 #include "workspace.h"
+#include "platform.h"
+
 // KWayland
 #include <KWaylandServer/datadevice_interface.h>
 #include <KWaylandServer/seat_interface.h>
@@ -39,6 +42,7 @@ KeyboardInputRedirection::KeyboardInputRedirection(InputRedirection *parent)
     , m_xkb(new Xkb(parent))
 {
     connect(m_xkb.data(), &Xkb::ledsChanged, this, &KeyboardInputRedirection::ledsChanged);
+    connect(m_xkb.data(), &Xkb::capsChanged, this, &KeyboardInputRedirection::capsChanged);
     if (waylandServer()) {
         m_xkb->setSeat(waylandServer()->seat());
     }
@@ -108,8 +112,7 @@ void KeyboardInputRedirection::init()
     m_input->installInputEventSpy(new KeyStateChangedSpy(m_input));
     m_modifiersChangedSpy = new ModifiersChangedSpy(m_input);
     m_input->installInputEventSpy(m_modifiersChangedSpy);
-    m_keyboardLayout = new KeyboardLayout(m_xkb.data());
-    m_keyboardLayout->setConfig(config);
+    m_keyboardLayout = new KeyboardLayout(m_xkb.data(), config);
     m_keyboardLayout->init();
     m_input->installInputEventSpy(m_keyboardLayout);
 
@@ -173,17 +176,51 @@ void KeyboardInputRedirection::update()
         found = workspace()->activeClient();
     }
     if (found && found->surface()) {
-        qDebug()<<"yanggx found:"<<found->pid()<<" "<<found->resourceName()<<" "<<found->resourceClass()<<" "<<found->sessionId)()<<" "<<found->isDesktop()<<" "<<found->isDock()<<" "<<found->geometry()<<" "<<found->windowRole();
         if (found->surface() != seat->focusedKeyboardSurface()) {
             seat->setFocusedKeyboardSurface(found->surface());
+            m_at = found;
         }
     } else {
         seat->setFocusedKeyboardSurface(nullptr);
+        m_at = nullptr;
     }
+}
+
+
+bool KeyboardInputRedirection::preProcessKey(uint32_t key, InputRedirection::KeyboardKeyState state, uint32_t time, LibInput::Device *device)
+{
+    Q_UNUSED(time);
+    Q_UNUSED(device);
+    if (state == InputRedirection::KeyboardKeyReleased) {
+        if (key == 172) { // HOME_PAGE
+            effects->closeTask();
+            Workspace::self()->setShowingDesktop(true, false, true);
+            return true;
+        } else if (key == 580) { // SELECT_TASK
+            effects->toTriggerTask();
+        }
+    }
+    if (key == 172) {
+        return true;
+    }
+    return false;
+}
+
+Toplevel *KeyboardInputRedirection::at() const
+{
+    return m_at;
 }
 
 void KeyboardInputRedirection::processKey(uint32_t key, InputRedirection::KeyboardKeyState state, uint32_t time, LibInput::Device *device)
 {
+    if (key == 58) {
+        qDebug()<<"CAPS_DEBUG processKey 58:"<<state;
+    }
+    qDebug()<<"KEY_DEBUG:"<<Q_FUNC_INFO<<__LINE__<<" key:"<<key<<" state:"<<state;
+    if (!kwinApp()->platform()->isSetupMode() && preProcessKey(key, state, time, device)) {
+        return;
+    }
+
     QEvent::Type type;
     bool autoRepeat = false;
     switch (state) {
@@ -206,8 +243,9 @@ void KeyboardInputRedirection::processKey(uint32_t key, InputRedirection::Keyboa
     }
 
     const xkb_keysym_t keySym = m_xkb->currentKeysym();
+    Qt::Key qtKey = m_xkb->toQtKey(keySym);
     KeyEvent event(type,
-                   m_xkb->toQtKey(keySym),
+                   qtKey,
                    m_xkb->modifiers(),
                    key,
                    keySym,
@@ -290,6 +328,33 @@ void KeyboardInputRedirection::sendFakeKey(uint32_t keySym, InputRedirection::Ke
     case XKB_KEY_Down:
         key_code = KEY_DOWN;
         break;
+    case XKB_KEY_Shift_L:
+        key_code = KEY_LEFTSHIFT;
+        break;
+    case XKB_KEY_Shift_R:
+        key_code = KEY_RIGHTSHIFT;
+        break;
+    case XKB_KEY_Control_L:
+        key_code = KEY_LEFTCTRL;
+        break;
+    case XKB_KEY_Control_R:
+        key_code = KEY_RIGHTCTRL;
+        break;
+    case XKB_KEY_Alt_L:
+        key_code = KEY_LEFTALT;
+        break;
+    case XKB_KEY_Alt_R:
+        key_code = KEY_RIGHTALT;
+        break;
+    case XKB_KEY_Insert:
+        key_code = KEY_INSERT;
+        break;
+    case XKB_KEY_Tab:
+        key_code = KEY_TAB;
+        break;
+    case XKB_KEY_Escape:
+        key_code = KEY_ESC;
+        break;
     default:
         key_code = KEY_UNKNOWN;
         break;
@@ -299,6 +364,11 @@ void KeyboardInputRedirection::sendFakeKey(uint32_t keySym, InputRedirection::Ke
         return;
 
     processKey(key_code, state, time);
+}
+
+bool KeyboardInputRedirection::isCapsOn()
+{
+    return m_xkb->isCapsOn();
 }
 
 void KeyboardInputRedirection::processModifiers(uint32_t modsDepressed, uint32_t modsLatched, uint32_t modsLocked, uint32_t group)

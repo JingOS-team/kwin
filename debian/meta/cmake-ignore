@@ -1,0 +1,15 @@
+# qml module runtime dep
+Qt5Multimedia
+libhybris
+Xwayland
+QtQuick-QMLModule
+QtQuick.Controls-QMLModule
+QtQuick.Layouts-QMLModule
+QtQuick.VirtualKeyboard-QMLModule
+QtQuick.Window-QMLModule
+QtMultimedia-QMLModule
+org.kde.kquickcontrolsaddons-QMLModule
+org.kde.plasma.core-QMLModule
+org.kde.plasma.components-QMLModule
+KF5Kirigami2
+hwdata

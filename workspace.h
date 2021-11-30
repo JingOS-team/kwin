@@ -30,10 +30,11 @@ class KStartupInfo;
 class KStartupInfoData;
 class KStartupInfoId;
 class QStringList;
+class JAppManager;
 
 namespace KWin
 {
-
+class Unmanaged;
 namespace Xcb
 {
 class Tree;
@@ -56,6 +57,7 @@ class X11EventFilter;
 enum class Predicate;
 class DBusInterface;
 class EffectWindow;
+class JappManagerClient;
 
 class X11EventFilterContainer : public QObject
 {
@@ -80,6 +82,10 @@ public:
     static Workspace* self() {
         return _self;
     }
+    
+    void changeDownloadWindowMode(int mode, int n);
+
+    void setAndroidWindow(Toplevel *toplevel);
 
     void mouseOnTopLeftConer();
     void mouseOnTopRightConer();
@@ -169,6 +175,11 @@ public:
      * if no client has the focus)
      */
     AbstractClient* activeClient() const;
+
+    AbstractClient* topClient() const;
+
+    AbstractClient* foregroundTopLevel();
+
     /**
      * Client that was activated, but it's not yet really activeClient(), because
      * we didn't process yet the matching FocusIn event. Used mostly in focus
@@ -259,10 +270,28 @@ public:
     SessionManager *sessionManager() const;
 
     void triggerDesktop();
+
+    void updateVKBRegion(double x, double y, double width, double height);
+    void updateVKBVisibility(bool visible);
+
+    bool isKeyboardVisible() {
+        return m_keyboardVisible;
+    }
+    bool showInputFloatBall();
+
+    void setDisplayName(const QString &displayName);
+    QString getDisplayName() {
+        return m_displayName;
+    }
+
+    void setDesktop(AbstractClient *desktop) {
+        m_curDesktop = desktop;
+    }
 public:
     QPoint cascadeOffset(const AbstractClient *c) const;
 
 private:
+    bool m_keyboardVisible = true;
     Compositor *m_compositor;
     QTimer *m_quickTileCombineTimer;
     QuickTileMode m_lastTilingMode;
@@ -437,12 +466,16 @@ public:
     void setCloseWindowToDesktop(bool toDesktop) {
         m_showDesktopWhenWindowClosed = toDesktop;
     }
-    bool isSystemUI(EffectWindow *w) const;
+
+    bool isSystemUI(AbstractClient *w);
     bool isManageWindowType(EffectWindow *w);
 
     DBusInterface *dbusInterface() {
         return m_dbusInterface;
     }
+
+    void killWindows(QList<Toplevel *> tps);
+    void killWindow(Toplevel *tp);
 public Q_SLOTS:
     void performWindowOperation(KWin::AbstractClient* c, Options::WindowOperation op);
     // Keybindings
@@ -456,7 +489,7 @@ public Q_SLOTS:
     void slotWindowToNextScreen();
     void slotSwitchToPrevScreen();
     void slotWindowToPrevScreen();
-    void slotToggleShowDesktop();
+    void slotShowDesktop();
 
     void slotWindowMaximize();
     void slotWindowMaximizeVertical();
@@ -512,7 +545,6 @@ public Q_SLOTS:
     // casper_yang for app scale
     qreal getAppDefaultScale();
     void setAppDefaultScale(qreal scale);
-    void killScaleApps();
     void setHasLogin(bool login);
     bool hasLogin();
 
@@ -526,6 +558,11 @@ private Q_SLOTS:
     // virtual desktop handling
     void slotDesktopCountChanged(uint previousCount, uint newCount);
     void slotCurrentDesktopChanged(uint oldDesktop, uint newDesktop);
+
+    void onActiveAndroidWindow();
+
+    void onScreenTurnOff(const QString&);
+    void onScreenTurnOn(const QString&);
 
 Q_SIGNALS:
     /**
@@ -548,6 +585,7 @@ Q_SIGNALS:
     void deletedRemoved(KWin::Deleted*);
     void configChanged();
     void showingDesktopChanged(bool showing);
+    void topLevelRemoved(Toplevel*);
     /**
      * This signal is emitted when the stacking order changed, i.e. a window is risen
      * or lowered
@@ -568,6 +606,9 @@ Q_SIGNALS:
 
     void onMouseOnTopLeftConer();
     void onMouseOnTopRightConer();
+
+    void activeAndroidWindow();
+    void displayNameChanged(const QString &displayName);
 private:
     void init();
     void initializeX11();
@@ -718,6 +759,17 @@ private:
 
     DBusInterface *m_dbusInterface;
     AbstractClient *m_triggerWindow = nullptr;
+
+    Toplevel *m_androidClient = nullptr;
+    JappManagerClient *m_appManager = nullptr;
+    AbstractClient *m_foregroundTopLevel = nullptr;
+    AbstractClient *m_restoreClient = nullptr;
+
+    QString m_displayName;
+    int m_lastVKBY = INT_MAX;
+
+    AbstractClient *m_curDesktop = nullptr;
+    Unmanaged *m_unmanagedPlaceHolder = nullptr;
 private:
     friend bool performTransiencyCheck();
     friend Workspace *workspace();
@@ -765,6 +817,11 @@ inline bool Workspace::initializing() const
 inline AbstractClient *Workspace::activeClient() const
 {
     return active_client;
+}
+
+inline AbstractClient *Workspace::foregroundTopLevel()
+{
+    return m_allClients.contains(m_foregroundTopLevel) ? m_foregroundTopLevel : nullptr;
 }
 
 inline AbstractClient *Workspace::mostRecentlyActivatedClient() const

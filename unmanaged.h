@@ -32,13 +32,26 @@ public:
     QVector<VirtualDesktop *> desktops() const override;
     QPoint clientPos() const override;
     QRect transparentRect() const override;
-    Layer layer() const override {
-        return UnmanagedLayer;
+//    Layer layer() const override {
+//        // TODO_Layer 去掉这一层，所有的窗口都映射到实体层级
+//        return Jing;
+//    }
+
+    JingLayer jingLayer() const override {
+        return LAYER_UNMANAGER;
+    }
+    JingWindowType jingWindowType() const override {
+        return TYPE_UNKNOW;
     }
     NET::WindowType windowType(bool direct = false, int supported_types = 0) const override;
     bool isOutline() const override;
 
     bool setupCompositing() override;
+
+    bool visible() const override;
+    void setVisible(bool visible) {
+        m_visible = visible;
+    }
 
 public Q_SLOTS:
     void release(ReleaseReason releaseReason = ReleaseReason::Release);
@@ -50,6 +63,7 @@ private:
     QWindow *findInternalWindow() const;
     bool m_outline = false;
     bool m_scheduledRelease = false;
+    bool m_visible = true;
 };
 
 } // namespace

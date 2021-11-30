@@ -214,15 +214,6 @@
         </entry>
     </group>
     <group name="Compositing">
-        <entry name="MaxFPS" type="UInt">
-            <default>60</default>
-        </entry>
-        <entry name="RefreshRate" type="UInt">
-            <default>0</default>
-        </entry>
-        <entry name="VBlankTime" type="UInt">
-            <default>6144</default>
-        </entry>
         <entry name="Backend" type="String">
             <default>OpenGL</default>
         </entry>
@@ -253,6 +244,24 @@
         </entry>
         <entry name="WindowsBlockCompositing" type="Bool">
             <default>true</default>
+        </entry>
+        <entry name="LatencyPolicy" type="Enum">
+            <choices name="KWin::LatencyPolicy">
+                <choice name="LatencyExtremelyLow" value="ExtremelyLow"/>
+                <choice name="LatencyLow" value="Low"/>
+                <choice name="LatencyMedium" value="Medium"/>
+                <choice name="LatencyHigh" value="High"/>
+                <choice name="LatencyExtremelyHigh" value="ExtremelyHigh"/>
+            </choices>
+            <default>LatencyMedium</default>
+        </entry>
+        <entry name="RenderTimeEstimator" type="Enum">
+            <choices name="KWin::RenderTimeEstimator">
+                <choice name="RenderTimeEstimatorMinimum" value="Minimum"/>
+                <choice name="RenderTimeEstimatorMaximum" value="Maximum"/>
+                <choice name="RenderTimeEstimatorAverage" value="Average"/>
+            </choices>
+            <default>RenderTimeEstimatorMaximum</default>
         </entry>
     </group>
     <group name="TabBox">
@@ -304,6 +313,9 @@
             <default>1</default>
             <min>0</min>
         </entry>
+    </group>
+    <group name="Wayland">
+        <entry name="InputMethod" type="Path" />
     </group>
     <group name="Xwayland">
         <entry name="XwaylandCrashPolicy" type="Enum">

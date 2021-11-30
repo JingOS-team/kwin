@@ -87,7 +87,9 @@ public:
     Q_DECLARE_FLAGS(InitializationFlags, InitializationFlag)
 
     ~WaylandServer() override;
-    bool init(const QString &socketName = QString(), InitializationFlags flags = InitializationFlag::NoOptions);
+    bool init(const QString &socketName, InitializationFlags flags = InitializationFlag::NoOptions);
+    bool init(InitializationFlags flags = InitializationFlag::NoOptions);
+
     bool start();
     void terminateClientConnections();
 
@@ -254,6 +256,9 @@ Q_SIGNALS:
     void initialized();
     void foreignTransientChanged(KWaylandServer::SurfaceInterface *child);
 
+private slots:
+    void showLoutPrompt(bool set);
+
 private:
     int createScreenLockerConnection();
     void shellClientShown(Toplevel *t);
@@ -302,6 +307,7 @@ private:
     InitializationFlags m_initFlags;
     QVector<KWaylandServer::PlasmaShellSurfaceInterface*> m_plasmaShellSurfaces;
     KWIN_SINGLETON(WaylandServer)
+    bool m_showLogout = false;
 };
 
 inline

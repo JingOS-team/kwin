@@ -17,7 +17,6 @@ EglMultiBackend::EglMultiBackend(AbstractEglDrmBackend *backend0) : OpenGLBacken
 {
     m_backends.append(backend0);
     setIsDirectRendering(true);
-    setSyncsToVBlank(true);
 }
 
 EglMultiBackend::~EglMultiBackend()
@@ -34,17 +33,11 @@ void EglMultiBackend::init()
     for (auto b : qAsConst(m_backends)) {
         b->init();
     }
-    // set all the values:
-    // if any block, set it to be blocking
-    setBlocksForRetrace(false);
     // if any don't support it set it to not supported
     setSupportsBufferAge(true);
     setSupportsPartialUpdate(true);
     setSupportsSwapBuffersWithDamage(true);
     for (auto b : qAsConst(m_backends)) {
-        if (b->blocksForRetrace()) {
-            setBlocksForRetrace(true);
-        }
         if (!b->supportsBufferAge()) {
             setSupportsBufferAge(false);
         }
@@ -79,6 +72,14 @@ void EglMultiBackend::endFrame(int screenId, const QRegion &damage, const QRegio
     backend->endFrame(internalScreenId, damage, damagedRegion);
 }
 
+bool EglMultiBackend::scanout(int screenId, KWaylandServer::SurfaceInterface *surface)
+{
+    int internalScreenId;
+    AbstractEglBackend *backend = findBackend(screenId, internalScreenId);
+    Q_ASSERT(backend != nullptr);
+    return backend->scanout(internalScreenId, surface);
+}
+
 bool EglMultiBackend::makeCurrent()
 {
     return m_backends[0]->makeCurrent();
@@ -106,22 +107,12 @@ QSharedPointer<GLTexture> EglMultiBackend::textureForOutput(AbstractOutput *requ
     return {};
 }
 
-bool EglMultiBackend::usesOverlayWindow() const
-{
-    return false;
-}
-
 void EglMultiBackend::screenGeometryChanged(const QSize &size)
 {
     Q_UNUSED(size)
 }
 
-void EglMultiBackend::present()
-{
-    Q_UNREACHABLE();
-}
-
-AbstractEglDrmBackend *EglMultiBackend::findBackend(int screenId, int& internalScreenId)
+AbstractEglDrmBackend *EglMultiBackend::findBackend(int screenId, int& internalScreenId) const
 {
     int screens = 0;
     for (int i = 0; i < m_backends.count(); i++) {
@@ -138,6 +129,14 @@ AbstractEglDrmBackend *EglMultiBackend::findBackend(int screenId, int& internalS
 void EglMultiBackend::addBackend(AbstractEglDrmBackend *backend)
 {
     m_backends.append(backend);
+}
+
+bool EglMultiBackend::directScanoutAllowed(int screenId) const
+{
+    int internalScreenId;
+    AbstractEglBackend *backend = findBackend(screenId, internalScreenId);
+    Q_ASSERT(backend != nullptr);
+    return backend->directScanoutAllowed(internalScreenId);
 }
 
 }

@@ -45,7 +45,7 @@ public:
     void closeWindow() override;
 
 protected:
-    Layer belongsToLayer() const override;
+//    Layer belongsToLayer() const override;
     bool acceptsFocus() const override;
     void requestGeometry(const QRect &rect) override;
 
@@ -54,6 +54,7 @@ private:
     void handleUnmapped();
     void handleCommitted();
     void handleAcceptsFocusChanged();
+    void handleOutputEnabledChanged();
     void handleOutputDestroyed();
     void scheduleRearrange();
 

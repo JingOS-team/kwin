@@ -37,8 +37,8 @@ void MagicLampEffect::reconfigure(ReconfigureFlags)
     // TODO: Rename animationDuration to duration so we can use
     // animationTime<MagicLampConfig>(250).
     const int d = MagicLampConfig::animationDuration() != 0
-            ? MagicLampConfig::animationDuration()
-            : 250;
+        ? MagicLampConfig::animationDuration()
+        : 250;
     m_duration = std::chrono::milliseconds(static_cast<int>(animationTime(d)));
 }
 
@@ -96,8 +96,6 @@ void MagicLampEffect::mobilePaint(EffectWindow *w, int mask, QRegion region, Win
 
         // data.multiplyBrightness(1.0 - (0.3 * (1.0 - hoverTimeline[paintingDesktop - 1]->currentValue())));
         for (int screen = 0; screen < effects->numScreens(); screen++) {
-            QRect screenGeom = effects->clientArea(ScreenArea, screen, 0);
-
             QRectF transformedGeo = w->geometry();
             // Display all quads on the same screen on the same pass
             WindowQuadList screenQuads;
@@ -105,8 +103,8 @@ void MagicLampEffect::mobilePaint(EffectWindow *w, int mask, QRegion region, Win
                 foreach (const WindowQuad & quad, data.quads)
                     screenQuads.append(quad);
                 transformedGeo = manager.transformedGeometry(w);
-                if (!manager.areWindowsMoving() && progress == 1.0)
-                    mask |= PAINT_WINDOW_LANCZOS;
+                if (progress == 1.0)
+                    manager.unmanage(w);
 
                 if (screenQuads.isEmpty())
                     continue;
@@ -153,8 +151,8 @@ void MagicLampEffect::paintWindow(EffectWindow* w, int mask, QRegion region, Win
             // focussing inside the window is no good, leads to ugly artefacts, find nearest border
             if (extG.contains(pt)) {
                 const int d[2][2] = { {pt.x() - extG.x(), extG.right()  - pt.x()},
-                                      {pt.y() - extG.y(), extG.bottom() - pt.y()}
-                                    };
+                    {pt.y() - extG.y(), extG.bottom() - pt.y()}
+                };
                 int di = d[1][0];
                 position = Top;
                 if (d[0][0] < di) {
@@ -188,7 +186,7 @@ void MagicLampEffect::paintWindow(EffectWindow* w, int mask, QRegion region, Win
             // Assumption: there is a panel containing the icon position
             EffectWindow* panel = nullptr;
             foreach (EffectWindow * window, effects->stackingOrder()) {
-                if (!window->isDock())
+                if (!window->isStatusBar())
                     continue;
                 // we have to use intersects as there seems to be a Plasma bug
                 // the published icon geometry might be bigger than the panel
@@ -236,28 +234,28 @@ void MagicLampEffect::paintWindow(EffectWindow* w, int mask, QRegion region, Win
         }
 
 #define SANITIZE_PROGRESS   if (p_progress[0] < 0)\
-    p_progress[0] = -p_progress[0];\
-    if (p_progress[1] < 0)\
-    p_progress[1] = -p_progress[1]
+                                p_progress[0] = -p_progress[0];\
+                            if (p_progress[1] < 0)\
+                                p_progress[1] = -p_progress[1]
 #define SET_QUADS(_SET_A_, _A_, _DA_, _SET_B_, _B_, _O0_, _O1_, _O2_, _O3_) quad[0]._SET_A_((icon._A_() + icon._DA_()*(quad[0]._A_() / geo._DA_()) - (quad[0]._A_() + geo._A_()))*p_progress[_O0_] + quad[0]._A_());\
-    quad[1]._SET_A_((icon._A_() + icon._DA_()*(quad[1]._A_() / geo._DA_()) - (quad[1]._A_() + geo._A_()))*p_progress[_O1_] + quad[1]._A_());\
-    quad[2]._SET_A_((icon._A_() + icon._DA_()*(quad[2]._A_() / geo._DA_()) - (quad[2]._A_() + geo._A_()))*p_progress[_O2_] + quad[2]._A_());\
-    quad[3]._SET_A_((icon._A_() + icon._DA_()*(quad[3]._A_() / geo._DA_()) - (quad[3]._A_() + geo._A_()))*p_progress[_O3_] + quad[3]._A_());\
-    \
-    quad[0]._SET_B_(quad[0]._B_() + offset[_O0_]);\
-    quad[1]._SET_B_(quad[1]._B_() + offset[_O1_]);\
-    quad[2]._SET_B_(quad[2]._B_() + offset[_O2_]);\
-    quad[3]._SET_B_(quad[3]._B_() + offset[_O3_])
+                                                                            quad[1]._SET_A_((icon._A_() + icon._DA_()*(quad[1]._A_() / geo._DA_()) - (quad[1]._A_() + geo._A_()))*p_progress[_O1_] + quad[1]._A_());\
+                                                                            quad[2]._SET_A_((icon._A_() + icon._DA_()*(quad[2]._A_() / geo._DA_()) - (quad[2]._A_() + geo._A_()))*p_progress[_O2_] + quad[2]._A_());\
+                                                                            quad[3]._SET_A_((icon._A_() + icon._DA_()*(quad[3]._A_() / geo._DA_()) - (quad[3]._A_() + geo._A_()))*p_progress[_O3_] + quad[3]._A_());\
+                                                                            \
+                                                                            quad[0]._SET_B_(quad[0]._B_() + offset[_O0_]);\
+                                                                            quad[1]._SET_B_(quad[1]._B_() + offset[_O1_]);\
+                                                                            quad[2]._SET_B_(quad[2]._B_() + offset[_O2_]);\
+                                                                            quad[3]._SET_B_(quad[3]._B_() + offset[_O3_])
 
         WindowQuadList newQuads;
         newQuads.reserve(data.quads.count());
         float quadFactor;   // defines how fast a quad is vertically moved: y coordinates near to window top are slowed down
-        // it is used as quadFactor^3/windowHeight^3
-        // quadFactor is the y position of the quad but is changed towards becomming the window height
-        // by that the factor becomes 1 and has no influence any more
+                            // it is used as quadFactor^3/windowHeight^3
+                            // quadFactor is the y position of the quad but is changed towards becomming the window height
+                            // by that the factor becomes 1 and has no influence any more
         float offset[2] = {0,0};    // how far has a quad to be moved? Distance between icon and window multiplied by the progress and by the quadFactor
         float p_progress[2] = {0,0};  // the factor which defines how far the x values have to be changed
-        // factor is the current moved y value diveded by the distance between icon and window
+                            // factor is the current moved y value diveded by the distance between icon and window
         WindowQuad lastQuad(WindowQuadError);
         lastQuad[0].setX(-1);
         lastQuad[0].setY(-1);
@@ -427,6 +425,8 @@ void MagicLampEffect::slotWindowUnminimized(EffectWindow* w)
         animation.timeLine.setDuration(m_duration);
         animation.timeLine.setEasingCurve(QEasingCurve::Linear);
     }
+
+    effects->addRepaintFull();
 }
 
 bool MagicLampEffect::isActive() const

@@ -1,6 +1,6 @@
 #######################################
 # Effect
-install(FILES main.qml close.qml clear.qml mask.qml  DESTINATION ${DATA_INSTALL_DIR}/kwin/effects/desktopgrid/)
+install(FILES main.qml DESTINATION ${DATA_INSTALL_DIR}/kwin/effects/desktopgrid/)
 
 #######################################
 # Config
@@ -16,7 +16,7 @@ target_link_libraries(kwin_desktopgrid_config
     KF5::GlobalAccel
     KF5::I18n
     KF5::XmlGui
-    Qt5::Quick
+    Qt::Quick
     kwineffects
     KWinEffectsInterface
 )
@@ -27,5 +27,5 @@ install(
     TARGETS
         kwin_desktopgrid_config
     DESTINATION
-        ${PLUGIN_INSTALL_DIR}/kwin/effects/configs
+        ${KDE_INSTALL_PLUGINDIR}/kwin/effects/configs
 )

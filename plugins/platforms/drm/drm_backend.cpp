@@ -16,8 +16,8 @@
 #include "logging.h"
 #include "logind.h"
 #include "main.h"
+#include "renderloop_p.h"
 #include "scene_qpainter_drm_backend.h"
-#include "screens_drm.h"
 #include "udev.h"
 #include "wayland_server.h"
 #if HAVE_GBM
@@ -189,8 +189,11 @@ void DrmBackend::reactivate()
     }
     // restart compositor
     m_pageFlipsPending = 0;
+
+    for (DrmOutput *output : qAsConst(m_outputs)) {
+        output->renderLoop()->uninhibit();
+    }
     if (Compositor *compositor = Compositor::self()) {
-        compositor->bufferSwapComplete();
         compositor->addRepaintFull();
     }
 }
@@ -200,36 +203,61 @@ void DrmBackend::deactivate()
     if (!m_active) {
         return;
     }
-    // block compositor
-    if (m_pageFlipsPending == 0 && Compositor::self()) {
-        Compositor::self()->aboutToSwapBuffers();
+
+    for (DrmOutput *output : qAsConst(m_outputs)) {
+        output->hideCursor();
+        output->renderLoop()->inhibit();
     }
-    // hide cursor and disable
-    for (auto it = m_outputs.constBegin(); it != m_outputs.constEnd(); ++it) {
-        DrmOutput *o = *it;
-        o->hideCursor();
-    }
+
     m_active = false;
+}
+
+static std::chrono::nanoseconds convertTimestamp(const timespec &timestamp)
+{
+    return std::chrono::seconds(timestamp.tv_sec) + std::chrono::nanoseconds(timestamp.tv_nsec);
+}
+
+static std::chrono::nanoseconds convertTimestamp(clockid_t sourceClock, clockid_t targetClock,
+                                                 const timespec &timestamp)
+{
+    if (sourceClock == targetClock) {
+        return convertTimestamp(timestamp);
+    }
+
+    timespec sourceCurrentTime = {};
+    timespec targetCurrentTime = {};
+
+    clock_gettime(sourceClock, &sourceCurrentTime);
+    clock_gettime(targetClock, &targetCurrentTime);
+
+    const auto delta = convertTimestamp(sourceCurrentTime) - convertTimestamp(timestamp);
+    return convertTimestamp(targetCurrentTime) - delta;
 }
 
 void DrmBackend::pageFlipHandler(int fd, unsigned int frame, unsigned int sec, unsigned int usec, void *data)
 {
     Q_UNUSED(fd)
     Q_UNUSED(frame)
-    Q_UNUSED(sec)
-    Q_UNUSED(usec)
-    auto output = reinterpret_cast<DrmOutput*>(data);
+
+    auto output = static_cast<DrmOutput *>(data);
+
+    DrmGpu *gpu = output->gpu();
+    DrmBackend *backend = output->m_backend;
+
+    std::chrono::nanoseconds timestamp = convertTimestamp(gpu->presentationClock(),
+                                                          CLOCK_MONOTONIC,
+                                                          { sec, usec * 1000 });
+    if (timestamp == std::chrono::nanoseconds::zero()) {
+        qCDebug(KWIN_DRM, "Got invalid timestamp (sec: %u, usec: %u) on output %s",
+                sec, usec, qPrintable(output->name()));
+        timestamp = std::chrono::steady_clock::now().time_since_epoch();
+    }
 
     output->pageFlipped();
-    output->m_backend->m_pageFlipsPending--;
-    if (output->m_backend->m_pageFlipsPending == 0) {
-        // TODO: improve, this currently means we wait for all page flips or all outputs.
-        // It would be better to driver the repaint per output
+    backend->m_pageFlipsPending--;
 
-        if (Compositor::self()) {
-            Compositor::self()->bufferSwapComplete();
-        }
-    }
+    RenderLoopPrivate *renderLoopPrivate = RenderLoopPrivate::get(output->renderLoop());
+    renderLoopPrivate->notifyFrameCompleted(timestamp);
 }
 
 void DrmBackend::openDrm()
@@ -429,23 +457,32 @@ void DrmBackend::readOutputsConfiguration()
         qCDebug(KWIN_DRM) << "Reading output configuration for [" << uuid << "] ["<< (*it)->uuid() << "]";
         const auto outputConfig = configGroup.group((*it)->uuid());
         (*it)->setGlobalPos(outputConfig.readEntry<QPoint>("Position", pos));
-        // TODO: add mode
-        if (outputConfig.hasKey("Scale")) {
-            (*it)->setScale(outputConfig.readEntry("Scale", 1.0));
-        } else {
-            const qreal dpi = (*it)->modeSize().height() / ((*it)->physicalSize().height() / 25.4);
-            qreal scale = 1.0;
-            if (dpi > 96 * 2.6) {
-                scale = 3.0;
-            } else if (dpi > 96 * 1.5) {
-                scale = 2.0;
-            }
-
-            (*it)->setScale(scale);
-        }
+//        if (outputConfig.hasKey("Scale")
+//            (*it)->setScale(outputConfig.readEntry("Scale", 1.0));
+        qreal dpi = 96;
+        if ((*it)->physicalSize().height() > 1)
+            dpi = (*it)->modeSize().height() / ((*it)->physicalSize().height() / 25.4);
+        KConfig _cfgfonts(QStringLiteral("kcmfonts"));
+        KConfigGroup cfgfonts(&_cfgfonts, "General");
+        qDebug() << Q_FUNC_INFO << "set default xft dpi: modeSize:" << (*it)->modeSize() << "physicalSize:" << (*it)->physicalSize() << "dpi:" << dpi;
+        cfgfonts.writeEntry("defaultXftDpi", qMax(dpi > 96 * 1.5 ? 192 : 96, cfgfonts.readEntry("defaultXftDpi", 96)));
+        (*it)->setScale(1.0);
 
         (*it)->setTransform(stringToTransform(outputConfig.readEntry("Transform", "normal")));
         pos.setX(pos.x() + (*it)->geometry().width());
+        if (outputConfig.hasKey("Mode")) {
+            QString mode = outputConfig.readEntry("Mode");
+            QStringList list = mode.split("_");
+            if (list.size() > 1) {
+                QStringList size = list[0].split("x");
+                if (size.size() > 1) {
+                    int width = size[0].toInt();
+                    int height = size[1].toInt();
+                    int refreshRate = list[1].toInt();
+                    (*it)->updateMode(width, height, refreshRate);
+                }
+            }
+        }
     }
 }
 
@@ -462,6 +499,13 @@ void DrmBackend::writeOutputsConfiguration()
         auto outputConfig = configGroup.group((*it)->uuid());
         outputConfig.writeEntry("Scale", (*it)->scale());
         outputConfig.writeEntry("Transform", transformToString((*it)->transform()));
+        QString mode;
+        mode += QString::number((*it)->modeSize().width());
+        mode += "x";
+        mode += QString::number((*it)->modeSize().height());
+        mode += "_";
+        mode += QString::number((*it)->refreshRate());
+        outputConfig.writeEntry("Mode", mode);
     }
 }
 
@@ -520,9 +564,6 @@ bool DrmBackend::present(DrmBuffer *buffer, DrmOutput *output)
 
     if (output->present(buffer)) {
         m_pageFlipsPending++;
-        if (m_pageFlipsPending == 1 && Compositor::self()) {
-            Compositor::self()->aboutToSwapBuffers();
-        }
         return true;
     } else if (output->gpu()->deleteBufferAfterPageFlip()) {
         delete buffer;
@@ -633,11 +674,6 @@ void DrmBackend::moveCursor()
     for (auto it = m_outputs.constBegin(); it != m_outputs.constEnd(); ++it) {
         (*it)->moveCursor();
     }
-}
-
-Screens *DrmBackend::createScreens(QObject *parent)
-{
-    return new DrmScreens(this, parent);
 }
 
 QPainterBackend *DrmBackend::createQPainterBackend()

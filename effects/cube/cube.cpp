@@ -1036,7 +1036,7 @@ void CubeEffect::prePaintWindow(EffectWindow* w, WindowPrePaintData& data, std::
                 if (w->y() + w->height() > rect.y() + rect.height()) {
                     data.quads = data.quads.splitAtY(rect.height() - w->y());
                 }
-                if (useZOrdering && !w->isDesktop() && !w->isDock() && !w->isOnAllDesktops())
+                if (useZOrdering && !w->isDesktop() && !w->isStatusBar() && !w->isOnAllDesktops())
                     data.setTransformed();
                 w->enablePainting(EffectWindow::PAINT_DISABLED_BY_DESKTOP);
             } else {
@@ -1110,7 +1110,7 @@ void CubeEffect::paintWindow(EffectWindow* w, int mask, QRegion region, WindowPa
                 opacity = cubeOpacity * (1.0 - timeLine.value());
         }
         // z-Ordering
-        if (!w->isDesktop() && !w->isDock() && useZOrdering && !w->isOnAllDesktops()) {
+        if (!w->isDesktop() && !w->isStatusBar() && useZOrdering && !w->isOnAllDesktops()) {
             float zOrdering = (effects->stackingOrder().indexOf(w) + 1) * zOrderingFactor;
             if (animationState == AnimationState::Start) {
                 zOrdering *= timeLine.value();

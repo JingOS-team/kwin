@@ -171,7 +171,6 @@ public:
     KWayland::Client::SubCompositor *subCompositor();
     KWayland::Client::ShmPool *shmPool();
 
-    Screens *createScreens(QObject *parent = nullptr) override;
     OpenGLBackend *createOpenGLBackend() override;
     QPainterBackend *createQPainterBackend() override;
     DmaBufTexture *createDmaBufTexture(const QSize &size) override;
@@ -192,8 +191,6 @@ public:
     bool pointerIsLocked();
 
     QVector<CompositingType> supportedCompositors() const override;
-
-    void checkBufferSwap();
 
     WaylandOutput* getOutputAt(const QPointF &globalPosition);
     Outputs outputs() const override;

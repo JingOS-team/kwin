@@ -32,19 +32,14 @@ Policy::Policy(Xkb *xkb, KeyboardLayout *layout, const KConfigGroup &config)
 
 Policy::~Policy() = default;
 
-void Policy::setLayout(quint32 layout)
+void Policy::setLayout(uint index)
 {
-    const quint32 previousLayout = m_xkb->currentLayout();
-    m_xkb->switchToLayout(layout);
-    if (previousLayout != m_xkb->currentLayout()) {
-        m_layout->updateNotifier();
-        emit m_layout->layoutChanged();
+    const uint previousLayout = m_xkb->currentLayout();
+    m_xkb->switchToLayout(index);
+    const uint currentLayout = m_xkb->currentLayout();
+    if (previousLayout != currentLayout) {
+        emit m_layout->layoutChanged(currentLayout);
     }
-}
-
-quint32 Policy::layout() const
-{
-    return m_xkb->currentLayout();
 }
 
 Policy *Policy::create(Xkb *xkb, KeyboardLayout *layout, const KConfigGroup &config, const QString &policy)
@@ -84,11 +79,11 @@ GlobalPolicy::GlobalPolicy(Xkb *xkb, KeyboardLayout *_layout, const KConfigGroup
     : Policy(xkb, _layout, config)
 {
     connect(workspace()->sessionManager(), &SessionManager::prepareSessionSaveRequested, this,
-        [this] (const QString &name) {
+        [this, xkb] (const QString &name) {
             Q_UNUSED(name)
             clearLayouts();
-            if (layout()) {
-                m_config.writeEntry(defaultLayoutEntryKey(), layout());
+            if (const uint layout = xkb->currentLayout()) {
+                m_config.writeEntry(defaultLayoutEntryKey(), layout);
             }
         }
     );
@@ -131,7 +126,8 @@ VirtualDesktopPolicy::VirtualDesktopPolicy(Xkb *xkb, KeyboardLayout *layout, con
         [this, xkb] (const QString &name) {
             Q_UNUSED(name)
             if (xkb->numberOfLayouts() > 1) {
-                for (KWin::VirtualDesktop* const desktop : VirtualDesktopManager::self()->desktops()) {
+                const auto &desktops = VirtualDesktopManager::self()->desktops();
+                for (KWin::VirtualDesktop* const desktop : desktops) {
                     const uint layout = m_config.readEntry(
                                 defaultLayoutEntryKey() %
                                     QLatin1String( QByteArray::number(desktop->x11DesktopNumber()) ),
@@ -180,26 +176,25 @@ void VirtualDesktopPolicy::desktopChanged()
     setLayout(getLayout(m_layouts, d));
 }
 
-void VirtualDesktopPolicy::layoutChanged()
+void VirtualDesktopPolicy::layoutChanged(uint index)
 {
     auto d = VirtualDesktopManager::self()->currentDesktop();
     if (!d) {
         return;
     }
     auto it = m_layouts.find(d);
-    const auto l = layout();
     if (it == m_layouts.end()) {
-        m_layouts.insert(d, l);
+        m_layouts.insert(d, index);
         connect(d, &VirtualDesktop::aboutToBeDestroyed, this,
             [this, d] {
                 m_layouts.remove(d);
             }
         );
     } else {
-        if (it.value() == l) {
+        if (it.value() == index) {
             return;
         }
-        it.value() = l;
+        it.value() = index;
     }
 }
 
@@ -212,7 +207,7 @@ WindowPolicy::WindowPolicy(KWin::Xkb* xkb, KWin::KeyboardLayout* layout)
                 return;
             }
             // ignore some special types
-            if (c->isDesktop() || c->isDock()) {
+            if (c->isDesktop() || c->isStatusBar()) {
                 return;
             }
             setLayout(getLayout(m_layouts, c));
@@ -229,31 +224,30 @@ void WindowPolicy::clearCache()
     m_layouts.clear();
 }
 
-void WindowPolicy::layoutChanged()
+void WindowPolicy::layoutChanged(uint index)
 {
     auto c = workspace()->activeClient();
     if (!c) {
         return;
     }
     // ignore some special types
-    if (c->isDesktop() || c->isDock()) {
+    if (c->isDesktop() || c->isStatusBar()) {
         return;
     }
 
     auto it = m_layouts.find(c);
-    const auto l = layout();
     if (it == m_layouts.end()) {
-        m_layouts.insert(c, l);
+        m_layouts.insert(c, index);
         connect(c, &AbstractClient::windowClosed, this,
             [this, c] {
                 m_layouts.remove(c);
             }
         );
     } else {
-        if (it.value() == l) {
+        if (it.value() == index) {
             return;
         }
-        it.value() = l;
+        it.value() = index;
     }
 }
 
@@ -307,7 +301,7 @@ void ApplicationPolicy::clientActivated(AbstractClient *c)
         return;
     }
     // ignore some special types
-    if (c->isDesktop() || c->isDock()) {
+    if (c->isDesktop() || c->isStatusBar()) {
         return;
     }
     auto it = m_layouts.constFind(c);
@@ -317,14 +311,15 @@ void ApplicationPolicy::clientActivated(AbstractClient *c)
     };
     for (it = m_layouts.constBegin(); it != m_layouts.constEnd(); it++) {
         if (AbstractClient::belongToSameApplication(c, it.key())) {
-            setLayout(it.value());
-            layoutChanged();
+            const uint layout = it.value();
+            setLayout(layout);
+            layoutChanged(layout);
             return;
         }
     }
     setLayout( m_layoutsRestored.take(c->desktopFileName()) );
-    if (layout()) {
-        layoutChanged();
+    if (const uint index = m_xkb->currentLayout()) {
+        layoutChanged(index);
     }
 }
 
@@ -333,38 +328,36 @@ void ApplicationPolicy::clearCache()
     m_layouts.clear();
 }
 
-void ApplicationPolicy::layoutChanged()
+void ApplicationPolicy::layoutChanged(uint index)
 {
     auto c = workspace()->activeClient();
     if (!c) {
         return;
     }
     // ignore some special types
-    if (c->isDesktop() || c->isDock()) {
+    if (c->isDesktop() || c->isStatusBar()) {
         return;
     }
 
     auto it = m_layouts.find(c);
-    const auto l = layout();
     if (it == m_layouts.end()) {
-        m_layouts.insert(c, l);
+        m_layouts.insert(c, index);
         connect(c, &AbstractClient::windowClosed, this,
             [this, c] {
                 m_layouts.remove(c);
             }
         );
     } else {
-        if (it.value() == l) {
+        if (it.value() == index) {
             return;
         }
-        it.value() = l;
+        it.value() = index;
     }
     // update all layouts for the application
     for (it = m_layouts.begin(); it != m_layouts.end(); it++) {
-        if (!AbstractClient::belongToSameApplication(it.key(), c)) {
-            continue;
+        if (AbstractClient::belongToSameApplication(it.key(), c)) {
+            it.value() = index;
         }
-        it.value() = l;
     }
 }
 

@@ -9,7 +9,6 @@
 #include "virtual_backend.h"
 #include "virtual_output.h"
 #include "scene_qpainter_virtual_backend.h"
-#include "screens_virtual.h"
 #include "wayland_server.h"
 #include "egl_gbm_backend.h"
 // Qt
@@ -36,6 +35,8 @@ VirtualBackend::VirtualBackend(QObject *parent)
             qDebug() << "Screenshots saved to: " << m_screenshotDir->path();
         }
     }
+
+    supportsOutputChanges();
     setSupportsPointerWarping(true);
     setSupportsGammaControl(true);
     setPerScreenRenderingEnabled(true);
@@ -56,10 +57,11 @@ void VirtualBackend::init()
      *
      * TODO: rewrite all tests to explicitly set the outputs.
      */
-    if (!m_outputs.size()) {
+    if (m_outputs.isEmpty()) {
         VirtualOutput *dummyOutput = new VirtualOutput(this);
         dummyOutput->init(QPoint(0, 0), initialWindowSize());
         m_outputs << dummyOutput ;
+        m_outputsEnabled << dummyOutput;
         emit outputAdded(dummyOutput);
         emit outputEnabled(dummyOutput);
     }
@@ -81,11 +83,6 @@ QString VirtualBackend::screenshotDirPath() const
     return m_screenshotDir->path();
 }
 
-Screens *VirtualBackend::createScreens(QObject *parent)
-{
-    return new VirtualScreens(this, parent);
-}
-
 QPainterBackend *VirtualBackend::createQPainterBackend()
 {
     return new VirtualQPainterBackend(this);
@@ -103,7 +100,7 @@ Outputs VirtualBackend::outputs() const
 
 Outputs VirtualBackend::enabledOutputs() const
 {
-    return m_outputs;
+    return m_outputsEnabled;
 }
 
 void VirtualBackend::setVirtualOutputs(int count, QVector<QRect> geometries, QVector<int> scales)
@@ -111,11 +108,13 @@ void VirtualBackend::setVirtualOutputs(int count, QVector<QRect> geometries, QVe
     Q_ASSERT(geometries.size() == 0 || geometries.size() == count);
     Q_ASSERT(scales.size() == 0 || scales.size() == count);
 
-    bool countChanged = m_outputs.size() != count;
+    while (!m_outputsEnabled.isEmpty()) {
+        VirtualOutput *output = m_outputsEnabled.takeLast();
+        emit outputDisabled(output);
+    }
 
     while (!m_outputs.isEmpty()) {
         VirtualOutput *output = m_outputs.takeLast();
-        emit outputDisabled(output);
         emit outputRemoved(output);
         delete output;
     }
@@ -134,11 +133,40 @@ void VirtualBackend::setVirtualOutputs(int count, QVector<QRect> geometries, QVe
             vo->setScale(scales.at(i));
         }
         m_outputs.append(vo);
+        m_outputsEnabled.append(vo);
         emit outputAdded(vo);
         emit outputEnabled(vo);
     }
 
-    emit virtualOutputsSet(countChanged);
+    emit screensQueried();
+}
+
+void VirtualBackend::enableOutput(VirtualOutput *output, bool enable)
+{
+    if (enable) {
+        Q_ASSERT(!m_outputsEnabled.contains(output));
+        m_outputsEnabled << output;
+        emit outputEnabled(output);
+    } else {
+        Q_ASSERT(m_outputsEnabled.contains(output));
+        m_outputsEnabled.removeOne(output);
+        emit outputDisabled(output);
+    }
+
+    emit screensQueried();
+}
+
+void VirtualBackend::removeOutput(AbstractOutput *output)
+{
+    VirtualOutput *virtualOutput = static_cast<VirtualOutput *>(output);
+    virtualOutput->setEnabled(false);
+
+    m_outputs.removeOne(virtualOutput);
+    emit outputRemoved(virtualOutput);
+
+    delete virtualOutput;
+
+    emit screensQueried();
 }
 
 }

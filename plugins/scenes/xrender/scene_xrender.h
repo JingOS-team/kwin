@@ -33,13 +33,12 @@ public:
         return XRenderCompositing;
     }
     void paint(int screenId, const QRegion &damage, const QList<Toplevel *> &windows,
-               std::chrono::milliseconds presentTime) override;
+               RenderLoop *renderLoop) override;
     Scene::EffectFrame *createEffectFrame(EffectFrameImpl *frame) override;
     Shadow *createShadow(Toplevel *toplevel) override;
     void screenGeometryChanged(const QSize &size) override;
     xcb_render_picture_t xrenderBufferPicture() const override;
     OverlayWindow *overlayWindow() const override;
-    bool usesOverlayWindow() const override;
     Decoration::Renderer *createDecorationRenderer(Decoration::DecoratedClientImpl *client) override;
 
     bool animationsSupported() const override {

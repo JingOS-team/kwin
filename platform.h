@@ -36,6 +36,7 @@ class OpenGLBackend;
 class Outline;
 class OutlineVisual;
 class QPainterBackend;
+class RenderLoop;
 class Scene;
 class Screens;
 class ScreenEdges;
@@ -68,7 +69,6 @@ public:
     ~Platform() override;
 
     virtual void init() = 0;
-    virtual Screens *createScreens(QObject *parent = nullptr);
     virtual OpenGLBackend *createOpenGLBackend();
     virtual QPainterBackend *createQPainterBackend();
 #ifdef KWIN_HAVE_XRENDER_COMPOSITING
@@ -464,6 +464,15 @@ public:
      */
     bool isPerScreenRenderingEnabled() const;
 
+    /**
+     * If the Platform doesn't support per screen rendering, this function returns the
+     * RenderLoop that drives compositing.
+     */
+    virtual RenderLoop *renderLoop() const;
+
+    virtual void setSetupMode(bool setupMode);
+    virtual bool isSetupMode();
+
 public Q_SLOTS:
     void pointerMotion(const QPointF &position, quint32 time);
     void pointerButtonPressed(quint32 button, quint32 time);
@@ -479,8 +488,10 @@ public Q_SLOTS:
     void touchDown(qint32 id, const QPointF &pos, quint32 time);
     void touchUp(qint32 id, quint32 time);
     void touchMotion(qint32 id, const QPointF &pos, quint32 time);
+    void cancelTouchSequence();
     void touchCancel();
     void touchFrame();
+    int touchPointCount();
 
     void processSwipeGestureBegin(int fingerCount, quint32 time);
     void processSwipeGestureUpdate(const QSizeF &delta, quint32 time);
@@ -573,6 +584,7 @@ protected:
     virtual void doSetSoftwareCursor();
 
 private:
+    bool m_setupMode = false;
     void triggerCursorRepaint();
     bool m_softwareCursor = false;
     bool m_softwareCursorForced = false;

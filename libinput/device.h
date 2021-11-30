@@ -81,7 +81,9 @@ class KWIN_EXPORT Device : public QObject
     Q_PROPERTY(int tapFingerCount READ tapFingerCount CONSTANT)
     Q_PROPERTY(bool tapToClickEnabledByDefault READ tapToClickEnabledByDefault CONSTANT)
     Q_PROPERTY(bool tapToClick READ isTapToClick WRITE setTapToClick NOTIFY tapToClickChanged)
-
+#if defined (__arm64__) || defined (__aarch64__)
+    Q_PROPERTY(bool singleTapToClick READ isSingleTapToClick WRITE setSingleTapToClick NOTIFY singleTapToClickChanged)
+#endif
     Q_PROPERTY(bool supportsLmrTapButtonMap READ supportsLmrTapButtonMap CONSTANT)
     Q_PROPERTY(bool lmrTapButtonMapEnabledByDefault READ lmrTapButtonMapEnabledByDefault CONSTANT)
     Q_PROPERTY(bool lmrTapButtonMap READ lmrTapButtonMap WRITE setLmrTapButtonMap NOTIFY tapButtonMapChanged)
@@ -144,13 +146,14 @@ public:
         return m_pointer;
     }
     bool isTouchpad() const{
-        return m_pointer &&
+        return m_pointer
                 // ignore all combined devices. E.g. a touchpad on a keyboard we don't want to toggle
                 // as that would result in the keyboard going off as well
-                !(m_keyboard || m_touch || m_tabletPad || m_tabletTool) &&
+                /*!(m_keyboard || m_touch || m_tabletPad || m_tabletTool)*/ &&
                 // is this a touch pad? We don't really know, let's do some assumptions
                 (m_tapFingerCount > 0  || m_supportsDisableWhileTyping || m_supportsDisableEventsOnExternalMouse);
     }
+
     bool isTouch() const {
         return m_touch;
     }
@@ -193,6 +196,15 @@ public:
     bool isTapToClick() const {
         return m_tapToClick;
     }
+#if defined (__arm64__) || defined (__aarch64__)
+    bool isSingleTapToClick() const {
+        return m_singleTapToClick;
+    }
+    bool singleTapToClickEnabledByDefault() const {
+        return m_singleTapToClickEnabledByDefault;
+    }
+    void setSingleTapToClick(bool set);
+#endif
     /**
      * Set the Device to tap to click if @p set is @c true.
      */
@@ -474,6 +486,8 @@ public:
     int stripsCount() const;
     int ringsCount() const;
 
+    void *groupUserData() const;
+
     /**
      * All created Devices
      */
@@ -493,6 +507,7 @@ Q_SIGNALS:
     void pointerAccelerationProfileChanged();
     void enabledChanged();
     void tapToClickChanged();
+    void singleTapToClickChanged();
     void tapAndDragChanged();
     void tapDragLockChanged();
     void middleEmulationChanged();
@@ -529,7 +544,9 @@ private:
     enum libinput_config_tap_button_map m_defaultTapButtonMap;
     enum libinput_config_tap_button_map m_tapButtonMap;
     bool m_tapToClickEnabledByDefault;
+    bool m_singleTapToClickEnabledByDefault;
     bool m_tapToClick;
+    bool m_singleTapToClick;
     bool m_tapAndDragEnabledByDefault;
     bool m_tapAndDrag;
     bool m_tapDragLockEnabledByDefault;

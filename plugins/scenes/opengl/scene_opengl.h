@@ -11,13 +11,14 @@
 #ifndef KWIN_SCENE_OPENGL_H
 #define KWIN_SCENE_OPENGL_H
 
+#include "openglbackend.h"
+
 #include "scene.h"
 #include "shadow.h"
 
 #include "kwinglutils.h"
 
 #include "decorations/decorationrenderer.h"
-#include "platformsupport/scenes/opengl/backend.h"
 
 namespace KWin
 {
@@ -34,16 +35,12 @@ public:
     class EffectFrame;
     ~SceneOpenGL() override;
     bool initFailed() const override;
-    bool hasPendingFlush() const override;
     void paint(int screenId, const QRegion &damage, const QList<Toplevel *> &windows,
-               std::chrono::milliseconds presentTime) override;
+               RenderLoop *renderLoop) override;
     Scene::EffectFrame *createEffectFrame(EffectFrameImpl *frame) override;
     Shadow *createShadow(Toplevel *toplevel) override;
     void screenGeometryChanged(const QSize &size) override;
     OverlayWindow *overlayWindow() const override;
-    bool usesOverlayWindow() const override;
-    bool blocksForRetrace() const override;
-    bool syncsToVBlank() const override;
     bool makeOpenGLContextCurrent() override;
     void doneOpenGLContextCurrent() override;
     bool supportsSurfacelessContext() const override;
@@ -54,8 +51,6 @@ public:
     bool animationsSupported() const override;
 
     void insertWait();
-
-    void idle() override;
 
     bool debug() const { return m_debug; }
     void initDebugOutput();
@@ -85,7 +80,7 @@ protected:
     void paintDesktop(int desktop, int mask, const QRegion &region, ScreenPaintData &data) override;
     void paintEffectQuickView(EffectQuickView *w) override;
 
-    void paintTexture(GLTexture *texture, const QRegion &region, const QRect &rect);
+    void paintTexture(GLTexture *texture, const QRegion &region, const QRect &rect) override;
     void handleGraphicsReset(GLenum status);
 
     virtual void doPaintBackground(const QVector<float> &vertices) = 0;
@@ -309,16 +304,6 @@ private:
     void resizeTexture();
     QScopedPointer<GLTexture> m_texture;
 };
-
-inline bool SceneOpenGL::hasPendingFlush() const
-{
-    return m_backend->hasPendingFlush();
-}
-
-inline bool SceneOpenGL::usesOverlayWindow() const
-{
-    return m_backend->usesOverlayWindow();
-}
 
 inline SceneOpenGLTexture* OpenGLWindowPixmap::texture() const
 {

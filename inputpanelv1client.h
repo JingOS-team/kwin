@@ -43,6 +43,8 @@ public:
     NET::WindowType windowType(bool /*direct*/, int /*supported_types*/) const override;
     QRect inputGeometry() const override;
 
+    JingWindowType jingWindowType() const override;
+
 private:
     void showTopLevel(KWaylandServer::OutputInterface *output, KWaylandServer::InputPanelSurfaceV1Interface::Position position);
     void showOverlayPanel();

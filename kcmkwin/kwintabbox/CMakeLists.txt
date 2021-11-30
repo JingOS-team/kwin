@@ -21,7 +21,7 @@ kconfig_add_kcfg_files(kcm_kwintabbox_PART_SRCS kwintabboxsettings.kcfgc kwinswi
 add_library(kcm_kwintabbox MODULE ${kcm_kwintabbox_PART_SRCS})
 
 target_link_libraries(kcm_kwintabbox
-    Qt5::Quick
+    Qt::Quick
 
     KF5::Completion
     KF5::GlobalAccel
@@ -36,7 +36,7 @@ target_link_libraries(kcm_kwintabbox
     kwin4_effect_builtins
 )
 
-install(TARGETS kcm_kwintabbox DESTINATION ${PLUGIN_INSTALL_DIR} )
+install(TARGETS kcm_kwintabbox DESTINATION ${KDE_INSTALL_PLUGINDIR} )
 
 ########### install files ###############
 install(FILES kwintabbox.desktop DESTINATION ${SERVICES_INSTALL_DIR})

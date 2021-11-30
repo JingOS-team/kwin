@@ -86,12 +86,22 @@ const struct libinput_interface Context::s_interface = {
 
 int Context::openRestrictedCallback(const char *path, int flags, void *user_data)
 {
+#if HAVE_LIBHYBRIS//! [dba]
+    int fd = open(path, flags);
+    return fd < 0 ? -errno : fd;
+#else
     return ((Context*)user_data)->openRestricted(path, flags);
+#endif
 }
 
 void Context::closeRestrictedCallBack(int fd, void *user_data)
 {
+#if HAVE_LIBHYBRIS //! [dba]
+    Q_UNUSED(user_data)
+    close(fd);
+#else
     ((Context*)user_data)->closeRestricted(fd);
+#endif
 }
 
 int Context::openRestricted(const char *path, int flags)

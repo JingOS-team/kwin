@@ -76,6 +76,11 @@ void AnimationEffect::init()
 bool AnimationEffect::isActive() const
 {
     Q_D(const AnimationEffect);
+    for (EffectWindow *window : d->m_animations.keys()) {
+        if (window->isSystemDialog()) {
+            return true;
+        }
+    }
     return !d->m_animations.isEmpty() && !effects->isScreenLocked();
 }
 
@@ -588,9 +593,9 @@ void AnimationEffect::prePaintWindow( EffectWindow* w, WindowPrePaintData& data,
                 paintDeleted |= anim->keepAlive;
             }
             if ( isUsed ) {
-                if ( w->isMinimized() )
-                    w->enablePainting( EffectWindow::PAINT_DISABLED_BY_MINIMIZE );
-                else if ( w->isDeleted() && paintDeleted )
+                if ( w->isMinimized() ) {
+                    //w->enablePainting( EffectWindow::PAINT_DISABLED_BY_MINIMIZE );
+                } else if ( w->isDeleted() && paintDeleted )
                     w->enablePainting( EffectWindow::PAINT_DISABLED_BY_DELETE );
                 else if ( !w->isOnCurrentDesktop() )
                     w->enablePainting( EffectWindow::PAINT_DISABLED_BY_DESKTOP );

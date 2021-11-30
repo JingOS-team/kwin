@@ -342,7 +342,9 @@ public:
 
     void setJingWindowType(JingWindowType windowType);
 
-    JingWindowType jingWindowType();
+    JingWindowType jingWindowType() const override;
+    JingLayer jingLayer() const override;
+
     bool skipTaskbar() const {
         return m_skipTaskbar;
     }
@@ -407,6 +409,7 @@ public:
      * @see captionSuffix
      */
     QString caption() const;
+    QString title() const;
     /**
      * @returns The caption as set by the AbstractClient without any suffix.
      * @see caption
@@ -431,6 +434,7 @@ public:
     // TODO: remove boolean trap
     virtual AbstractClient *findModal(bool allow_itself = false) = 0;
     virtual bool isTransient() const;
+    virtual bool hasParent() const;
     /**
      * @returns Whether there is a hint available to place the AbstractClient on it's parent, default @c false.
      * @see transientPlacementHint
@@ -462,6 +466,7 @@ public:
      */
     bool isSpecialWindow() const;
     void sendToScreen(int screen);
+    void updateGeometryRestoresForFullscreen();
     const QKeySequence &shortcut() const {
         return _shortcut;
     }
@@ -617,8 +622,6 @@ public:
     QuickTileMode quickTileMode() const {
         return QuickTileMode(m_quickTileMode);
     }
-    Layer layer() const override;
-    void updateLayer();
 
     void placeIn(const QRect &area);
 
@@ -629,8 +632,7 @@ public:
     void keepInArea(QRect area, bool partial = false);
     virtual QSize minSize() const;
     virtual QSize maxSize() const;
-    virtual void setFrameGeometry(const QRect &rect, ForceGeometry_t force = NormalGeometrySet) = 0;
-
+    virtual void setFrameGeometry(const QRect &rect, ForceGeometry_t force = NormalGeometrySet, bool forInput = false) = 0;
     /**
      * How to resize the window in order to obey constraints (mainly aspect ratios).
      */
@@ -771,6 +773,12 @@ public:
      */
     QRect virtualKeyboardGeometry() const;
 
+    void beginTaskMode();
+    void endTaskMode();
+
+    void showWidthoutKBG();
+    void showWidthKBG();
+
     /**
      * Sets the geometry of the virtual keyboard, The window may resize itself in order to make space for the keybaord
      * This geometry is in global coordinates
@@ -877,16 +885,27 @@ public:
         return m_windowManagementInterface;
     }
 
+    QRect fullscreenGeometryRestore() const;
+
     bool isScaleApp() const override;
 
     bool isLogoutWindow() const override;
 
     void setIsBackApp(bool isBack) override;
 
-    bool visible() override;
+    bool visible() const override;
 
     virtual bool isDefaultMaxApp() const;
 
+    bool canAcceptEvent() const override;
+
+    bool isSystemDialog() const override;
+
+    bool isSystemUI() const override;
+
+    bool adjusSizeByInput() const;
+
+    bool isApplication() const;
 public Q_SLOTS:
     virtual void closeWindow() = 0;
 
@@ -938,10 +957,13 @@ Q_SIGNALS:
 
 protected:
     AbstractClient();
+    void updateJingLayer();
     void setFirstInTabBox(bool enable) {
         m_firstInTabBox = enable;
     }
     void setIcon(const QIcon &icon);
+    void setTitle(const QString &title);
+
     void startAutoRaise();
     void autoRaise();
     bool isMostRecentlyRaised() const;
@@ -1011,11 +1033,8 @@ protected:
      */
     void removeTransientFromList(AbstractClient* cl);
 
-    virtual Layer belongsToLayer() const;
     virtual bool belongsToDesktop() const;
-    void invalidateLayer();
     bool isActiveFullScreen() const;
-    virtual Layer layerForDock() const;
 
     // electric border / quick tiling
     void setElectricBorderMode(QuickTileMode mode);
@@ -1214,7 +1233,7 @@ protected:
 
     void setDesktopFileName(QByteArray name);
     QString iconFromDesktopFile() const;
-
+    QString nameFromDesktopFile() const;
     void updateApplicationMenuServiceName(const QString &serviceName);
     void updateApplicationMenuObjectPath(const QString &objectPath);
 
@@ -1242,10 +1261,19 @@ protected:
     QRect keyboardGeometryRestore() const;
     void setKeyboardGeometryRestore(const QRect &geom);
 
+    QRegion fillBgRegion() const override;
+
     QRect m_virtualKeyboardGeometry;
+
+    void setFullscreenGeometryRestore(const QRect &geom);
+
+    virtual QRect taskGeometry() const override;
+
+    void postUpdateWidnwoType();
 private Q_SLOTS:
     void shadeHover();
     void shadeUnhover();
+    void updateIsSystemUI();
 
 private:
     void handlePaletteChange();
@@ -1256,6 +1284,7 @@ private:
      * Unaffected by KWin
      */
     JingWindowType m_jingWindowType = JingWindowType::TYPE_APPLICATION;
+    JingLayer m_jingLayer = JingLayer::LAYER_APPLICATION;
     bool m_originalSkipTaskbar = false;
     bool m_skipPager = false;
     bool m_requestVisible = true;
@@ -1279,10 +1308,10 @@ private:
 
     KWaylandServer::PlasmaWindowInterface *m_windowManagementInterface = nullptr;
 
+    bool m_isJingOSApp = false;
     AbstractClient *m_transientFor = nullptr;
     QList<AbstractClient*> m_transients;
     bool m_modal = false;
-    Layer m_layer = UnknownLayer;
 
     // electric border/quick tiling
     QuickTileMode m_electricMode = QuickTileFlag::None;
@@ -1301,6 +1330,7 @@ private:
     QRect m_clientGeometryBeforeUpdateBlocking;
     QRect m_keyboardGeometryRestore;
     QRect m_maximizeGeometryRestore;
+    QRect m_fullscreenGeometryRestore;
 
     struct {
         bool enabled = false;
@@ -1336,6 +1366,9 @@ private:
 
     static bool s_haveResizeEffect;
     void checkScaleInfo();
+
+    bool m_isSystemUI = false;
+    QString m_title;
 };
 
 /**

@@ -10,6 +10,7 @@ remove_definitions(-DQT_NO_CAST_FROM_ASCII -DQT_STRICT_ITERATORS -DQT_NO_CAST_FR
 
 set(kwincompositing_SRC
     main.cpp
+    kwincompositingdata.cpp
 )
 
 kconfig_add_kcfg_files(kwincompositing_SRC kwincompositing_setting.kcfgc GENERATE_MOC)
@@ -23,8 +24,8 @@ ki18n_wrap_ui(kwincompositing_SRC compositing.ui)
 add_library(kwincompositing MODULE ${kwincompositing_SRC})
 
 target_link_libraries(kwincompositing
-    Qt5::DBus
-    Qt5::Widgets
+    Qt::DBus
+    Qt::Widgets
 
     KF5::ConfigCore
     KF5::CoreAddons
@@ -32,5 +33,5 @@ target_link_libraries(kwincompositing
     KF5::KCMUtils
 )
 
-install(TARGETS kwincompositing DESTINATION ${PLUGIN_INSTALL_DIR})
+install(TARGETS kwincompositing DESTINATION ${KDE_INSTALL_PLUGINDIR})
 install(FILES kwincompositing.desktop DESTINATION ${SERVICES_INSTALL_DIR})

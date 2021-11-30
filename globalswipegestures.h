@@ -40,6 +40,7 @@ protected:
     void initBottomGesture();
 
     void init3FingersGesture();
+    void initScreenShotGesture();
 
     void initBackMotion();
     void initMinimumMotion();
@@ -85,14 +86,24 @@ private:
     void showCloseNotice();
     void hideCloseNotice();
 private:
+    enum ThreeFingerType {
+        UNKNOWN = -1,
+        TORIGHT = 0,
+        TOLEFT = 1,
+        TOTOP = 2,
+        TOBOTTOM = 3
+    };
+    qreal _progress = 0.;
     bool _hasTriggerClose = false;
     bool _swipeStarted = false;
+    ThreeFingerType _3FingerType = UNKNOWN;
     QSizeF _swipeDelta;
     QSize m_screenSize;
     SwipeGesture *m_backGesture = nullptr;
     SwipeGesture *m_minimumGesture = nullptr;
     SwipeGesture *m_bottomGesture = nullptr;
 
+    SwipeGesture *m_screenShotGesture = nullptr;
     SwipeGesture *m_3FingersSwipeGesture = nullptr;
 
     MouseMotion *m_backMotion = nullptr;

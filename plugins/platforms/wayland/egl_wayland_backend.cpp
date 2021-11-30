@@ -272,14 +272,6 @@ bool EglWaylandBackend::initBufferConfigs()
     return true;
 }
 
-void EglWaylandBackend::present()
-{
-    for (auto *output: qAsConst(m_outputs)) {
-        makeContextCurrent(output);
-        presentOnSurface(output, output->m_waylandOutput->geometry());
-    }
-}
-
 static QVector<EGLint> regionToRects(const QRegion &region, AbstractWaylandOutput *output)
 {
     const int height = output->modeSize().height();
@@ -322,7 +314,6 @@ void EglWaylandBackend::presentOnSurface(EglWaylandOutput *output, const QRegion
 
     waylandOutput->surface()->setupFrameCallback();
     waylandOutput->surface()->setScale(waylandOutput->scale());
-    Compositor::self()->aboutToSwapBuffers();
     Q_EMIT waylandOutput->outputChange(damage);
 
     if (supportsSwapBuffersWithDamage() && !output->m_damageHistory.isEmpty()) {
@@ -386,22 +377,6 @@ void EglWaylandBackend::endFrame(int screenId, const QRegion &renderedRegion, co
 {
     EglWaylandOutput *output = m_outputs[screenId];
     QRegion damage = damagedRegion.intersected(output->m_waylandOutput->geometry());
-    if (damage.isEmpty()) {
-
-        // If the damaged region of a window is fully occluded, the only
-        // rendering done, if any, will have been to repair a reused back
-        // buffer, making it identical to the front buffer.
-        //
-        // In this case we won't post the back buffer. Instead we'll just
-        // set the buffer age to 1, so the repaired regions won't be
-        // rendered again in the next frame.
-        if (!renderedRegion.intersected(output->m_waylandOutput->geometry()).isEmpty()) {
-            glFlush();
-        }
-
-        output->m_bufferAge = 1;
-        return;
-    }
     presentOnSurface(output, damage);
 
     if (supportsBufferAge()) {
@@ -411,11 +386,6 @@ void EglWaylandBackend::endFrame(int screenId, const QRegion &renderedRegion, co
 
         output->m_damageHistory.prepend(damage);
     }
-}
-
-bool EglWaylandBackend::usesOverlayWindow() const
-{
-    return false;
 }
 
 /************************************************

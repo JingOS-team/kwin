@@ -19,6 +19,7 @@
 namespace KWin
 {
 class Toplevel;
+class TabletToolId;
 
 namespace Decoration
 {
@@ -41,14 +42,13 @@ public:
 
     void tabletToolEvent(KWin::InputRedirection::TabletEventType type, const QPointF &pos,
                          qreal pressure, int xTilt, int yTilt, qreal rotation, bool tipDown,
-                         bool tipNear, quint64 serialId, quint64 toolId,
-                         InputRedirection::TabletToolType toolType, const QVector<InputRedirection::Capability> &capabilities,
-                         quint32 time, LibInput::Device *device);
-    void tabletToolButtonEvent(uint button, bool isPressed);
+                         bool tipNear, const TabletToolId &tabletToolId,
+                         quint32 time);
+    void tabletToolButtonEvent(uint button, bool isPressed, const TabletToolId &tabletToolId);
 
-    void tabletPadButtonEvent(uint button, bool isPressed);
-    void tabletPadStripEvent(int number, int position, bool isFinger);
-    void tabletPadRingEvent(int number, int position, bool isFinger);
+    void tabletPadButtonEvent(uint button, bool isPressed, const TabletPadId &tabletPadId);
+    void tabletPadStripEvent(int number, int position, bool isFinger, const TabletPadId &tabletPadId);
+    void tabletPadRingEvent(int number, int position, bool isFinger, const TabletPadId &tabletPadId);
 
     bool positionValid() const override
     {
@@ -71,8 +71,6 @@ private:
     bool m_tipNear = false;
 
     QPointF m_lastPosition;
-    QSet<uint> m_toolPressedButtons;
-    QSet<uint> m_padPressedButtons;
 };
 
 }

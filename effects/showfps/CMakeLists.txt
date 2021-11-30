@@ -10,7 +10,7 @@ target_link_libraries(kwin_showfps_config
     KF5::Completion
     KF5::ConfigWidgets
     KF5::I18n
-    Qt5::DBus
+    Qt::DBus
     KWinEffectsInterface
 )
 
@@ -20,5 +20,5 @@ install(
     TARGETS
         kwin_showfps_config
     DESTINATION
-        ${PLUGIN_INSTALL_DIR}/kwin/effects/configs
+        ${KDE_INSTALL_PLUGINDIR}/kwin/effects/configs
 )

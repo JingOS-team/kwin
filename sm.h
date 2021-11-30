@@ -38,6 +38,8 @@ Q_SIGNALS:
     void prepareSessionSaveRequested(const QString &name);
     void finishSessionSaveRequested(const QString &name);
 
+    void aboutToQuit();
+
 public Q_SLOTS: // DBus API
     void setState(uint state);
     void loadSession(const QString &name);
@@ -47,7 +49,7 @@ public Q_SLOTS: // DBus API
 
 private:
     void setState(SessionState state);
-    SessionState m_sessionState;
+    SessionState m_sessionState = SessionState::Normal;
 };
 
 struct SessionInfo {

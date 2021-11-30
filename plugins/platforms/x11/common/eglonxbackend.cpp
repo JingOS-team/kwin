@@ -12,21 +12,12 @@
 #include "options.h"
 #include "overlaywindow.h"
 #include "platform.h"
-#include "scene.h"
-#include "screens.h"
 #include "xcbutils.h"
-#include "texture.h"
-// kwin libs
-#include <kwinglplatform.h>
-#include <kwinglutils.h>
 // Qt
 #include <QLoggingCategory>
 #include <QDebug>
-#include <QOpenGLContext>
-// system
-#include <unistd.h>
 
-Q_LOGGING_CATEGORY(KWIN_CORE, "kwin_core", QtCriticalMsg)
+Q_LOGGING_CATEGORY(KWIN_CORE, "kwin_core", QtWarningMsg)
 
 namespace KWin
 {
@@ -35,8 +26,6 @@ EglOnXBackend::EglOnXBackend(Display *display)
     : AbstractEglBackend()
     , m_overlayWindow(kwinApp()->platform()->createOverlayWindow())
     , surfaceHasSubPost(0)
-    , m_bufferAge(0)
-    , m_usesOverlayWindow(true)
     , m_connection(connection())
     , m_x11Display(display)
     , m_rootWindow(rootWindow())
@@ -50,8 +39,6 @@ EglOnXBackend::EglOnXBackend(xcb_connection_t *connection, Display *display, xcb
     : AbstractEglBackend()
     , m_overlayWindow(nullptr)
     , surfaceHasSubPost(0)
-    , m_bufferAge(0)
-    , m_usesOverlayWindow(false)
     , m_connection(connection)
     , m_x11Display(display)
     , m_rootWindow(rootWindow)
@@ -62,18 +49,12 @@ EglOnXBackend::EglOnXBackend(xcb_connection_t *connection, Display *display, xcb
     setIsDirectRendering(true);
 }
 
-static bool gs_tripleBufferUndetected = true;
-static bool gs_tripleBufferNeedsDetection = false;
-
 EglOnXBackend::~EglOnXBackend()
 {
     if (isFailed() && m_overlayWindow) {
         m_overlayWindow->destroy();
     }
     cleanup();
-
-    gs_tripleBufferUndetected = true;
-    gs_tripleBufferNeedsDetection = false;
 
     if (m_overlayWindow) {
         if (overlayWindow()->window()) {
@@ -116,34 +97,18 @@ void EglOnXBackend::init()
         }
     }
 
-    setSyncsToVBlank(false);
-    setBlocksForRetrace(false);
-    gs_tripleBufferNeedsDetection = false;
-    m_swapProfiler.init();
     if (surfaceHasSubPost) {
         qCDebug(KWIN_CORE) << "EGL implementation and surface support eglPostSubBufferNV, let's use it";
 
-        if (options->glPreferBufferSwap() != Options::NoSwapEncourage) {
-            // check if swap interval 1 is supported
-            EGLint val;
-            eglGetConfigAttrib(eglDisplay(), config(), EGL_MAX_SWAP_INTERVAL, &val);
-            if (val >= 1) {
-                if (eglSwapInterval(eglDisplay(), 1)) {
-                    qCDebug(KWIN_CORE) << "Enabled v-sync";
-                    setSyncsToVBlank(true);
-                    const QByteArray tripleBuffer = qgetenv("KWIN_TRIPLE_BUFFER");
-                    if (!tripleBuffer.isEmpty()) {
-                        setBlocksForRetrace(qstrcmp(tripleBuffer, "0") == 0);
-                        gs_tripleBufferUndetected = false;
-                    }
-                    gs_tripleBufferNeedsDetection = gs_tripleBufferUndetected;
-                }
-            } else {
-                qCWarning(KWIN_CORE) << "Cannot enable v-sync as max. swap interval is" << val;
+        // check if swap interval 1 is supported
+        EGLint val;
+        eglGetConfigAttrib(eglDisplay(), config(), EGL_MAX_SWAP_INTERVAL, &val);
+        if (val >= 1) {
+            if (eglSwapInterval(eglDisplay(), 1)) {
+                qCDebug(KWIN_CORE) << "Enabled v-sync";
             }
         } else {
-            // disable v-sync
-            eglSwapInterval(eglDisplay(), 0);
+            qCWarning(KWIN_CORE) << "Cannot enable v-sync as max. swap interval is" << val;
         }
     } else {
         /* In the GLX backend, we fall back to using glCopyPixels if we have no extension providing support for partial screen updates.
@@ -154,8 +119,6 @@ void EglOnXBackend::init()
         qCWarning(KWIN_CORE) << "eglPostSubBufferNV not supported, have to enable buffer preservation - which breaks v-sync and performance";
         eglSurfaceAttrib(eglDisplay(), surface(), EGL_SWAP_BEHAVIOR, EGL_BUFFER_PRESERVED);
     }
-
-    initWayland();
 }
 
 bool EglOnXBackend::initRenderingContext()
@@ -197,7 +160,7 @@ bool EglOnXBackend::initRenderingContext()
 
     initBufferConfigs();
 
-    if (m_usesOverlayWindow) {
+    if (overlayWindow()) {
         if (!overlayWindow()->create()) {
             qCCritical(KWIN_CORE) << "Could not get overlay window";
             return false;
@@ -310,150 +273,6 @@ bool EglOnXBackend::initBufferConfigs()
     return true;
 }
 
-void EglOnXBackend::present()
-{
-    if (lastDamage().isEmpty())
-        return;
-
-    presentSurface(surface(), lastDamage(), screens()->geometry());
-
-    setLastDamage(QRegion());
-    if (!supportsBufferAge()) {
-        eglWaitGL();
-        xcb_flush(m_connection);
-    }
-}
-
-void EglOnXBackend::presentSurface(EGLSurface surface, const QRegion &damage, const QRect &screenGeometry)
-{
-    if (damage.isEmpty()) {
-        return;
-    }
-    const bool fullRepaint = supportsBufferAge() || (damage == screenGeometry);
-
-    if (fullRepaint || !surfaceHasSubPost) {
-        if (gs_tripleBufferNeedsDetection) {
-            eglWaitGL();
-            m_swapProfiler.begin();
-        }
-        // the entire screen changed, or we cannot do partial updates (which implies we enabled surface preservation)
-        eglSwapBuffers(eglDisplay(), surface);
-        if (gs_tripleBufferNeedsDetection) {
-            eglWaitGL();
-            if (char result = m_swapProfiler.end()) {
-                gs_tripleBufferUndetected = gs_tripleBufferNeedsDetection = false;
-                if (result == 'd' && GLPlatform::instance()->driver() == Driver_NVidia) {
-                    // TODO this is a workaround, we should get __GL_YIELD set before libGL checks it
-                    if (qstrcmp(qgetenv("__GL_YIELD"), "USLEEP")) {
-                        options->setGlPreferBufferSwap(0);
-                        eglSwapInterval(eglDisplay(), 0);
-                        result = 0; // hint proper behavior
-                        qCWarning(KWIN_CORE) << "\nIt seems you are using the nvidia driver without triple buffering\n"
-                                          "You must export __GL_YIELD=\"USLEEP\" to prevent large CPU overhead on synced swaps\n"
-                                          "Preferably, enable the TripleBuffer Option in the xorg.conf Device\n"
-                                          "For this reason, the tearing prevention has been disabled.\n"
-                                          "See https://bugs.kde.org/show_bug.cgi?id=322060\n";
-                    }
-                }
-                setBlocksForRetrace(result == 'd');
-            }
-        }
-        if (supportsBufferAge()) {
-            eglQuerySurface(eglDisplay(), surface, EGL_BUFFER_AGE_EXT, &m_bufferAge);
-        }
-    } else {
-        // a part of the screen changed, and we can use eglPostSubBufferNV to copy the updated area
-        for (const QRect &r : damage) {
-            eglPostSubBufferNV(eglDisplay(), surface, r.left(), screenGeometry.height() - r.bottom() - 1, r.width(), r.height());
-        }
-    }
-}
-
-void EglOnXBackend::screenGeometryChanged(const QSize &size)
-{
-    Q_UNUSED(size)
-
-    // TODO: base implementation in OpenGLBackend
-
-    // The back buffer contents are now undefined
-    m_bufferAge = 0;
-}
-
-SceneOpenGLTexturePrivate *EglOnXBackend::createBackendTexture(SceneOpenGLTexture *texture)
-{
-    return new EglTexture(texture, this);
-}
-
-QRegion EglOnXBackend::beginFrame(int screenId)
-{
-    Q_UNUSED(screenId)
-    QRegion repaint;
-
-    if (gs_tripleBufferNeedsDetection) {
-        // the composite timer floors the repaint frequency. This can pollute our triple buffering
-        // detection because the glXSwapBuffers call for the new frame has to wait until the pending
-        // one scanned out.
-        // So we compensate for that by waiting an extra milisecond to give the driver the chance to
-        // fllush the buffer queue
-        usleep(1000);
-    }
-
-    present();
-
-    if (supportsBufferAge())
-        repaint = accumulatedDamageHistory(m_bufferAge);
-
-    eglWaitNative(EGL_CORE_NATIVE_ENGINE);
-
-    return repaint;
-}
-
-void EglOnXBackend::endFrame(int screenId, const QRegion &renderedRegion, const QRegion &damagedRegion)
-{
-    Q_UNUSED(screenId)
-
-    if (damagedRegion.isEmpty()) {
-        setLastDamage(QRegion());
-
-        // If the damaged region of a window is fully occluded, the only
-        // rendering done, if any, will have been to repair a reused back
-        // buffer, making it identical to the front buffer.
-        //
-        // In this case we won't post the back buffer. Instead we'll just
-        // set the buffer age to 1, so the repaired regions won't be
-        // rendered again in the next frame.
-        if (!renderedRegion.isEmpty())
-            glFlush();
-
-        m_bufferAge = 1;
-        return;
-    }
-
-    setLastDamage(renderedRegion);
-
-    if (!blocksForRetrace()) {
-        // This also sets lastDamage to empty which prevents the frame from
-        // being posted again when prepareRenderingFrame() is called.
-        present();
-    } else {
-        // Make sure that the GPU begins processing the command stream
-        // now and not the next time prepareRenderingFrame() is called.
-        glFlush();
-    }
-
-    if (m_overlayWindow && overlayWindow()->window())  // show the window only after the first pass,
-        overlayWindow()->show();   // since that pass may take long
-
-    // Save the damaged region to history
-    if (supportsBufferAge())
-        addToDamageHistory(damagedRegion);
-}
-
-bool EglOnXBackend::usesOverlayWindow() const
-{
-    return m_usesOverlayWindow;
-}
-
 OverlayWindow* EglOnXBackend::overlayWindow() const
 {
     return m_overlayWindow;
@@ -462,74 +281,6 @@ OverlayWindow* EglOnXBackend::overlayWindow() const
 bool EglOnXBackend::makeContextCurrent(const EGLSurface &surface)
 {
     return eglMakeCurrent(eglDisplay(), surface, surface, context()) == EGL_TRUE;
-}
-
-/************************************************
- * EglTexture
- ************************************************/
-
-EglTexture::EglTexture(KWin::SceneOpenGLTexture *texture, KWin::EglOnXBackend *backend)
-    : AbstractEglTexture(texture, backend)
-    , m_backend(backend)
-{
-}
-
-EglTexture::~EglTexture() = default;
-
-bool EglTexture::loadTexture(WindowPixmap *pixmap)
-{
-    // first try the Wayland enabled loading
-    if (AbstractEglTexture::loadTexture(pixmap)) {
-        return true;
-    }
-    // did not succeed, try on X11
-    return loadTexture(pixmap->pixmap(), pixmap->toplevel()->bufferGeometry().size());
-}
-
-bool EglTexture::loadTexture(xcb_pixmap_t pix, const QSize &size)
-{
-    if (!m_backend->isX11TextureFromPixmapSupported()) {
-        return false;
-    }
-
-    if (pix == XCB_NONE)
-        return false;
-
-    glGenTextures(1, &m_texture);
-    auto q = texture();
-    q->setWrapMode(GL_CLAMP_TO_EDGE);
-    q->setFilter(GL_LINEAR);
-    q->bind();
-    const EGLint attribs[] = {
-        EGL_IMAGE_PRESERVED_KHR, EGL_TRUE,
-        EGL_NONE
-    };
-    setImage(eglCreateImageKHR(m_backend->eglDisplay(), EGL_NO_CONTEXT, EGL_NATIVE_PIXMAP_KHR,
-                               (EGLClientBuffer)pix, attribs));
-
-    if (EGL_NO_IMAGE_KHR == image()) {
-        qCDebug(KWIN_CORE) << "failed to create egl image";
-        q->unbind();
-        q->discard();
-        return false;
-    }
-    glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, (GLeglImageOES)image());
-    q->unbind();
-    q->setYInverted(true);
-    m_size = size;
-    updateMatrix();
-    return true;
-}
-
-void KWin::EglTexture::onDamage()
-{
-    if (options->isGlStrictBinding()) {
-        // This is just implemented to be consistent with
-        // the example in mesa/demos/src/egl/opengles1/texture_from_pixmap.c
-        eglWaitNative(EGL_CORE_NATIVE_ENGINE);
-        glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, (GLeglImageOES) image());
-    }
-    GLTexturePrivate::onDamage();
 }
 
 } // namespace

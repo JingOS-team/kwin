@@ -55,6 +55,10 @@ void Platform::hideCursor()
     m_hideCursorCounter++;
     if (m_hideCursorCounter == 1) {
         doHideCursor();
+        if (!Compositor::self()) {
+            return;
+        }
+        Compositor::self()->addRepaintFull();
     }
 }
 
@@ -72,12 +76,6 @@ void Platform::showCursor()
 
 void Platform::doShowCursor()
 {
-}
-
-Screens *Platform::createScreens(QObject *parent)
-{
-    Q_UNUSED(parent)
-    return nullptr;
 }
 
 OpenGLBackend *Platform::createOpenGLBackend()
@@ -128,16 +126,19 @@ void Platform::requestOutputsChange(KWaylandServer::OutputConfigurationInterface
     for (auto it = changes.begin(); it != changes.end(); it++) {
         const KWaylandServer::OutputChangeSet *changeset = it.value();
 
-        auto output = findOutput(it.key()->uuid());
+        AbstractOutput* output = findOutput(it.key()->uuid());
         if (!output) {
             qCWarning(KWIN_CORE) << "Could NOT find output matching " << it.key()->uuid();
             continue;
         }
 
+        qDebug(KWIN_CORE) << "Platform::requestOutputsChange enabling" << changeset << it.key()->uuid() << changeset->enabledChanged() << (changeset->enabled() == Enablement::Enabled);
+
         if (changeset->enabledChanged() &&
                 changeset->enabled() == Enablement::Enabled) {
             output->setEnabled(true);
         }
+
         output->applyChanges(changeset);
     }
 
@@ -158,9 +159,11 @@ void Platform::requestOutputsChange(KWaylandServer::OutputConfigurationInterface
                 qCWarning(KWIN_CORE) << "Could NOT find output matching " << it.key()->uuid();
                 continue;
             }
+            qDebug(KWIN_CORE) << "Platform::requestOutputsChange disabling false" << it.key()->uuid();
             output->setEnabled(false);
         }
     }
+
     emit screens()->changed();
     config->setApplied();
 }
@@ -207,6 +210,16 @@ void Platform::setSoftwareCursor(bool set)
 
 void Platform::doSetSoftwareCursor()
 {
+}
+
+void Platform::setSetupMode(bool setupMode)
+{
+    m_setupMode = setupMode;
+}
+
+bool Platform::isSetupMode()
+{
+    return m_setupMode;
 }
 
 bool Platform::isSoftwareCursorForced() const
@@ -312,12 +325,28 @@ void Platform::pointerButtonReleased(quint32 button, quint32 time)
     input()->processPointerButton(button, InputRedirection::PointerButtonReleased, time);
 }
 
+int Platform::touchPointCount()
+{
+    if (!input()) {
+        return 0;
+    }
+    return input()->touchPointCount();
+}
+
 void Platform::pointerMotion(const QPointF &position, quint32 time)
 {
     if (!input()) {
         return;
     }
     input()->processPointerMotion(position, time);
+}
+
+void Platform::cancelTouchSequence()
+{
+    if (!input()) {
+        return;
+    }
+    input()->cancelTouchSequence();
 }
 
 void Platform::touchCancel()
@@ -449,6 +478,11 @@ bool Platform::isPerScreenRenderingEnabled() const
 void Platform::setPerScreenRenderingEnabled(bool enabled)
 {
     m_isPerScreenRenderingEnabled = enabled;
+}
+
+RenderLoop *Platform::renderLoop() const
+{
+    return nullptr;
 }
 
 void Platform::warpPointer(const QPointF &globalPos)

@@ -52,6 +52,8 @@
 #include "main.h"
 #include "decorations/decorationbridge.h"
 #include "xwaylandclient.h"
+#include "screenlockerwatcher.h"
+
 // KDE
 #include <KConfig>
 #include <KConfigGroup>
@@ -60,6 +62,12 @@
 // Qt
 #include <QtConcurrentRun>
 #include "globalgesture.h"
+
+#if HAVE_JINGSIDEPROXY
+#include "jingsideproxy/JingAndroidProxy.h"
+#endif
+
+#include <3rdparty/jappmanager/jappmanagerclient.h>
 
 namespace KWin
 {
@@ -104,6 +112,10 @@ void ColorMapper::update()
 
 Workspace* Workspace::_self = nullptr;
 
+    auto fun = [] {
+        qDebug()<<"Android before in Callback:";
+
+    };
 Workspace::Workspace()
     : QObject(nullptr)
     , m_compositor(nullptr)
@@ -129,7 +141,9 @@ Workspace::Workspace()
     , set_active_client_recursion(0)
     , block_stacking_updates(0)
     , m_sessionManager(new SessionManager(this))
+    , m_unmanagedPlaceHolder(new Unmanaged)
 {
+    m_unmanagedPlaceHolder->setVisible(false);
     // If KWin was already running it saved its configuration after loosing the selection -> Reread
     QFuture<void> reparseConfigFuture = QtConcurrent::run(options, &Options::reparseConfiguration);
 
@@ -196,6 +210,13 @@ Workspace::Workspace()
     connect(m_sessionManager, &SessionManager::finishSessionSaveRequested, this, [this](const QString &name) {
         storeSession(name, SMSavePhase2);
     });
+    connect(m_sessionManager, &SessionManager::finishSessionSaveRequested, this, [this](const QString &name) {
+        storeSession(name, SMSavePhase2);
+    });
+    connect(m_sessionManager, &SessionManager::aboutToQuit, this, [this]() {
+        if (effects)
+            effects->aboutToQuit();
+    });
 
     m_dbusInterface = new DBusInterface(this);
     Outline::create(this);
@@ -203,6 +224,23 @@ Workspace::Workspace()
     initShortcuts();
 
     init();
+
+    connect(this, &Workspace::activeAndroidWindow, this, &Workspace::onActiveAndroidWindow, Qt::QueuedConnection);
+
+    #if HAVE_JINGSIDEPROXY
+    qDebug()<<"Android before setResumeCallback_1";
+
+    JingAndroidProxy::GetInstance().setResumeCallback([this]() {
+        qDebug()<<"Android in JingAndroidProxy callback";
+        emit activeAndroidWindow();
+    });
+
+
+    // JingAndroidProxy::GetInstance().setResumeCallback(fun);
+    qDebug()<<"Android after setResumeCallback_1"<<&fun;
+    #endif
+
+    m_appManager = new JappManagerClient;
 }
 
 void Workspace::init()
@@ -223,6 +261,12 @@ void Workspace::init()
 
     FocusChain *focusChain = FocusChain::create(this);
     connect(this, &Workspace::clientRemoved, focusChain, &FocusChain::remove);
+    connect(this, &Workspace::clientRemoved, this, [this](AbstractClient *c){
+        if (m_curDesktop == c) {
+            m_curDesktop = nullptr;
+        }
+    });
+
     connect(this, &Workspace::clientActivated, focusChain, &FocusChain::setActiveClient);
     connect(VirtualDesktopManager::self(), &VirtualDesktopManager::countChanged, focusChain, &FocusChain::resize);
     connect(VirtualDesktopManager::self(), &VirtualDesktopManager::currentChanged, focusChain, &FocusChain::setCurrentDesktop);
@@ -314,6 +358,24 @@ void Workspace::init()
     QMetaObject::invokeMethod(this, "workspaceInitialized", Qt::QueuedConnection);
 
     // TODO: ungrabXServer()
+
+    QDBusConnection connection = QDBusConnection::systemBus();
+    if (!connection.connect(QStringLiteral(""),
+                            QStringLiteral("/com/jingos/repowerd/Display"),
+                            QStringLiteral("com.jingos.repowerd.Display"),
+                            "TurnOff",
+                            this,
+                            SLOT(onScreenTurnOff(QString)))) {
+        qCWarning(KWIN_CORE) << "--err:" << connection.lastError().message();
+    };
+    if (!connection.connect(QStringLiteral(""),
+                            QStringLiteral("/com/jingos/repowerd/Display"),
+                            QStringLiteral("com.jingos.repowerd.Display"),
+                            "TurnOn",
+                            this,
+                            SLOT(onScreenTurnOn(QString)))) {
+        qCWarning(KWIN_CORE) << "--err:" << connection.lastError().message();
+    };
 }
 
 void Workspace::initializeX11()
@@ -533,14 +595,23 @@ Workspace::~Workspace()
     _self = nullptr;
 }
 
+void Workspace::setAndroidWindow(Toplevel *toplevel)
+{
+    m_androidClient = toplevel;
+}
+
 void Workspace::mouseOnTopLeftConer()
 {
-    emit onMouseOnTopLeftConer();
+    if (!ScreenLockerWatcher::self()->isLocked() && (!active_client || !active_client->isFullScreen() || active_client->isSystemUI())) {
+        emit onMouseOnTopLeftConer();
+    }
 }
 
 void Workspace::mouseOnTopRightConer()
 {
-    emit onMouseOnTopRightConer();
+    if (!ScreenLockerWatcher::self()->isLocked() && (!active_client || !active_client->isFullScreen() || active_client->isSystemUI())) {
+        emit onMouseOnTopRightConer();
+    }
 }
 
 void Workspace::setupClientConnections(AbstractClient *c)
@@ -653,6 +724,9 @@ void Workspace::removeClient(X11Client *c)
     Q_ASSERT(clients.contains(c));
     // TODO: if marked client is removed, notify the marked list
     clients.removeAll(c);
+    if (m_androidClient == c) {
+        m_androidClient = nullptr;
+    }
     m_allClients.removeAll(c);
     markXStackingOrderAsDirty();
     attention_chain.removeAll(c);
@@ -672,6 +746,7 @@ void Workspace::removeClient(X11Client *c)
 
     emit clientRemoved(c);
 
+    emit topLevelRemoved(c);
     updateStackingOrder(true);
     updateClientArea();
     updateTabbox();
@@ -682,6 +757,7 @@ void Workspace::removeUnmanaged(Unmanaged* c)
     Q_ASSERT(m_unmanaged.contains(c));
     m_unmanaged.removeAll(c);
     emit unmanagedRemoved(c);
+    emit topLevelRemoved(c);
     markXStackingOrderAsDirty();
 }
 
@@ -712,6 +788,7 @@ void Workspace::removeDeleted(Deleted* c)
     unconstrained_stacking_order.removeAll(c);
     stacking_order.removeAll(c);
     markXStackingOrderAsDirty();
+    emit topLevelRemoved(c);
     if (!c->wasClient()) {
         return;
     }
@@ -777,12 +854,18 @@ void Workspace::addShellClient(AbstractClient *client)
         updateStackingOrder(true);
         updateClientArea();
     });
+    connect(client, &AbstractClient::fullScreenChanged, this, [this] {
+        markXStackingOrderAsDirty();
+    });
     emit clientAdded(client);
 }
 
 void Workspace::removeShellClient(AbstractClient *client)
 {
     clientHidden(client);
+    if (m_androidClient == client) {
+        m_androidClient = nullptr;
+    }
     m_allClients.removeAll(client);
     if (client == most_recently_raised) {
         most_recently_raised = nullptr;
@@ -803,6 +886,7 @@ void Workspace::removeShellClient(AbstractClient *client)
         client->setShortcut(QString());   // Remove from client_keys
     }
     emit clientRemoved(client);
+    emit topLevelRemoved(client);
     markXStackingOrderAsDirty();
     updateStackingOrder(true);
     updateClientArea();
@@ -900,20 +984,16 @@ void Workspace::resetUpdateToolWindowsTimer()
     updateToolWindowsTimer.start(200);
 }
 
-bool Workspace::isSystemUI(EffectWindow *w) const
+bool Workspace::isSystemUI(AbstractClient *w)
 {
-    if (w == nullptr) {
+    if (nullptr == w || nullptr == m_curDesktop) {
         return false;
     }
     if (w->isDesktop()) {
         return true;
     }
-    EffectWindow *desktop = effects->getDesktopWindow(effects->currentDesktop());
-    if (desktop == nullptr) {
-        return false;
-    }
 
-    return (w->pid() == desktop->pid() || w->windowClass().compare(desktop->windowClass()) == 0);
+    return (w->pid() == m_curDesktop->pid()  || w->resourceName().compare(m_curDesktop->resourceName()) == 0);
 }
 
 bool Workspace::isManageWindowType(EffectWindow *w)
@@ -921,6 +1001,20 @@ bool Workspace::isManageWindowType(EffectWindow *w)
     return (w->screen() == 0) && (w->isNormalWindow() || w->isDialog()) && !w->isTransient() &&
             !w->windowClass().contains("org.kde.plasmashell") && !w->windowClass().contains("org.kde.kioclient") && !w->windowClass().contains("rg.kde.polkit-kde-authentication-agent")
             && !w->windowClass().contains("userguide");
+}
+
+void Workspace::killWindows(QList<Toplevel *> tps)
+{
+    QList<QString> tasks;
+    foreach(Toplevel* tp, tps) {
+        tasks.append(tp->internalId().toString());
+    }
+    m_appManager->quitAppsByWUuID(tasks);
+}
+
+void Workspace::killWindow(Toplevel *tp)
+{
+    m_appManager->quitAppByWUuID(tp->internalId().toString());
 }
 
 void Workspace::triggerDesktop()
@@ -931,13 +1025,59 @@ void Workspace::triggerDesktop()
         }
     } else {
         foreach (EffectWindow * w, effects->stackingOrder()) {
-            if (isManageWindowType(w) && !isSystemUI(w)) {
+            if (isManageWindowType(w)) {
                 if (auto cl = qobject_cast<AbstractClient *>(static_cast<EffectWindowImpl *>(w)->window())) {
-                    m_triggerWindow = cl;
+                    if (!cl->isSystemUI()) {
+                        m_triggerWindow = cl;
+                    }
                 }
             }
         }
         setShowingDesktop(true, false, true);
+    }
+}
+
+void Workspace::updateVKBRegion(double x, double y, double width, double height)
+{
+    if (y < m_lastVKBY) {
+        QTimer::singleShot(150, this, [=]() {
+            if (active_client && active_client->adjusSizeByInput() && m_keyboardVisible) {
+                active_client->setVirtualKeyboardGeometry(QRect(x, y, width, height));
+            }
+        });
+    } else if (y > m_lastVKBY) {
+        if (active_client) {
+            active_client->setVirtualKeyboardGeometry({});
+        }
+    }
+
+    m_lastVKBY = y;
+}
+
+void Workspace::updateVKBVisibility(bool visible)
+{
+    if (!visible && active_client) {
+        active_client->setVirtualKeyboardGeometry({});
+        m_lastVKBY = INT_MAX;
+    }
+    m_keyboardVisible = visible;
+}
+
+bool Workspace::showInputFloatBall()
+{
+    if (active_client && active_client->wantsInput()) {
+        return !m_keyboardVisible && !m_dbusInterface->hasAlphaNumericKeyboard();
+    }
+
+    return false;
+}
+
+void Workspace::setDisplayName(const QString &displayName)
+{
+    if (m_displayName.compare(displayName) != 0) {
+        m_displayName = displayName;
+
+        emit displayNameChanged(m_displayName);
     }
 }
 
@@ -1006,6 +1146,40 @@ void Workspace::slotCurrentDesktopChanged(uint oldDesktop, uint newDesktop)
 
     activateClientOnNewDesktop(newDesktop);
     emit currentDesktopChanged(oldDesktop, movingClient);
+}
+
+void Workspace::onActiveAndroidWindow()
+{
+    qDebug()<<"onActiveAndroidWindow:"<<m_androidClient;
+    if (m_androidClient) {
+        activateClient(qobject_cast<AbstractClient*>(m_androidClient), true);
+    }
+}
+
+void Workspace::onScreenTurnOff(const QString&)
+{
+ //   qDebug() << Q_FUNC_INFO;
+    AbstractClient* ac = dynamic_cast<AbstractClient*>(m_foregroundTopLevel);
+    if (ac && m_allClients.contains(ac)) {
+        ac->minimize(true);
+        m_restoreClient = ac;
+    }
+}
+
+void Workspace::onScreenTurnOn(const QString&)
+{
+   // qDebug() << Q_FUNC_INFO;
+    // AbstractClient* ac = dynamic_cast<AbstractClient*>(m_foregroundTopLevel);
+    if (!m_allClients.contains(m_restoreClient)) {
+        m_restoreClient = nullptr;
+        return;
+    }
+
+    if (m_restoreClient) {
+        // ac->unminimize(true);
+        activateClient(m_restoreClient, true, true);
+        m_restoreClient = nullptr;
+    }
 }
 
 void Workspace::updateClientVisibilityOnDesktopChange(uint newDesktop)
@@ -1078,7 +1252,7 @@ AbstractClient *Workspace::findClientToActivateOnDesktop(uint desktop)
     if (options->isNextFocusPrefersMouse()) {
         auto it = stackingOrder().constEnd();
         while (it != stackingOrder().constBegin()) {
-            X11Client *client = qobject_cast<X11Client *>(*(--it));
+            AbstractClient *client = qobject_cast<AbstractClient *>(*(--it));
             if (!client) {
                 continue;
             }
@@ -1344,7 +1518,7 @@ void Workspace::minimizeAllWindow() {
     for (int i = stacking_order.count() - 1; i > -1; --i) {
         AbstractClient *c = qobject_cast<AbstractClient*>(stacking_order.at(i));
         if (c && c->isOnCurrentDesktop()) {
-            if (c->isNormalWindow()) {
+            if (c->isNormalWindow() || c->isDialog()) {
                 c->minimize(c != activeClient());
             }
         }
@@ -1353,10 +1527,13 @@ void Workspace::minimizeAllWindow() {
 
 void Workspace::setShowingDesktop(bool showing, bool activeNext, bool isTrigger)
 {
-    if (!isTrigger) {
-        m_triggerWindow = nullptr;
+    if (showing && !taskManager->isInitState()) {
+        return;
     }
     const bool changed = showing != showing_desktop;
+    if (!isTrigger && changed) {
+        m_triggerWindow = nullptr;
+    }
     if (rootInfo() && changed) {
         rootInfo()->setShowingDesktop(showing);
     }
@@ -1379,20 +1556,22 @@ void Workspace::setShowingDesktop(bool showing, bool activeNext, bool isTrigger)
     StackingUpdatesBlocker blocker(this); // updateLayer & lowerClient would invalidate stacking_order
     for (int i = stacking_order.count() - 1; i > -1; --i) {
         AbstractClient *c = qobject_cast<AbstractClient*>(stacking_order.at(i));
+
+        // TODO_LAYER
         if (c && c->isOnCurrentDesktop()) {
-            if (c->isDock()) {
-                c->updateLayer();
-            } else if (c->isDesktop() && c->isShown(true)) {
-                c->updateLayer();
-                lowerClient(c);
+//            if (c->isStatusBar()) {
+//                c->updateLayer();
+//            } else if (c->isDesktop() && c->isShown(true)) {
+//                c->updateLayer();
+//                lowerClient(c);
                 if (!topDesk)
                     topDesk = c;
-                if (auto group = c->group()) {
-                    foreach (X11Client *cm, group->members()) {
-                        cm->updateLayer();
-                    }
-                }
-            }
+//                if (auto group = c->group()) {
+//                    foreach (X11Client *cm, group->members()) {
+//                        cm->updateLayer();
+//                    }
+//                }
+//            }
         }
     }
     } // ~StackingUpdatesBlocker
@@ -1706,11 +1885,6 @@ QString Workspace::supportInformation() const
             }
 
             support.append(QStringLiteral("OpenGL 2 Shaders are used\n"));
-            support.append(QStringLiteral("Painting blocks for vertical retrace: "));
-            if (m_compositor->scene()->blocksForRetrace())
-                support.append(QStringLiteral(" yes\n"));
-            else
-                support.append(QStringLiteral(" no\n"));
             break;
         }
         case XRenderCompositing:
@@ -1933,17 +2107,6 @@ void Workspace::setAppDefaultScale(qreal scale)
     screens()->setDefaultClientScale(scale);
 }
 
-// casper_yang for app scale
-void Workspace::killScaleApps()
-{
-    foreach (EffectWindow * w, effects->stackingOrder()) {
-        if (w->isScaleApp() && w->pid() > 0) {
-            qDebug()<<Q_FUNC_INFO<<w->pid();
-            w->kill();
-        }
-    }
-}
-
 void Workspace::setHasLogin(bool login)
 {
     _hasLogin = login;
@@ -1974,7 +2137,8 @@ void Workspace::addInternalClient(InternalClient *client)
     m_internalClients.append(client);
 
     setupClientConnections(client);
-    client->updateLayer();
+    // TODO_LAYER
+    // client->updateLayer();
 
     if (client->isPlaceable()) {
         // yangg for jingos app under panel
@@ -1996,7 +2160,7 @@ void Workspace::removeInternalClient(InternalClient *client)
     markXStackingOrderAsDirty();
     updateStackingOrder(true);
     updateClientArea();
-
+    emit topLevelRemoved(client);
     emit internalClientRemoved(client);
 }
 
@@ -2222,7 +2386,7 @@ bool Workspace::isBelowPanel(const AbstractClient *c) const {
 bool Workspace::isTopClientJingApp() const
 {
     AbstractClient * client = activeClient();
-    return !client || isBelowPanel(client) || isSystemUI(client->effectWindow());
+    return !client || isBelowPanel(client) || client->isSystemUI();
 }
 
 bool Workspace::isJingOSApp(const AbstractClient *c) const
@@ -2487,6 +2651,16 @@ QRegion Workspace::restrictedMoveArea(int desktop, StrutAreas areas) const
     if (areas & rect.area())
         region += rect;
     return region;
+}
+
+AbstractClient *Workspace::topClient() const
+{
+    const QList<Toplevel *> &stacking = stackingOrder();
+    if (stacking.isEmpty()) {
+        return nullptr;
+    }
+
+    return qobject_cast<AbstractClient*>(stackingOrder().last());
 }
 
 bool Workspace::inUpdateClientArea() const
@@ -2983,6 +3157,11 @@ void Workspace::fixPositionAfterCrash(xcb_window_t w, const xcb_get_geometry_rep
         const uint32_t values[] = { geometry->x - left, geometry->y - top };
         xcb_configure_window(connection(), w, XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y, values);
     }
+}
+
+void Workspace::changeDownloadWindowMode(int mode, int n)
+{
+    effects->changeDownloadWindowMode(mode, n);
 }
 
 } // namespace

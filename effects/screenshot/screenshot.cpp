@@ -48,7 +48,7 @@ public:
     // utility class that allows using QMap to sort its keys when they are QPoint
     // so that the bottom and right points are after the top left ones
     bool operator<(const ComparableQPoint &other) const {
-        return x() < other.x() || y() < other.y();
+        return x() < other.x() || (x() == other.x() && y() < other.y());
     }
 };
 
@@ -470,12 +470,12 @@ QString ScreenShotEffect::saveTempImage(const QImage &img)
     if (img.isNull()) {
         return QString();
     }
-    QTemporaryFile temp(QDir::tempPath() + QDir::separator() + QLatin1String("kwin_screenshot_XXXXXX.png"));
+    QTemporaryFile temp(QDir::tempPath() + QDir::separator() + QLatin1String("kwin_screenshot_XXXXXX.jpg"));
     temp.setAutoRemove(false);
     if (!temp.open()) {
         return QString();
     }
-    img.save(&temp);
+    img.save(&temp, "JPG", 100);
     temp.close();
 //    KNotification::event(KNotification::Notification,
 //                        i18nc("Notification caption that a screenshot got saved to file", "Screenshot"),
@@ -771,6 +771,7 @@ QString ScreenShotEffect::screenshotArea(int x, int y, int width, int height, bo
         return QString();
     }
     m_captureCursor = captureCursor;
+    m_nativeSize = true;
     m_replyMessage = message();
     setDelayedReply(true);
     effects->addRepaint(m_scheduledGeometry);
@@ -861,7 +862,7 @@ void ScreenShotEffect::convertFromGLImage(QImage &img, int w, int h)
 
 bool ScreenShotEffect::isActive() const
 {
-    return (m_scheduledScreenshot != nullptr || !m_scheduledGeometry.isNull()) && !effects->isScreenLocked();
+    return (m_scheduledScreenshot != nullptr || !m_scheduledGeometry.isNull());
 }
 
 void ScreenShotEffect::windowClosed( EffectWindow* w )

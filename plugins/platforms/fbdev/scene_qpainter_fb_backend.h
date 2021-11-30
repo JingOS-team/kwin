@@ -8,7 +8,7 @@
 */
 #ifndef KWIN_SCENE_QPAINTER_FB_BACKEND_H
 #define KWIN_SCENE_QPAINTER_FB_BACKEND_H
-#include <platformsupport/scenes/qpainter/backend.h>
+#include "qpainterbackend.h"
 
 #include <QObject>
 #include <QImage>
@@ -30,6 +30,9 @@ public:
     void endFrame(int screenId, int mask, const QRegion &damage) override;
 
 private:
+    void reactivate();
+    void deactivate();
+
     /**
      * @brief mapped memory buffer on fb device
      */

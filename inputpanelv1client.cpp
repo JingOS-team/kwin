@@ -109,6 +109,11 @@ QRect InputPanelV1Client::inputGeometry() const
     return surface()->input().boundingRect().translated(pos());
 }
 
+JingWindowType InputPanelV1Client::jingWindowType() const
+{
+    return JingWindowType::TYPE_INPUT_METHOD;
+}
+
 void InputPanelV1Client::setOutput(OutputInterface *outputIface)
 {
     if (m_output) {

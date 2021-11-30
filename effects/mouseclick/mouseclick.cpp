@@ -28,6 +28,7 @@
 namespace KWin
 {
 
+namespace  Effects {
 MouseClickEffect::MouseClickEffect()
 {
     initConfig<MouseClickConfig>();
@@ -382,3 +383,4 @@ void MouseClickEffect::paintScreenFinishGl(int, QRegion, ScreenPaintData&)
 
 } // namespace
 
+}

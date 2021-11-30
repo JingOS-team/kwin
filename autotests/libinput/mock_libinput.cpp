@@ -635,7 +635,7 @@ double libinput_event_touch_get_y_transformed(struct libinput_event_touch *event
     return event->absolutePos.y() / deviceHeight * height;
 }
 
-int32_t libinput_event_touch_get_slot(struct libinput_event_touch *event)
+int32_t libinput_event_touch_get_seat_slot(struct libinput_event_touch *event)
 {
     return event->slot;
 }
@@ -921,4 +921,18 @@ int
 libinput_device_tablet_pad_get_num_buttons(struct libinput_device *device)
 {
     return device->buttonCount;
+}
+
+struct libinput_device_group *
+libinput_device_get_device_group(struct libinput_device *device)
+{
+    Q_UNUSED(device);
+    return nullptr;
+}
+
+void *
+libinput_device_group_get_user_data(struct libinput_device_group *group)
+{
+    Q_UNUSED(group);
+    return nullptr;
 }

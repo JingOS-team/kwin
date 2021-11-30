@@ -23,14 +23,9 @@ PresentWindowsEffectProxy::~PresentWindowsEffectProxy()
 }
 
 void PresentWindowsEffectProxy::calculateWindowTransformations(EffectWindowList windows, int screen,
-        WindowMotionManager& manager, bool fromBottom)
+        WindowMotionManager& manager)
 {
-    m_effect->calculateWindowTransformations(windows, screen, manager, true, fromBottom);
-}
-
-QHash<EffectWindow*, QRectF> PresentWindowsEffectProxy::calculateWindowTransformations(EffectWindowList windows, int screen, int &top)
-{
-     return m_effect->calculateWindowTransformations_new(windows, screen, top);
+    return m_effect->calculateWindowTransformations(windows, screen, manager, true);
 }
 
 void PresentWindowsEffectProxy::reCreateGrids()

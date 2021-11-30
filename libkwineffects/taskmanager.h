@@ -45,6 +45,13 @@ public:
         emit move(delta, progress);
     }
 
+    bool isIsNoneState() {
+        return getTaskState() == TS_None;
+    }
+
+    bool isInitState() {
+        return getTaskState() == TS_None || getTaskState() ==  TS_Prepare;
+    }
 Q_SIGNALS:
     void taskStateChanged(TaskState ts, TaskState oldState);
     void move(const QSizeF& delta, qreal progress);

@@ -171,6 +171,7 @@ void XdgSurfaceClient::handleConfigureAcknowledged(quint32 serial)
             break;
         }
         m_lastAcknowledgedConfigure.reset(m_configureEvents.takeFirst());
+        handleRoleCommit();
     }
 }
 
@@ -347,9 +348,7 @@ void XdgSurfaceClient::destroyClient()
 
 void XdgSurfaceClient::setVirtualKeyboardGeometry(const QRect &geo)
 {
-    // jing_kwin virtual keyboard show on apps
-    return;
-
+    m_virtualKeyboardGeometry = geo;
     // No keyboard anymore
     if (geo.isEmpty() && !keyboardGeometryRestore().isEmpty()) {
         setFrameGeometry(keyboardGeometryRestore());
@@ -360,8 +359,6 @@ void XdgSurfaceClient::setVirtualKeyboardGeometry(const QRect &geo)
     } else if (keyboardGeometryRestore().isEmpty()) {
         setKeyboardGeometryRestore(requestedFrameGeometry().isEmpty() ? frameGeometry() : requestedFrameGeometry());
     }
-
-    m_virtualKeyboardGeometry = geo;
 
     // Don't resize Desktop and fullscreen windows
     if (isFullScreen() || isDesktop()) {
@@ -398,10 +395,12 @@ XdgToplevelClient::XdgToplevelClient(XdgToplevelInterface *shellSurface)
             this, &XdgToplevelClient::handleWindowClassChanged);
     connect(shellSurface, &XdgToplevelInterface::windowMenuRequested,
             this, &XdgToplevelClient::handleWindowMenuRequested);
+    /*
     connect(shellSurface, &XdgToplevelInterface::moveRequested,
             this, &XdgToplevelClient::handleMoveRequested);
     connect(shellSurface, &XdgToplevelInterface::resizeRequested,
             this, &XdgToplevelClient::handleResizeRequested);
+    */
     connect(shellSurface, &XdgToplevelInterface::maximizeRequested,
             this, &XdgToplevelClient::handleMaximizeRequested);
     connect(shellSurface, &XdgToplevelInterface::unmaximizeRequested,
@@ -418,13 +417,14 @@ XdgToplevelClient::XdgToplevelClient(XdgToplevelInterface *shellSurface)
             this, &XdgToplevelClient::initialize);
     connect(shellSurface, &XdgToplevelInterface::destroyed,
             this, &XdgToplevelClient::destroyClient);
+    /* todo yanggx
     connect(shellSurface->shell(), &XdgShellInterface::pingTimeout,
             this, &XdgToplevelClient::handlePingTimeout);
     connect(shellSurface->shell(), &XdgShellInterface::pingDelayed,
             this, &XdgToplevelClient::handlePingDelayed);
     connect(shellSurface->shell(), &XdgShellInterface::pongReceived,
             this, &XdgToplevelClient::handlePongReceived);
-
+   */
     connect(waylandServer(), &WaylandServer::foreignTransientChanged,
             this, &XdgToplevelClient::handleForeignTransientForChanged);
 }
@@ -513,7 +513,7 @@ bool XdgToplevelClient::isResizable() const
 
 bool XdgToplevelClient::isCloseable() const
 {
-    return !isDesktop() && !isDock();
+    return !isDesktop() && !isStatusBar();
 }
 
 bool XdgToplevelClient::isFullScreenable() const
@@ -538,7 +538,7 @@ bool XdgToplevelClient::isMaximizable() const
 
 bool XdgToplevelClient::isMinimizable() const
 {
-    if (isSpecialWindow() && !isTransient()) {
+    if ((isSpecialWindow() && !isSysSplash()) && !isTransient()) {
         return false;
     }
     if (!rules()->checkMinimize(true)) {
@@ -772,6 +772,7 @@ void XdgToplevelClient::handleRoleCommit()
     if (configureEvent) {
         handleStatesAcknowledged(configureEvent->states);
     }
+    updateDecoration(false, false);
 }
 
 void XdgToplevelClient::doMinimize()
@@ -945,28 +946,13 @@ bool XdgToplevelClient::acceptsFocus() const
     return !isZombie() && readyForPainting();
 }
 
-Layer XdgToplevelClient::layerForDock() const
-{
-    if (m_plasmaShellSurface) {
-        switch (m_plasmaShellSurface->panelBehavior()) {
-        case PlasmaShellSurfaceInterface::PanelBehavior::WindowsCanCover:
-            return NormalLayer;
-        case PlasmaShellSurfaceInterface::PanelBehavior::AutoHide:
-        case PlasmaShellSurfaceInterface::PanelBehavior::WindowsGoBelow:
-            return AboveLayer;
-        case PlasmaShellSurfaceInterface::PanelBehavior::AlwaysVisible:
-            return DockLayer;
-        default:
-            Q_UNREACHABLE();
-            break;
-        }
-    }
-    return AbstractClient::layerForDock();
-}
-
 void XdgToplevelClient::handleWindowTitleChanged()
 {
-    setCaption(m_shellSurface->windowTitle());
+    QString title = m_shellSurface->windowTitle();
+    if (title.compare("android-app") == 0) {
+        workspace()->setAndroidWindow(this);
+    }
+    setCaption(title);
 }
 
 void XdgToplevelClient::handleWindowClassChanged()
@@ -1212,9 +1198,7 @@ void XdgToplevelClient::initialize()
         if (originalGeometry != ruledGeometry) {
             setFrameGeometry(ruledGeometry);
         }
-
         maximize(rules()->checkMaximize(initialMaximizeMode(), true));
-
         setFullScreen(rules()->checkFullScreen(initialFullScreenMode(), true), false);
         setDesktop(rules()->checkDesktop(desktop(), true));
         setDesktopFileName(rules()->checkDesktopFile(desktopFileName(), true).toUtf8());
@@ -1324,11 +1308,6 @@ void XdgToplevelClient::installXdgDecoration(XdgToplevelDecorationV1Interface *d
 {
     m_xdgDecoration = decoration;
 
-    connect(m_xdgDecoration, &XdgToplevelDecorationV1Interface::destroyed, this, [this] {
-        if (!isZombie() && m_isInitialized) {
-            updateDecoration(/* check_workspace_pos */ true);
-        }
-    });
     connect(m_xdgDecoration, &XdgToplevelDecorationV1Interface::preferredModeChanged, this, [this] {
         if (m_isInitialized) {
             // force is true as we must send a new configure response.
@@ -1451,16 +1430,15 @@ void XdgToplevelClient::installPlasmaShellSurface(PlasmaShellSurfaceInterface *s
     connect(shellSurface, &PlasmaShellSurfaceInterface::visibleChanged, this, [this] {
         setRequestVisible(m_plasmaShellSurface->visible());
     });
-    updateJintWindowType(shellSurface);
+    updateJingWindowType(shellSurface);
     connect(shellSurface, &PlasmaShellSurfaceInterface::windowTypeChanged, this, [this] {
-        updateJintWindowType(m_plasmaShellSurface);
+        updateJingWindowType(m_plasmaShellSurface);
     });
     // JINGOS extend protocols end
 }
 
 void XdgToplevelClient::updateShowOnScreenEdge()
 {
-
     if (!ScreenEdges::self()) {
         return;
     }
@@ -1536,7 +1514,7 @@ void XdgToplevelClient::updateShowOnScreenEdge()
     }
 }
 
-void XdgToplevelClient::updateJintWindowType(PlasmaShellSurfaceInterface *surface)
+void XdgToplevelClient::updateJingWindowType(PlasmaShellSurfaceInterface *surface)
 {
     JingWindowType windowType = JingWindowType::TYPE_APPLICATION;
     switch (surface->windowType()) {
@@ -1599,6 +1577,9 @@ void XdgToplevelClient::updateJintWindowType(PlasmaShellSurfaceInterface *surfac
         break;
     case PlasmaShellSurfaceInterface::WindowType::TYPE_VOICE_INTERACTION:
         windowType = JingWindowType::TYPE_VOICE_INTERACTION;
+        break;
+    case PlasmaShellSurfaceInterface::WindowType::TYPE_SYSTEM_OVERLAY:
+        windowType = JingWindowType::TYPE_SYSTEM_OVERLAY;
         break;
     case PlasmaShellSurfaceInterface::WindowType::TYPE_SCREENSHOT:
         windowType = JingWindowType::TYPE_SCREENSHOT;
@@ -1674,7 +1655,7 @@ void XdgToplevelClient::setFullScreen(bool set, bool user)
     if (wasFullscreen) {
         workspace()->updateFocusMousePosition(Cursors::self()->mouse()->pos()); // may cause leave event
     } else {
-        m_fullScreenGeometryRestore = frameGeometry();
+        setFullscreenGeometryRestore(frameGeometry());
     }
     m_isFullScreen = set;
 
@@ -1700,10 +1681,10 @@ void XdgToplevelClient::setFullScreen(bool set, bool user)
         setFrameGeometry(rect);
     } else {
         m_fullScreenRequestedOutput.clear();
-        if (m_fullScreenGeometryRestore.isValid()) {
+        if (fullscreenGeometryRestore().isValid()) {
             int currentScreen = screen();
-            setFrameGeometry(QRect(m_fullScreenGeometryRestore.topLeft(),
-                                   constrainFrameSize(m_fullScreenGeometryRestore.size())));
+            setFrameGeometry(QRect(fullscreenGeometryRestore().topLeft(),
+                                   constrainFrameSize(fullscreenGeometryRestore().size())));
             if( currentScreen != screen())
                 workspace()->sendClientToScreen( this, currentScreen );
         } else {
@@ -1844,8 +1825,35 @@ XdgPopupClient::XdgPopupClient(XdgPopupInterface *shellSurface)
             this, &XdgPopupClient::handleGrabRequested);
     connect(shellSurface, &XdgPopupInterface::initializeRequested,
             this, &XdgPopupClient::initialize);
+    connect(shellSurface, &XdgPopupInterface::repositionRequested,
+            this, &XdgPopupClient::handleRepositionRequested);
     connect(shellSurface, &XdgPopupInterface::destroyed,
             this, &XdgPopupClient::destroyClient);
+}
+
+void XdgPopupClient::updateReactive()
+{
+    if (m_shellSurface->positioner().isReactive()) {
+        connect(transientFor(), &AbstractClient::frameGeometryChanged,
+                this, &XdgPopupClient::relayout, Qt::UniqueConnection);
+    } else {
+        disconnect(transientFor(), &AbstractClient::frameGeometryChanged,
+                   this, &XdgPopupClient::relayout);
+    }
+}
+
+void XdgPopupClient::handleRepositionRequested(quint32 token)
+{
+    updateReactive();
+    m_shellSurface->sendRepositioned(token);
+    relayout();
+}
+
+void XdgPopupClient::relayout()
+{
+    GeometryUpdatesBlocker blocker(this);
+    Placement::self()->place(this, QRect());
+    scheduleConfigure(ConfigureRequired);
 }
 
 XdgPopupClient::~XdgPopupClient()
@@ -2127,6 +2135,8 @@ void XdgPopupClient::initialize()
     AbstractClient *parentClient = waylandServer()->findClient(m_shellSurface->parentSurface());
     parentClient->addTransient(this);
     setTransientFor(parentClient);
+
+    updateReactive();
 
     blockGeometryUpdates(true);
     // yangg for jingos app under panel

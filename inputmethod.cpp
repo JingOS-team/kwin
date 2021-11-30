@@ -143,11 +143,7 @@ void InputMethod::clientAdded(AbstractClient* client)
     }
     m_inputClient = client;
     auto refreshFrame = [this] {
-        if (!m_trackedClient) {
-            return;
-        }
-
-        if (m_inputClient && !m_inputClient->inputGeometry().isEmpty()) {
+        if (m_trackedClient && m_trackedClient->adjusSizeByInput()) {
             m_trackedClient->setVirtualKeyboardGeometry(m_inputClient->inputGeometry());
         }
     };
@@ -158,6 +154,7 @@ void InputMethod::clientAdded(AbstractClient* client)
         }
     });
     connect(m_inputClient, &AbstractClient::frameGeometryChanged, this, refreshFrame);
+    refreshFrame();
 }
 
 void InputMethod::handleFocusedSurfaceChanged()
@@ -325,6 +322,14 @@ static quint32 keysymToKeycode(quint32 sym)
         return KEY_UP;
     case XKB_KEY_Down:
         return KEY_DOWN;
+    case XKB_KEY_KP_Tab:
+        return KEY_TAB;
+    case XKB_KEY_Escape:
+        return KEY_ESC;
+    case XKB_KEY_Control_L:
+        return KEY_LEFTCTRL;
+    case XKB_KEY_Alt_L:
+        return KEY_LEFTALT;
     default:
         return KEY_UNKNOWN;
     }
@@ -514,7 +519,7 @@ void InputMethod::updateInputPanelState()
     }
 
     if (m_trackedClient) {
-        m_trackedClient->setVirtualKeyboardGeometry(m_inputClient ? m_inputClient->inputGeometry() : QRect());
+       // m_trackedClient->setVirtualKeyboardGeometry(m_inputClient ? m_inputClient->inputGeometry() : QRect());
     }
     t->setInputPanelState(m_inputClient && m_inputClient->isShown(false), QRect(0, 0, 0, 0));
 }

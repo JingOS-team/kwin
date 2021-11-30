@@ -277,7 +277,7 @@ public Q_SLOTS:
 
     void slotSwitchToNextScreen();
     void slotWindowToNextScreen();
-    void slotToggleShowDesktop();
+    void slotShowDesktop();
 
     void slotWindowMaximize();
     void slotWindowMaximizeVertical();

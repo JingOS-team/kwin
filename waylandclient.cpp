@@ -50,6 +50,8 @@ WaylandClient::WaylandClient(SurfaceInterface *surface)
             this, &WaylandClient::updateClientOutputs);
     connect(this, &WaylandClient::desktopFileNameChanged,
             this, &WaylandClient::updateIcon);
+    connect(this, &WaylandClient::desktopFileNameChanged,
+            this, &WaylandClient::updateTitle);
     connect(screens(), &Screens::changed, this,
             &WaylandClient::updateClientOutputs);
 
@@ -220,6 +222,11 @@ void WaylandClient::updateIcon()
     setIcon(QIcon::fromTheme(iconName));
 }
 
+void WaylandClient::updateTitle()
+{
+    setTitle(nameFromDesktopFile());
+}
+
 void WaylandClient::updateResourceName()
 {
     const QFileInfo fileInfo(surface()->client()->executablePath());
@@ -382,8 +389,9 @@ QSize WaylandClient::requestedClientSize() const
     return requestedClientGeometry().size();
 }
 
-void WaylandClient::setFrameGeometry(const QRect &rect, ForceGeometry_t force)
+void WaylandClient::setFrameGeometry(const QRect &rect, ForceGeometry_t force, bool forInput)
 {
+    Q_UNUSED(forInput);
     m_requestedFrameGeometry = rect;
 
     if (isShade()) {

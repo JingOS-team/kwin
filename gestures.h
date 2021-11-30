@@ -185,6 +185,57 @@ private:
     bool m_minimumSwipeAngleRelevant = false;
 };
 
+class PinchGesture : public Gesture
+{
+    Q_OBJECT
+public:
+    explicit PinchGesture(QObject *parent = nullptr);
+    ~PinchGesture() override;
+    bool minimumFingerCountIsRelevant() const {
+        return m_minimumFingerCountRelevant;
+    }
+    void setMinimumFingerCount(uint count) {
+        m_minimumFingerCount = count;
+        m_minimumFingerCountRelevant = true;
+    }
+    uint minimumFingerCount() const {
+        return m_minimumFingerCount;
+    }
+    bool maximumFingerCountIsRelevant() const {
+        return m_maximumFingerCountRelevant;
+    }
+    void setMaximumFingerCount(uint count) {
+        m_maximumFingerCount = count;
+        m_maximumFingerCountRelevant = true;
+    }
+    uint maximumFingerCount() const {
+        return m_maximumFingerCount;
+    }
+    void setFingerDistanceIncrement(qreal fingerDistance){
+        m_fingerDistance = fingerDistance;
+    }
+    qreal fingerDistanceIncrement() const {
+        return m_fingerDistance;
+    }
+    bool isReachIncrement(qreal fingerDistance) {
+        if (m_startDistance == 0.f) {
+            m_startDistance = fingerDistance;
+        }
+        return std::abs(m_startDistance - fingerDistance) > m_fingerDistance;
+    }
+    void resetStartDistance() {
+        m_startDistance = 0.f;
+    }
+    static qreal calFingerDistance(const QMap<qint32, QPointF> &points);
+private:
+    bool m_minimumFingerCountRelevant = false;
+    uint m_minimumFingerCount = 0;
+    bool m_maximumFingerCountRelevant = false;
+    uint m_maximumFingerCount = 0;
+    qreal m_fingerDistance = 0.f;
+    qreal m_startDistance = 0.f;
+};
+
 class KWIN_EXPORT GestureRecognizer : public QObject
 {
     Q_OBJECT
@@ -195,6 +246,9 @@ public:
     void registerGesture(Gesture *gesture);
     void unregisterGesture(Gesture *gesture);
 
+    void registerPinchGesture(Gesture *gesture);
+    void unregisterPinchGesture(Gesture *gesture);
+    
     // jing_kwin gesture
     int startSwipeGesture(uint fingerCount, quint32 time) {
         return startSwipeGesture(fingerCount, QPointF(), StartPositionBehavior::Irrelevant, time);
@@ -203,11 +257,16 @@ public:
         return startSwipeGesture(1, startPos, StartPositionBehavior::Relevant, time);
     }
     void updateSwipeGesture(const QSizeF &delta, quint32 time);
-    void cancelSwipeGesture(quint32 time);
+    bool cancelSwipeGesture(quint32 time, int fingerCount = -1);
     void endSwipeGesture(quint32 time);
 
+    int startPinchGesture(qint32 id, const QPointF &pos, quint32 time);
+    void updatePinchGesture(qint32 id, const QPointF &pos, quint32 time);
+    bool cancelPinchGesture(qint32 touches);
+    void endPinchGesture(qint32 id, quint32 time);
+
 private:
-    void cancelActiveSwipeGestures(quint32 time);
+    bool cancelActiveSwipeGestures(quint32 time, int fingerCount = -1);
 // jing_kwin gesture end
     enum class StartPositionBehavior {
         Relevant,
@@ -224,6 +283,13 @@ private:
     quint32 m_lastEndUpdateTime = 0;
     int m_startIndex = 0;
     int m_endIndex = 0;
+
+    // pinch gesture
+    QMap<qint32, QPointF> m_fingerPoints;
+    QVector<Gesture*> m_pinchGestures;
+    QVector<Gesture*> m_activePinchGestures;
+    QMap<Gesture*, QMetaObject::Connection> m_destroyPinchConnections;
+    bool m_isPinchTrigger = false;     
     // jing_kwin gesture end
 };
 

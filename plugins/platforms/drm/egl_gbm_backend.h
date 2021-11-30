@@ -15,6 +15,11 @@
 struct gbm_surface;
 struct gbm_bo;
 
+namespace KWaylandServer
+{
+class BufferInterface;
+}
+
 namespace KWin
 {
 class AbstractOutput;
@@ -36,6 +41,7 @@ public:
     QRegion beginFrame(int screenId) override;
     void endFrame(int screenId, const QRegion &damage, const QRegion &damagedRegion) override;
     void init() override;
+    bool scanout(int screenId, KWaylandServer::SurfaceInterface *surface) override;
 
     QSharedPointer<GLTexture> textureForOutput(AbstractOutput *requestedOutput) const override;
 
@@ -46,11 +52,11 @@ public:
     void addOutput(DrmOutput *output) override;
     void removeOutput(DrmOutput *output) override;
     int getDmabufForSecondaryGpuOutput(AbstractOutput *output, uint32_t *format, uint32_t *stride) override;
-    void cleanupDmabufForSecondaryGpuOutput(AbstractOutput *output) override;
     QRegion beginFrameForSecondaryGpu(AbstractOutput *output) override;
 
+    bool directScanoutAllowed(int screen) const override;
+
 protected:
-    void present() override;
     void cleanupSurfaces() override;
     void aboutToStartPainting(int screenId, const QRegion &damage) override;
 
@@ -76,14 +82,14 @@ private:
             std::shared_ptr<GLVertexBuffer> vbo;
         } render;
 
-        bool onSecondaryGPU = false;
         int dmabufFd = 0;
         gbm_bo *secondaryGbmBo = nullptr;
-        gbm_bo *importedGbmBo = nullptr;
+        gbm_bo *directScanoutBuffer = nullptr;
+        KWaylandServer::SurfaceInterface *surfaceInterface = nullptr;
+        KWaylandServer::BufferInterface *bufferInterface = nullptr;
     };
 
     bool resetOutput(Output &output, DrmOutput *drmOutput);
-    std::shared_ptr<GbmSurface> createGbmSurface(const QSize &size, const bool linear) const;
     EGLSurface createEglSurface(std::shared_ptr<GbmSurface> gbmSurface) const;
 
     bool makeContextCurrent(const Output &output) const;
@@ -94,9 +100,9 @@ private:
 
     void prepareRenderFramebuffer(const Output &output) const;
     void renderFramebufferToSurface(Output &output);
-    QRegion prepareRenderingForOutput(const Output &output) const;
+    QRegion prepareRenderingForOutput(Output &output) const;
 
-    void presentOnOutput(Output &output, const QRegion &damagedRegion);
+    bool presentOnOutput(Output &output, const QRegion &damagedRegion);
 
     void cleanupOutput(Output &output);
     void cleanupFramebuffer(Output &output);

@@ -26,6 +26,7 @@ public:
 
     void prePaintWindow(EffectWindow *w, WindowPrePaintData &data, std::chrono::milliseconds presentTime) override;
     void paintWindow(EffectWindow* w, int mask, QRegion region, WindowPaintData& data) override;
+    void postPaintWindow(EffectWindow* w) override;
 
     static bool supported();
 
@@ -38,15 +39,17 @@ public:
 
     Q_SCRIPTABLE void switchWindow(bool toRight);
 
+    static bool enabledByDefault();
 private:
     bool isShowNextWindow();
     bool isShowingDesktop() const;
 
 private slots:
     void slotShowingDesktopChanged(bool show);
+    void slotAboutToQuit();
 
 private:
-    bool _isShowingDockBg = false;
+    bool _isShowingDockBg = true;
     TimeLine _timeLine;
     qreal _dockBgAlphaRate = 1.0;
     TimeLine _bottomAnimationTimeLine;
@@ -59,6 +62,8 @@ private:
     EffectQuickScene *_noticeView;
     EffectQuickScene *_bottomControlview;
     std::chrono::milliseconds _lastPresentTime = std::chrono::milliseconds::zero();
+    QScopedPointer<GLTexture> _quitTexture;
+    bool _isShowingQuitBg = false;
 };
 
 }

@@ -532,7 +532,7 @@ void CubeSlideEffect::slotWindowDeleted(EffectWindow* w) {
 
 bool CubeSlideEffect::shouldAnimate(const EffectWindow* w) const
 {
-    if (w->isDock()) {
+    if (w->isStatusBar()) {
         return !dontSlidePanels;
     }
     if (w->isOnAllDesktops()) {

@@ -9,7 +9,7 @@ add_library(kwin_magiclamp_config MODULE ${kwin_magiclamp_config_SRCS})
 target_link_libraries(kwin_magiclamp_config
     KF5::ConfigWidgets
     KF5::I18n
-    Qt5::DBus
+    Qt::DBus
     KWinEffectsInterface
 )
 
@@ -19,5 +19,5 @@ install(
     TARGETS
         kwin_magiclamp_config
     DESTINATION
-        ${PLUGIN_INSTALL_DIR}/kwin/effects/configs
+        ${KDE_INSTALL_PLUGINDIR}/kwin/effects/configs
 )

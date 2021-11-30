@@ -21,9 +21,6 @@ var fullScreenEffect = {
         var oldGeometry, newGeometry;
         oldGeometry = window.oldGeometry;
         newGeometry = window.geometry;
-        if (oldGeometry.width == newGeometry.width && oldGeometry.height == newGeometry.height)
-            oldGeometry = window.olderGeometry;
-        window.olderGeometry = window.oldGeometry;
         window.oldGeometry = newGeometry;
         window.fullScreenAnimation1 = animate({
             window: window,
@@ -37,7 +34,8 @@ var fullScreenEffect = {
                 from: {
                     value1: oldGeometry.width,
                     value2: oldGeometry.height
-                }
+                },
+                curve: QEasingCurve.OutCubic
             }, {
                 type: Effect.Translation,
                 to: {
@@ -47,7 +45,8 @@ var fullScreenEffect = {
                 from: {
                     value1: oldGeometry.x - newGeometry.x - (newGeometry.width / 2 - oldGeometry.width / 2),
                     value2: oldGeometry.y - newGeometry.y - (newGeometry.height / 2 - oldGeometry.height / 2)
-                }
+                },
+                curve: QEasingCurve.OutCubic
             }]
         });
         if (!window.resize) {
@@ -57,7 +56,8 @@ var fullScreenEffect = {
                 animations: [{
                     type: Effect.CrossFadePrevious,
                     to: 1.0,
-                    from: 0.0
+                    from: 0.0,
+                    curve: QEasingCurve.OutCubic
                 }]
             });
         }
@@ -78,7 +78,6 @@ var fullScreenEffect = {
             }
         }
         window.oldGeometry = window.geometry;
-        window.olderGeometry = oldGeometry;
     },
     init: function () {
         effect.configChanged.connect(fullScreenEffect.loadConfig);

@@ -23,6 +23,7 @@
 #include <functional>
 
 #include "kwincompositing_setting.h"
+#include "kwincompositingdata.h"
 
 static bool isRunningPlasma()
 {
@@ -88,6 +89,8 @@ KWinCompositingKCM::KWinCompositingKCM(QWidget *parent, const QVariantList &args
     m_form.kcfg_Enabled->setVisible(!compositingRequired());
     m_form.kcfg_WindowsBlockCompositing->setVisible(!compositingRequired());
 
+    connect(this, &KWinCompositingKCM::defaultsIndicatorsVisibleChanged, this, &KWinCompositingKCM::updateUnmanagedItemStatus);
+
     init();
 }
 
@@ -127,15 +130,15 @@ void KWinCompositingKCM::init()
     // tearing prevention
     connect(m_form.kcfg_glPreferBufferSwap, currentIndexChangedSignal, this,
         [this](int index) {
-            if (index == 2) {
+            if (index == 1) {
                 // only when cheap - tearing
                 m_form.tearingWarning->setText(i18n("\"Only when cheap\" only prevents tearing for full screen changes like a video."));
                 m_form.tearingWarning->animatedShow();
-            } else if (index == 3) {
+            } else if (index == 2) {
                 // full screen repaints
                 m_form.tearingWarning->setText(i18n("\"Full screen repaints\" can cause performance problems."));
                 m_form.tearingWarning->animatedShow();
-            } else if (index == 4) {
+            } else if (index == 3) {
                 // re-use screen content
                 m_form.tearingWarning->setText(i18n("\"Re-use screen content\" causes severe performance problems on MESA drivers."));
                 m_form.tearingWarning->animatedShow();
@@ -211,6 +214,10 @@ void KWinCompositingKCM::updateUnmanagedItemStatus()
     if (!inPlasma) {
         defaulted &= animationDuration == m_settings->defaultAnimationDurationFactorValue();
     }
+
+    m_form.backend->setProperty("_kde_highlight_neutral", defaultsIndicatorsVisible() && (backend != m_settings->defaultBackendValue() || glCore != m_settings->defaultGlCoreValue()));
+    m_form.backend->update();
+
     unmanagedWidgetDefaultState(defaulted);
 }
 
@@ -288,7 +295,8 @@ void KWinCompositingKCM::save()
 }
 
 K_PLUGIN_FACTORY(KWinCompositingConfigFactory,
-                 registerPlugin<KWinCompositingKCM>("compositing");
+                 registerPlugin<KWinCompositingKCM>();
+                 registerPlugin<KWinCompositingData>();
                 )
 
 #include "main.moc"

@@ -9,7 +9,9 @@
 #ifndef KWIN_MAIN_WAYLAND_H
 #define KWIN_MAIN_WAYLAND_H
 #include "main.h"
+#include <KConfigWatcher>
 #include <QProcessEnvironment>
+#include <QTimer>
 
 namespace KWin
 {
@@ -54,7 +56,9 @@ private:
     void continueStartupWithScene();
     void finalizeStartup();
     void startSession() override;
-    void startInputMethod();
+    void startInputMethod(const QString &executable);
+    void refreshSettings(const KConfigGroup &group, const QByteArrayList &names);
+    void stopInputMethod();
 
     bool m_startXWayland = false;
     QStringList m_applicationsToStart;
@@ -62,7 +66,12 @@ private:
     QProcessEnvironment m_environment;
     QString m_sessionArgument;
 
+    QProcess *m_inputMethodProcess = nullptr;
+    QTimer m_inputMethodCrashTimer;
+    uint m_inputMethodCrashes = 0;
+
     Xwl::Xwayland *m_xwayland = nullptr;
+    KConfigWatcher::Ptr m_settingsWatcher;
 };
 
 }

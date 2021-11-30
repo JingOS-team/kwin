@@ -48,6 +48,7 @@
 #include <QWidget>
 
 #include "globalswipegestures.h"   // jing_kwin gesture
+#include "globalpinchgestures.h"   // jing_kwin gesture
 namespace KWin {
 
 // Mouse should not move more than this many pixels
@@ -66,6 +67,7 @@ Edge::Edge(ScreenEdges *parent)
     , m_client(nullptr)
     , m_gesture(new SwipeGesture(this))
     , m_globalSwipeGestures(new GlobalSwipeGestures(this))   // jing_kwin gesture
+    , m_globalPinchGestures(new GlobalPinchGestures(this))   // jing_kwin gesture
 {
     m_gesture->setMinimumFingerCount(1);
     m_gesture->setMaximumFingerCount(1);
@@ -237,6 +239,7 @@ bool Edge::triggersFor(const QPoint &cursorPos) const
 
 bool Edge::check(const QPoint &cursorPos, const QDateTime &triggerTime, bool forceNoPushBack)
 {
+    return false;
     if (!triggersFor(cursorPos)) {
         return false;
     }
@@ -251,6 +254,7 @@ bool Edge::check(const QPoint &cursorPos, const QDateTime &triggerTime, bool for
         handle(cursorPos);
         return true;
     } else {
+//        check casper_yang
 //        pushCursorBack(cursorPos);
 //        m_triggeredPoint = cursorPos;
     }
@@ -522,7 +526,9 @@ void Edge::setGeometry(const QRect &geometry)
         m_gesture->setMinimumDelta(screens()->size(screens()->number(m_geometry.center())) * 0.2);
     }
     // jing_kwin gesture
-    m_globalSwipeGestures->setScreenSize(screens()->size(screens()->number(m_geometry.center())));
+    if (!kwinApp()->platform()->isSetupMode()) {
+        m_globalSwipeGestures->setScreenSize(screens()->size(screens()->number(m_geometry.center())));
+    }
 }
 
 void Edge::checkBlocking()
@@ -559,8 +565,11 @@ void Edge::activate()
         m_edges->gestureRecognizer()->registerGesture(m_gesture);
     }
     // jing_kwin gesture
-    m_globalSwipeGestures->registerGestrure(ScreenEdges::self()->gestureRecognizer());
-    m_globalSwipeGestures->registerMotion();
+    if (!kwinApp()->platform()->isSetupMode()) {
+        m_globalSwipeGestures->registerGestrure(ScreenEdges::self()->gestureRecognizer());
+        m_globalSwipeGestures->registerMotion();
+        m_globalPinchGestures->registerGesture(ScreenEdges::self()->gestureRecognizer());
+    }
     doActivate();
 }
 

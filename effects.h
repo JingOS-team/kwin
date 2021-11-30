@@ -14,7 +14,7 @@
 #include "kwineffects.h"
 
 #include "scene.h"
-
+#include "utils.h"
 #include <QHash>
 #include <Plasma/FrameSvg>
 
@@ -80,6 +80,7 @@ public:
     void activateWindowWhithoutAnimation(EffectWindow* c) override;
     void activateWindow(EffectWindow* c) override;
     EffectWindow* activeWindow() const override;
+    EffectWindow* foregroundTopLevel() const override;
     void moveWindow(EffectWindow* w, const QPoint& pos, bool snap = false, double snapAdjust = 1.0) override;
     void windowToDesktop(EffectWindow* w, int desktop) override;
     void windowToScreen(EffectWindow* w, int screen) override;
@@ -126,6 +127,7 @@ public:
     EffectWindow *findWindow(const QUuid &id) const override;
     EffectWindowList stackingOrder() const override;
     void setElevatedWindow(KWin::EffectWindow* w, bool set) override;
+    void clearElevatedWindow() override;
 
     void setTabBoxWindow(EffectWindow*) override;
     void setTabBoxDesktop(int) override;
@@ -140,6 +142,8 @@ public:
     void setActiveFullScreenEffect(Effect* e) override;
     Effect* activeFullScreenEffect() const override;
     bool hasActiveFullScreenEffect() const override;
+
+    bool isSystemUI(EffectWindow* win) const override;
 
     void addRepaintFull() override;
     void addRepaint(const QRect& r) override;
@@ -158,6 +162,7 @@ public:
     double animationTimeFactor() const override;
     WindowQuadType newWindowQuadType() override;
 
+    bool tabletToolEvent(TabletEvent *event);
     bool pointerEvent(QMouseEvent *e);
     void defineCursor(Qt::CursorShape shape) override;
     bool checkInputWindowEvent(QMouseEvent *e);
@@ -187,6 +192,7 @@ public:
 
     QVariant kwinOption(KWinOption kwopt) override;
     bool isScreenLocked() const override;
+    bool showFloatBall() const override;
 
     bool makeOpenGLContextCurrent() override;
     void doneOpenGLContextCurrent() override;
@@ -207,6 +213,11 @@ public:
 
     QList<EffectWindow*> elevatedWindows() const;
     QStringList activeEffects() const;
+
+    /**
+     * @returns whether or not any effect is currently active where KWin should not use direct scanout
+     */
+    bool blocksDirectScanout() const;
 
     /**
      * @returns Whether we are currently in a desktop rendering process triggered by paintDesktop hook
@@ -246,6 +257,7 @@ public:
     bool touchDown(qint32 id, const QPointF &pos, quint32 time);
     bool touchMotion(qint32 id, const QPointF &pos, quint32 time);
     bool touchUp(qint32 id, quint32 time);
+    void touchCancel();
 
     void highlightWindows(const QVector<EffectWindow *> &windows);
 
@@ -265,7 +277,7 @@ public:
     Effect *findEffect(const QString &name) const;
 
     void renderEffectQuickView(EffectQuickView *effectQuickView) const override;
-    void renderTexture(GLTexture *texture, const QRegion &region, const QRect &rect);
+    void renderTexture(GLTexture *texture, const QRegion &region, const QRect &rect) override;
 
     SessionState sessionState() const override;
 
@@ -283,9 +295,19 @@ public:
 
     virtual qreal getAppDefaultScale() override;
 
+    void closeTask(bool animate = true) override;
     void toTriggerTask() override;
 
     bool isTopClientJingApp() override;
+
+    void killWindows(QList<EffectWindow *> windows) override;
+    void killWindow(EffectWindow *window) override;
+
+    QString getDisplayName() override;
+
+    bool isSetupMode() override;
+    
+    void changeDownloadWindowMode(int mode, int n) override;
 
 public Q_SLOTS:
     void slotCurrentTabAboutToChange(EffectWindow* from, EffectWindow* to);
@@ -394,6 +416,7 @@ public:
     bool isScaleApp() override;
     void enablePainting(int reason) override;
     void disablePainting(int reason) override;
+    void setShowIgnoreDisible(bool ignore) override;
     bool isPaintingEnabled() override;
 
     void addRepaint(const QRect &r) override;
@@ -418,6 +441,7 @@ public:
     int x() const override;
     int y() const override;
     int width() const override;
+    QRect taskGeometry() const override;
     int height() const override;
 
     QSize basicUnit() const override;
@@ -426,6 +450,7 @@ public:
     QRect bufferGeometry() const override;
 
     QString caption() const override;
+    QString title() const override;
 
     QRect expandedGeometry() const override;
     QRegion shape() const override;
@@ -442,7 +467,8 @@ public:
     QRect iconGeometry() const override;
 
     bool isDesktop() const override;
-    bool isDock() const override;
+    bool isWallPaper() const override;
+    bool isStatusBar() const override;
     bool isToolbar() const override;
     bool isMenu() const override;
     bool isNormalWindow() const override;
@@ -467,6 +493,8 @@ public:
     bool isModal() const override;
     bool isPopupWindow() const override;
     bool isOutline() const override;
+    int jingWindowType() const override;
+    int jingLayer() const override;
 
     qreal getAppScale() const override;
     const QRegion& opaqueRegion() const override;
@@ -505,6 +533,9 @@ public:
     void unminimize() override;
     void closeWindow() override;
 
+    void beginTaskMode() override;
+    void endTaskMode() override;
+
     void referencePreviousWindowPixmap() override;
     void unreferencePreviousWindowPixmap() override;
 
@@ -536,8 +567,15 @@ public:
     bool isBackApp() const override;
     void setIsBackApp(bool isBack) override;
     bool isTransient() const override;
+    bool hasParent() const override;
 
     bool isJingApp() override;
+
+    bool isSystemDialog() override;
+
+    QRegion fillBgRegion() override;
+    QColor fillBgColor() override;
+
 private Q_SLOTS:
     void thumbnailDestroyed(QObject *object);
     void thumbnailTargetChanged();

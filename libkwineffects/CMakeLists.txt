@@ -1,11 +1,13 @@
 ########### next target ###############
 include(ECMSetupVersion)
 
+include_directories(${KWin_SOURCE_DIR})
+
 ecm_setup_version(${PROJECT_VERSION}
                   VARIABLE_PREFIX KWINEFFECTS
                   VERSION_HEADER "${CMAKE_CURRENT_BINARY_DIR}/kwineffects_version.h"
                   PACKAGE_VERSION_FILE "${CMAKE_CURRENT_BINARY_DIR}/KWinEffectsConfigVersion.cmake"
-                  SOVERSION 12
+                  SOVERSION 13
 )
 
 ### xrenderutils lib ###
@@ -19,8 +21,8 @@ add_library(kwinxrenderutils SHARED ${kwin_XRENDERUTILS_SRCS})
 generate_export_header(kwinxrenderutils EXPORT_FILE_NAME kwinxrenderutils_export.h)
 target_link_libraries(kwinxrenderutils
     PUBLIC
-        Qt5::Core
-        Qt5::Gui
+        Qt::Core
+        Qt::Gui
 
         XCB::RENDER
         XCB::XCB
@@ -33,7 +35,7 @@ set_target_properties(kwinxrenderutils PROPERTIES
 )
 set_target_properties(kwinxrenderutils PROPERTIES OUTPUT_NAME ${KWIN_NAME}xrenderutils)
 
-install(TARGETS kwinxrenderutils EXPORT KWinEffectsTargets ${INSTALL_TARGETS_DEFAULT_ARGS})
+install(TARGETS kwinxrenderutils EXPORT KWinEffectsTargets ${KDE_INSTALL_TARGETS_DEFAULT_ARGS})
 
 ###  effects lib  ###
 set(kwin_EFFECTSLIB_SRCS
@@ -56,7 +58,7 @@ target_link_libraries(kwineffects
         XCB::XCB
         Plasma::KWaylandServer
     PRIVATE
-        Qt5::Quick
+        Qt::Quick
         KF5::Declarative
         kwinglutils
 )
@@ -69,7 +71,7 @@ set_target_properties(kwineffects PROPERTIES
 )
 set_target_properties(kwineffects PROPERTIES OUTPUT_NAME ${KWIN_NAME}effects)
 
-install(TARGETS kwineffects EXPORT KWinEffectsTargets ${INSTALL_TARGETS_DEFAULT_ARGS})
+install(TARGETS kwineffects EXPORT KWinEffectsTargets ${KDE_INSTALL_TARGETS_DEFAULT_ARGS})
 
 # kwingl(es)utils library
 set(kwin_GLUTILSLIB_SRCS
@@ -84,15 +86,14 @@ set(kwin_GLUTILSLIB_SRCS
 
 add_library(kwinglutils SHARED ${kwin_GLUTILSLIB_SRCS})
 generate_export_header(kwinglutils BASE_NAME kwinglutils EXPORT_FILE_NAME kwinglutils_export.h)
-target_include_directories(kwinglutils PUBLIC ${epoxy_INCLUDE_DIR})
-target_link_libraries(kwinglutils PUBLIC XCB::XCB KF5::CoreAddons KF5::ConfigCore KF5::WindowSystem ${epoxy_LIBRARY})
+target_link_libraries(kwinglutils PUBLIC XCB::XCB KF5::CoreAddons KF5::ConfigCore KF5::WindowSystem epoxy::epoxy)
 set_target_properties(kwinglutils PROPERTIES
     VERSION ${KWINEFFECTS_VERSION_STRING}
     SOVERSION ${KWINEFFECTS_SOVERSION}
     OUTPUT_NAME ${KWIN_NAME}glutils
 )
 
-install(TARGETS kwinglutils EXPORT KWinEffectsTargets ${INSTALL_TARGETS_DEFAULT_ARGS})
+install(TARGETS kwinglutils EXPORT KWinEffectsTargets ${KDE_INSTALL_TARGETS_DEFAULT_ARGS})
 
 install(FILES
     ${CMAKE_CURRENT_BINARY_DIR}/kwinconfig.h

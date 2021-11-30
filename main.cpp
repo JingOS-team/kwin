@@ -103,6 +103,7 @@ Application::Application(Application::OperationMode mode, int &argc, char **argv
     qRegisterMetaType<KWin::EffectWindow*>();
     qRegisterMetaType<KWaylandServer::SurfaceInterface *>("KWaylandServer::SurfaceInterface *");
     qRegisterMetaType<KSharedConfigPtr>();
+    qRegisterMetaType<std::chrono::nanoseconds>();
 }
 
 void Application::setConfigLock(bool lock)
@@ -272,10 +273,14 @@ void Application::createWorkspace()
     emit workspaceCreated();
 }
 
+void Application::createSession()
+{
+    LogindIntegration::create(this);
+}
+
 void Application::createInput()
 {
     ScreenLockerWatcher::create(this);
-    LogindIntegration::create(this);
     auto input = InputRedirection::create(this);
     input->init();
     m_platform->createPlatformCursor(this);

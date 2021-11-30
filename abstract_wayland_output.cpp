@@ -118,6 +118,7 @@ qreal AbstractWaylandOutput::scale() const
 
 void AbstractWaylandOutput::setScale(qreal scale)
 {
+    scale = 1.0;
 //    auto config = KSharedConfig::openConfig(QStringLiteral("kwindisplayrc"))->group("Display");
 //    qreal defaultScale = config.readEntry("scaleDefault", -1);
 //    if (defaultScale > 0) {
@@ -193,9 +194,8 @@ void AbstractWaylandOutput::applyChanges(const KWaylandServer::OutputChangeSet *
     // Enablement changes are handled by platform.
     if (changeSet->modeChanged()) {
         qCDebug(KWIN_CORE) << "Setting new mode:" << changeSet->mode();
-        int modeId = updateMode(changeSet->mode());
-        m_waylandOutputDevice->setCurrentMode(modeId);
-        setWaylandMode();
+        m_waylandOutputDevice->setCurrentMode(changeSet->mode());
+        updateMode(changeSet->mode());
         emitModeChanged = true;
     }
     if (changeSet->transformChanged()) {
@@ -249,6 +249,8 @@ void AbstractWaylandOutput::setEnabled(bool enable)
         // xdg-output is destroyed in KWayland on wl_output going away.
         updateEnablement(false);
     }
+
+    emit enabledChanged();
 }
 
 QString AbstractWaylandOutput::description() const
@@ -260,6 +262,7 @@ QString AbstractWaylandOutput::description() const
 void AbstractWaylandOutput::setWaylandMode(const QSize &size, int refreshRate)
 {
     m_waylandOutput->setCurrentMode(size, refreshRate);
+    m_waylandOutputDevice->setCurrentMode(size, refreshRate);
     m_xdgOutputV1->setLogicalSize(pixelSize() / scale());
     m_xdgOutputV1->done();
 }
@@ -271,10 +274,10 @@ void AbstractWaylandOutput::initInterfaces(const QString &model, const QString &
 {
     m_waylandOutputDevice->setUuid(uuid);
 
-    if (!manufacturer.isEmpty()) {
-        m_waylandOutputDevice->setManufacturer(manufacturer);
-    } else {
+    if (manufacturer.isEmpty()) {
         m_waylandOutputDevice->setManufacturer(i18n("unknown"));
+    } else {
+        m_waylandOutputDevice->setManufacturer(manufacturer);
     }
     m_waylandOutputDevice->setEdid(edid);
 
@@ -379,7 +382,20 @@ QMatrix4x4 AbstractWaylandOutput::logicalToNativeMatrix(const QRect &rect, qreal
 
     return matrix;
 }
+void AbstractWaylandOutput::recordingStarted()
+{
+    m_recorders++;
+}
 
+void AbstractWaylandOutput::recordingStopped()
+{
+    m_recorders--;
+}
+
+bool AbstractWaylandOutput::isBeingRecorded()
+{
+    return m_recorders;
+}
 // casper_yang for scale
 void AbstractWaylandOutput::setClientScale(wl_client *client, qreal scale)
 {

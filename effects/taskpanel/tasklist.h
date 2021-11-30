@@ -31,6 +31,7 @@ public:
         _curPos = item._curPos;
         _srcPos = item._srcPos;
         _destPos = item._destPos;
+        _windowPosTranslate = item._windowPosTranslate;
 
         _oriScale = item._oriScale ;
         _curScale = item._curScale ;
@@ -45,6 +46,8 @@ public:
         _isScaleAnimating = item._isScaleAnimating;
         _isOpacityAnimating = item._isOpacityAnimating;
         _isToClose = item._isToClose;
+
+        _itemScale = item._itemScale;
     }
 
     EffectWindow *w = nullptr;
@@ -52,6 +55,7 @@ public:
     QPointF _curPos = QPointF(0., 0.);
     QPointF _srcPos = QPointF(0., 0.);
     QPointF _destPos = QPointF(0., 0.);
+    QPointF _windowPosTranslate = QPointF(0., 0.);
 
     QSizeF _oriScale = QSizeF(1., 1.);
     QSizeF _curScale = QSizeF(1., 1.);
@@ -66,6 +70,19 @@ public:
     bool _isScaleAnimating = false;
     bool _isOpacityAnimating = false;
     bool _isToClose = false;
+
+    qreal _itemScale = 1.;
+    qreal windowPosX() {
+        return _curPos.x() + _windowPosTranslate.x() * _curScale.width();
+    }
+
+    qreal windowPosY() {
+        return _curPos.y() + _windowPosTranslate.y() * _curScale.height();
+    }
+
+    QPointF windowPos() {
+        return _curPos + _windowPosTranslate;
+    }
 };
 
 class TaskList : public QObject
@@ -105,7 +122,7 @@ public:
     void addWindowToGrid(EffectWindow* w);
     void removeWindowFromGrid(EffectWindow* w);
 
-    void hideList(EffectWindow* curWindow);
+    void hideList(EffectWindow* curWindow, bool animate = true);
     void showList(qreal x, qreal y, EffectWindow* curWindow);
 
     void moveItem(QSizeF size, EffectWindow* window);
@@ -123,38 +140,48 @@ public:
     QHash<EffectWindow*, WindowItem*> getItems();
 
     void clear();
+    void deleteAllData();
     bool isManageWindow(EffectWindow* w);
     bool isRemoving(EffectWindow* w);
     WindowItem* getWindowItem(EffectWindow* w);
     WindowItem* getRemoveWindowItem(EffectWindow *w);
 
-    void updateTime(std::chrono::milliseconds presentTime);
+    void updateTime(std::chrono::milliseconds presentTime, bool toFinish = false);
 
-    bool isAnimating() {
-        return _isAnimating;
+    bool isAnimating() const{
+        return _isAnimating  || _waitForNextAnimate;
     }
 
-    bool hasSetup() {
+    bool hasSetup() const{
         return _hasSetup;
     }
 
-    QSizeF pageSize() {
+    QSizeF pageSize() const{
         return _pageSize;
     }
 
-    int itemsCount() {
+    int itemsCount() const{
         return _items.size();
     }
 
-    bool isResetingGrid() {
+    bool isResetingGrid() const{
         return _resetingGride;
     }
 
-    bool isSliding() {
+    bool isSliding() const{
         return _isSliding;
+    }
+
+    bool isEmpty() const {
+        return _items.isEmpty();
+    }
+
+    QSizeF itemSize() const {
+        return _itemSize;
     }
 Q_SIGNALS:
     void isAnimatingChanged(bool, qreal);
+    void itemsChanged();
 
 private:
     qreal pageHeight(EffectWindow* w);
@@ -165,6 +192,8 @@ private:
     void resetSpeadLine(int time);
 
 private:
+    QSizeF _itemSize = QSizeF(0, 0);
+    int _beginOrEndMargin = 15;
     int _hM = 10;
     int _vM = 10;
     bool _waitForNextAnimate = false;

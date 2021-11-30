@@ -122,7 +122,6 @@ bool Unmanaged::hasScheduledRelease() const
 QRect Unmanaged::bufferGeometry() const
 {
     return m_frameGeometry;
-    // return QRect(QPoint(m_frameGeometry.topLeft()), m_frameGeometry);
 }
 
 int Unmanaged::desktop() const
@@ -190,6 +189,11 @@ bool Unmanaged::setupCompositing()
     addDamageFull();
 
     return true;
+}
+
+bool Unmanaged::visible() const
+{
+    return m_visible;
 }
 
 } // namespace

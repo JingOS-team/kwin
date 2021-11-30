@@ -69,10 +69,7 @@ void SwitchWindows::prePaintWindow(EffectWindow *w, WindowPrePaintData &data, st
 void SwitchWindows::paintWindow(EffectWindow *w, int mask, QRegion region, WindowPaintData &data)
 {
     for (int screen = 0; screen < effects->numScreens(); screen++) {
-        QRect screenGeom = effects->clientArea(ScreenArea, screen, 0);
-
         if ((!w->isDesktop() && _manager.isManaging(w))) {
-            QRectF transformedGeo = w->geometry();
             // Display all quads on the same screen on the same pass
             WindowQuadList screenQuads;
             foreach (const WindowQuad & quad, data.quads)
@@ -84,7 +81,7 @@ void SwitchWindows::paintWindow(EffectWindow *w, int mask, QRegion region, Windo
             WindowPaintData d = data;
             d.quads = screenQuads;
 
-            if (w->isDock()) {
+            if (w->isStatusBar()) {
                 if (_manager.isManaging(OPACITY_WIN_ID)) {
                     Motions *opacityMotions = _manager.motions(OPACITY_WIN_ID);
                     d.multiplyOpacity(opacityMotions->getCurOpacity());
@@ -100,7 +97,7 @@ void SwitchWindows::paintWindow(EffectWindow *w, int mask, QRegion region, Windo
                 d += QPoint(qRound(newPos.x() - w->x()), qRound(newPos.y() - w->y()));
             }
             effects->paintWindow(w, mask, effects->clientArea(ScreenArea, screen, 0), d);
-        } else if (w->isDesktop() || w == effects->activeWindow() || w->isDock()) {
+        } else if (w->isDesktop() || w == effects->activeWindow() || w->isStatusBar()) {
             effects->paintWindow(w, mask, region, data);
         }
     }
@@ -353,6 +350,7 @@ void SwitchWindows::slotShowingDesktopChanged(bool show)
 
 void SwitchWindows::slotWindowAdded(EffectWindow *w)
 {
+    Q_UNUSED(w);
     init();
 }
 

@@ -9,6 +9,11 @@
 #include "egl_hwcomposer_backend.h"
 #include "hwcomposer_backend.h"
 #include "logging.h"
+#include "screens.h"
+
+// kwin libs
+#include <kwinglplatform.h>
+#include <kwineglimagetexture.h>
 
 namespace KWin
 {
@@ -19,14 +24,13 @@ EglHwcomposerBackend::EglHwcomposerBackend(HwcomposerBackend *backend)
 {
     // EGL is always direct rendering
     setIsDirectRendering(true);
-    setSyncsToVBlank(true);
+    setSupportsNativeFence(true);
 }
 
 EglHwcomposerBackend::~EglHwcomposerBackend()
 {
     cleanup();
 }
-
 bool EglHwcomposerBackend::initializeEgl()
 {
     // cannot use initClientExtensions as that crashes in libhybris
@@ -124,47 +128,36 @@ bool EglHwcomposerBackend::makeContextCurrent()
 
     return true;
 }
-
-void EglHwcomposerBackend::present()
-{
-    if (lastDamage().isEmpty()) {
-        return;
-    }
-
-    eglSwapBuffers(eglDisplay(), surface());
-    setLastDamage(QRegion());
-}
-
 void EglHwcomposerBackend::screenGeometryChanged(const QSize &size)
 {
     Q_UNUSED(size)
 }
-
 QRegion EglHwcomposerBackend::beginFrame(int screenId)
 {
-    Q_UNUSED(screenId)
-    present();
-
-    // TODO: buffer age?
-    // triggers always a full repaint
-    return QRegion(QRect(QPoint(0, 0), m_backend->size()));
+#if HAVE_PERFETTO
+    qDebug() << "[PERFETTO]"<<"makeContextCurrent start";
+#endif
+    makeContextCurrent();
+#if HAVE_PERFETTO
+    qDebug() << "[PERFETTO]"<<"makeContextCurrent end";
+#endif
+    return accumulatedDamageHistory(0);
 }
-
 void EglHwcomposerBackend::endFrame(int screenId, const QRegion &renderedRegion, const QRegion &damagedRegion)
 {
-    Q_UNUSED(screenId)
+#if HAVE_PERFETTO
+    qDebug() << "[PERFETTO]"<<"endFrame start";
+#endif
     Q_UNUSED(damagedRegion)
-    setLastDamage(renderedRegion);
+    eglSwapBuffers(eglDisplay(), surface());
+#if HAVE_PERFETTO
+    qDebug() << "[PERFETTO]"<<"endFrame end";
+#endif
+    addToDamageHistory(renderedRegion);
 }
-
 SceneOpenGLTexturePrivate *EglHwcomposerBackend::createBackendTexture(SceneOpenGLTexture *texture)
 {
     return new EglHwcomposerTexture(texture, this);
-}
-
-bool EglHwcomposerBackend::usesOverlayWindow() const
-{
-    return false;
 }
 
 EglHwcomposerTexture::EglHwcomposerTexture(SceneOpenGLTexture *texture, EglHwcomposerBackend *backend)
@@ -173,5 +166,4 @@ EglHwcomposerTexture::EglHwcomposerTexture(SceneOpenGLTexture *texture, EglHwcom
 }
 
 EglHwcomposerTexture::~EglHwcomposerTexture() = default;
-
 }

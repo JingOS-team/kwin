@@ -13,13 +13,19 @@
 
 // own
 #include "glxbackend.h"
+#include "glxconvenience.h"
 #include "logging.h"
 #include "glx_context_attribute_builder.h"
+#include "omlsynccontrolvsyncmonitor.h"
+#include "sgivideosyncvsyncmonitor.h"
+#include "softwarevsyncmonitor.h"
+#include "x11_platform.h"
 // kwin
 #include "options.h"
 #include "overlaywindow.h"
 #include "composite.h"
 #include "platform.h"
+#include "renderloop_p.h"
 #include "scene.h"
 #include "screens.h"
 #include "xcbutils.h"
@@ -73,26 +79,23 @@ SwapEventFilter::SwapEventFilter(xcb_drawable_t drawable, xcb_glx_drawable_t glx
 
 bool SwapEventFilter::event(xcb_generic_event_t *event)
 {
-    xcb_glx_buffer_swap_complete_event_t *ev =
+    const xcb_glx_buffer_swap_complete_event_t *swapEvent =
             reinterpret_cast<xcb_glx_buffer_swap_complete_event_t *>(event);
-
-    // The drawable field is the X drawable when the event was synthesized
-    // by a WireToEvent handler, and the GLX drawable when the event was
-    // received over the wire
-    if (ev->drawable == m_drawable || ev->drawable == m_glxDrawable) {
-        Compositor::self()->bufferSwapComplete();
-        return true;
+    if (swapEvent->drawable != m_drawable && swapEvent->drawable != m_glxDrawable) {
+        return false;
     }
 
-    return false;
+    // The clock for the UST timestamp is left unspecified in the spec, however, usually,
+    // it's CLOCK_MONOTONIC, so no special conversions are needed.
+    const std::chrono::microseconds timestamp((uint64_t(swapEvent->ust_hi) << 32) | swapEvent->ust_lo);
+
+    RenderLoopPrivate *renderLoopPrivate = RenderLoopPrivate::get(kwinApp()->platform()->renderLoop());
+    renderLoopPrivate->notifyFrameCompleted(timestamp);
+
+    return true;
 }
 
-
-// -----------------------------------------------------------------------
-
-
-
-GlxBackend::GlxBackend(Display *display)
+GlxBackend::GlxBackend(Display *display, X11StandalonePlatform *backend)
     : OpenGLBackend()
     , m_overlayWindow(kwinApp()->platform()->createOverlayWindow())
     , window(None)
@@ -100,25 +103,24 @@ GlxBackend::GlxBackend(Display *display)
     , glxWindow(None)
     , ctx(nullptr)
     , m_bufferAge(0)
-    , haveSwapInterval(false)
     , m_x11Display(display)
+    , m_backend(backend)
 {
-     // Ensures calls to glXSwapBuffers will always block until the next
-     // retrace when using the proprietary NVIDIA driver. This must be
-     // set before libGL.so is loaded.
-     setenv("__GL_MaxFramesAllowed", "1", true);
-
      // Force initialization of GLX integration in the Qt's xcb backend
      // to make it call XESetWireToEvent callbacks, which is required
      // by Mesa when using DRI2.
      QOpenGLContext::supportsThreadedOpenGL();
 }
 
-static bool gs_tripleBufferUndetected = true;
-static bool gs_tripleBufferNeedsDetection = false;
-
 GlxBackend::~GlxBackend()
 {
+    delete m_vsyncMonitor;
+
+    // No completion events will be received for in-flight frames, this may lock the
+    // render loop. We need to ensure that the render loop is back to its initial state
+    // if the render backend is about to be destroyed.
+    RenderLoopPrivate::get(kwinApp()->platform()->renderLoop())->invalidate();
+
     if (isFailed()) {
         m_overlayWindow->destroy();
     }
@@ -127,9 +129,6 @@ GlxBackend::~GlxBackend()
     cleanupGL();
     doneCurrent();
     EffectQuickView::setShareContext(nullptr);
-
-    gs_tripleBufferUndetected = true;
-    gs_tripleBufferNeedsDetection = false;
 
     if (ctx)
         glXDestroyContext(display(), ctx);
@@ -201,21 +200,16 @@ void GlxBackend::init()
     glPlatform->printResults();
     initGL(&getProcAddress);
 
+    const bool swapEventSwitch = qEnvironmentVariableIntValue("KWIN_USE_INTEL_SWAP_EVENT");
+
     // Check whether certain features are supported
     m_haveMESACopySubBuffer = hasExtension(QByteArrayLiteral("GLX_MESA_copy_sub_buffer"));
     m_haveMESASwapControl   = hasExtension(QByteArrayLiteral("GLX_MESA_swap_control"));
     m_haveEXTSwapControl    = hasExtension(QByteArrayLiteral("GLX_EXT_swap_control"));
     m_haveSGISwapControl    = hasExtension(QByteArrayLiteral("GLX_SGI_swap_control"));
-    // only enable Intel swap event if env variable is set, see BUG 342582
-    m_haveINTELSwapEvent    = hasExtension(QByteArrayLiteral("GLX_INTEL_swap_event"))
-                                && qgetenv("KWIN_USE_INTEL_SWAP_EVENT") == QByteArrayLiteral("1");
+    m_haveINTELSwapEvent    = hasExtension(QByteArrayLiteral("GLX_INTEL_swap_event")) && swapEventSwitch;
 
-    if (m_haveINTELSwapEvent) {
-        m_swapEventFilter = std::make_unique<SwapEventFilter>(window, glxWindow);
-        glXSelectEvent(display(), glxWindow, GLX_BUFFER_SWAP_COMPLETE_INTEL_MASK);
-    }
-
-    haveSwapInterval = m_haveMESASwapControl || m_haveEXTSwapControl || m_haveSGISwapControl;
+    bool haveSwapInterval = m_haveMESASwapControl || m_haveEXTSwapControl || m_haveSGISwapControl;
 
     setSupportsBufferAge(false);
 
@@ -226,41 +220,63 @@ void GlxBackend::init()
             setSupportsBufferAge(true);
     }
 
-    setSyncsToVBlank(false);
-    setBlocksForRetrace(false);
-    haveWaitSync = false;
-    gs_tripleBufferNeedsDetection = false;
-    m_swapProfiler.init();
-    const bool wantSync = options->glPreferBufferSwap() != Options::NoSwapEncourage;
-    if (wantSync && glXIsDirect(display(), ctx)) {
-        if (haveSwapInterval) { // glXSwapInterval is preferred being more reliable
-            setSwapInterval(1);
-            setSyncsToVBlank(true);
-            const QByteArray tripleBuffer = qgetenv("KWIN_TRIPLE_BUFFER");
-            if (!tripleBuffer.isEmpty()) {
-                setBlocksForRetrace(qstrcmp(tripleBuffer, "0") == 0);
-                gs_tripleBufferUndetected = false;
-            }
-            gs_tripleBufferNeedsDetection = gs_tripleBufferUndetected;
-        } else if (hasExtension(QByteArrayLiteral("GLX_SGI_video_sync"))) {
-            unsigned int sync;
-            if (glXGetVideoSyncSGI(&sync) == 0 && glXWaitVideoSyncSGI(1, 0, &sync) == 0) {
-                setSyncsToVBlank(true);
-                setBlocksForRetrace(true);
-                haveWaitSync = true;
-            } else
-                qCWarning(KWIN_X11STANDALONE) << "NO VSYNC! glXSwapInterval is not supported, glXWaitVideoSync is supported but broken";
-        } else
-            qCWarning(KWIN_X11STANDALONE) << "NO VSYNC! neither glSwapInterval nor glXWaitVideoSync are supported";
-    } else {
-        // disable v-sync (if possible)
-        setSwapInterval(0);
+    // If the buffer age extension is unsupported, glXSwapBuffers() is not guaranteed to
+    // be called. Therefore, there is no point for creating the swap event filter.
+    if (!supportsBufferAge()) {
+        m_haveINTELSwapEvent = false;
     }
+
+    // Don't use swap events on Intel. The issue with Intel GPUs is that they are not as
+    // powerful as discrete GPUs. Therefore, it's better to push frames as often as vblank
+    // notifications are received. This, however, may increase latency. If the swap events
+    // are enabled explicitly by setting the environment variable, honor that choice.
+    if (glPlatform->isIntel()) {
+        if (!swapEventSwitch) {
+            m_haveINTELSwapEvent = false;
+        }
+    }
+
+    if (haveSwapInterval) {
+        setSwapInterval(1);
+    } else {
+        qCWarning(KWIN_X11STANDALONE) << "glSwapInterval is unsupported";
+    }
+
     if (glPlatform->isVirtualBox()) {
         // VirtualBox does not support glxQueryDrawable
         // this should actually be in kwinglutils_funcs, but QueryDrawable seems not to be provided by an extension
         // and the GLPlatform has not been initialized at the moment when initGLX() is called.
         glXQueryDrawable = nullptr;
+    }
+
+    if (m_haveINTELSwapEvent) {
+        // Nice, the GLX_INTEL_swap_event extension is available. We are going to receive
+        // the presentation timestamp (UST) after glXSwapBuffers() via the X command stream.
+        m_swapEventFilter = std::make_unique<SwapEventFilter>(window, glxWindow);
+        glXSelectEvent(display(), glxWindow, GLX_BUFFER_SWAP_COMPLETE_INTEL_MASK);
+    } else {
+        // If the GLX_INTEL_swap_event extension is unavailble, we are going to wait for
+        // the next vblank event after swapping buffers. This is a bit racy solution, e.g.
+        // the vblank may occur right in between querying video sync counter and the act
+        // of swapping buffers, but on the other hand, there is no any better alternative
+        // option. NVIDIA doesn't provide any extension such as GLX_INTEL_swap_event.
+        if (!m_vsyncMonitor) {
+            m_vsyncMonitor = SGIVideoSyncVsyncMonitor::create(this);
+        }
+        if (!m_vsyncMonitor) {
+            m_vsyncMonitor = OMLSyncControlVsyncMonitor::create(this);
+        }
+        if (!m_vsyncMonitor) {
+            SoftwareVsyncMonitor *monitor = SoftwareVsyncMonitor::create(this);
+            RenderLoop *renderLoop = m_backend->renderLoop();
+            monitor->setRefreshRate(renderLoop->refreshRate());
+            connect(renderLoop, &RenderLoop::refreshRateChanged, this, [this, monitor]() {
+                monitor->setRefreshRate(m_backend->renderLoop()->refreshRate());
+            });
+            m_vsyncMonitor = monitor;
+        }
+
+        connect(m_vsyncMonitor, &VsyncMonitor::vblankOccurred, this, &GlxBackend::vblank);
     }
 
     setIsDirectRendering(bool(glXIsDirect(display(), ctx)));
@@ -436,71 +452,32 @@ bool GlxBackend::initFbConfig()
         }
     }
 
-    // Try to find a double buffered sRGB capable configuration
-    int count = 0;
-    GLXFBConfig *configs = nullptr;
-
     // Don't request an sRGB configuration with LLVMpipe when the default depth is 16. See bug #408594.
     if (!llvmpipe || Xcb::defaultDepth() > 16) {
-        configs = glXChooseFBConfig(display(), DefaultScreen(display()), attribs_srgb, &count);
+        fbconfig = chooseGlxFbConfig(display(), attribs_srgb);
     }
-
-    if (count == 0) {
-        // Try to find a double buffered non-sRGB capable configuration
-        configs = glXChooseFBConfig(display(), DefaultScreen(display()), attribs, &count);
-    }
-
-    struct FBConfig {
-        GLXFBConfig config;
-        int depth;
-        int stencil;
-    };
-
-    std::deque<FBConfig> candidates;
-
-    for (int i = 0; i < count; i++) {
-        int depth, stencil;
-        glXGetFBConfigAttrib(display(), configs[i], GLX_DEPTH_SIZE,   &depth);
-        glXGetFBConfigAttrib(display(), configs[i], GLX_STENCIL_SIZE, &stencil);
-
-        candidates.emplace_back(FBConfig{configs[i], depth, stencil});
-    }
-
-    if (count > 0)
-        XFree(configs);
-
-    std::stable_sort(candidates.begin(), candidates.end(), [](const FBConfig &left, const FBConfig &right) {
-        if (left.depth < right.depth)
-            return true;
-
-        if (left.stencil < right.stencil)
-            return true;
-
-        return false;
-    });
-
-    if (candidates.size() > 0) {
-        fbconfig = candidates.front().config;
-
-        int fbconfig_id, visual_id, red, green, blue, alpha, depth, stencil, srgb;
-        glXGetFBConfigAttrib(display(), fbconfig, GLX_FBCONFIG_ID,  &fbconfig_id);
-        glXGetFBConfigAttrib(display(), fbconfig, GLX_VISUAL_ID,    &visual_id);
-        glXGetFBConfigAttrib(display(), fbconfig, GLX_RED_SIZE,     &red);
-        glXGetFBConfigAttrib(display(), fbconfig, GLX_GREEN_SIZE,   &green);
-        glXGetFBConfigAttrib(display(), fbconfig, GLX_BLUE_SIZE,    &blue);
-        glXGetFBConfigAttrib(display(), fbconfig, GLX_ALPHA_SIZE,   &alpha);
-        glXGetFBConfigAttrib(display(), fbconfig, GLX_DEPTH_SIZE,   &depth);
-        glXGetFBConfigAttrib(display(), fbconfig, GLX_STENCIL_SIZE, &stencil);
-        glXGetFBConfigAttrib(display(), fbconfig, GLX_FRAMEBUFFER_SRGB_CAPABLE_ARB, &srgb);
-
-        qCDebug(KWIN_X11STANDALONE, "Choosing GLXFBConfig %#x X visual %#x depth %d RGBA %d:%d:%d:%d ZS %d:%d sRGB: %d",
-                fbconfig_id, visual_id, visualDepth(visual_id), red, green, blue, alpha, depth, stencil, srgb);
+    if (!fbconfig) {
+        fbconfig = chooseGlxFbConfig(display(), attribs);
     }
 
     if (fbconfig == nullptr) {
         qCCritical(KWIN_X11STANDALONE) << "Failed to find a usable framebuffer configuration";
         return false;
     }
+
+    int fbconfig_id, visual_id, red, green, blue, alpha, depth, stencil, srgb;
+    glXGetFBConfigAttrib(display(), fbconfig, GLX_FBCONFIG_ID,  &fbconfig_id);
+    glXGetFBConfigAttrib(display(), fbconfig, GLX_VISUAL_ID,    &visual_id);
+    glXGetFBConfigAttrib(display(), fbconfig, GLX_RED_SIZE,     &red);
+    glXGetFBConfigAttrib(display(), fbconfig, GLX_GREEN_SIZE,   &green);
+    glXGetFBConfigAttrib(display(), fbconfig, GLX_BLUE_SIZE,    &blue);
+    glXGetFBConfigAttrib(display(), fbconfig, GLX_ALPHA_SIZE,   &alpha);
+    glXGetFBConfigAttrib(display(), fbconfig, GLX_DEPTH_SIZE,   &depth);
+    glXGetFBConfigAttrib(display(), fbconfig, GLX_STENCIL_SIZE, &stencil);
+    glXGetFBConfigAttrib(display(), fbconfig, GLX_FRAMEBUFFER_SRGB_CAPABLE_ARB, &srgb);
+
+    qCDebug(KWIN_X11STANDALONE, "Choosing GLXFBConfig %#x X visual %#x depth %d RGBA %d:%d:%d:%d ZS %d:%d sRGB: %d",
+            fbconfig_id, visual_id, visualDepth(visual_id), red, green, blue, alpha, depth, stencil, srgb);
 
     return true;
 }
@@ -692,69 +669,29 @@ void GlxBackend::setSwapInterval(int interval)
         glXSwapIntervalSGI(interval);
 }
 
-void GlxBackend::waitSync()
+void GlxBackend::present(const QRegion &damage)
 {
-    // NOTE that vsync has no effect with indirect rendering
-    if (haveWaitSync) {
-        uint sync;
-#if 0
-        // TODO: why precisely is this important?
-        // the sync counter /can/ perform multiple steps during glXGetVideoSync & glXWaitVideoSync
-        // but this only leads to waiting for two frames??!?
-        glXGetVideoSync(&sync);
-        glXWaitVideoSync(2, (sync + 1) % 2, &sync);
-#else
-        glXWaitVideoSyncSGI(1, 0, &sync);
-#endif
-    }
-}
-
-void GlxBackend::present()
-{
-    if (lastDamage().isEmpty())
-        return;
-
     const QSize &screenSize = screens()->size();
     const QRegion displayRegion(0, 0, screenSize.width(), screenSize.height());
-    const bool fullRepaint = supportsBufferAge() || (lastDamage() == displayRegion);
+    const bool fullRepaint = supportsBufferAge() || (damage == displayRegion);
 
     if (fullRepaint) {
-        if (m_haveINTELSwapEvent)
-            Compositor::self()->aboutToSwapBuffers();
-
-        if (haveSwapInterval) {
-            if (gs_tripleBufferNeedsDetection) {
-                glXWaitGL();
-                m_swapProfiler.begin();
-            }
-            glXSwapBuffers(display(), glxWindow);
-            if (gs_tripleBufferNeedsDetection) {
-                glXWaitGL();
-                if (char result = m_swapProfiler.end()) {
-                    gs_tripleBufferUndetected = gs_tripleBufferNeedsDetection = false;
-                    setBlocksForRetrace(result == 'd');
-                }
-            }
-        } else {
-            waitSync();
-            glXSwapBuffers(display(), glxWindow);
-        }
+        glXSwapBuffers(display(), glxWindow);
         if (supportsBufferAge()) {
             glXQueryDrawable(display(), glxWindow, GLX_BACK_BUFFER_AGE_EXT, (GLuint *) &m_bufferAge);
         }
     } else if (m_haveMESACopySubBuffer) {
-        for (const QRect &r : lastDamage()) {
+        for (const QRect &r : damage) {
             // convert to OpenGL coordinates
             int y = screenSize.height() - r.y() - r.height();
             glXCopySubBufferMESA(display(), glxWindow, r.x(), y, r.width(), r.height());
         }
     } else { // Copy Pixels (horribly slow on Mesa)
         glDrawBuffer(GL_FRONT);
-        copyPixels(lastDamage());
+        copyPixels(damage);
         glDrawBuffer(GL_BACK);
     }
 
-    setLastDamage(QRegion());
     if (!supportsBufferAge()) {
         glXWaitGL();
         XFlush(display());
@@ -784,19 +721,9 @@ SceneOpenGLTexturePrivate *GlxBackend::createBackendTexture(SceneOpenGLTexture *
 QRegion GlxBackend::beginFrame(int screenId)
 {
     Q_UNUSED(screenId)
+
     QRegion repaint;
-
-    if (gs_tripleBufferNeedsDetection) {
-        // the composite timer floors the repaint frequency. This can pollute our triple buffering
-        // detection because the glXSwapBuffers call for the new frame has to wait until the pending
-        // one scanned out.
-        // So we compensate for that by waiting an extra milisecond to give the driver the chance to
-        // fllush the buffer queue
-        usleep(1000);
-    }
-
     makeCurrent();
-    present();
 
     if (supportsBufferAge())
         repaint = accumulatedDamageHistory(m_bufferAge);
@@ -810,34 +737,13 @@ void GlxBackend::endFrame(int screenId, const QRegion &renderedRegion, const QRe
 {
     Q_UNUSED(screenId)
 
-    if (damagedRegion.isEmpty()) {
-        setLastDamage(QRegion());
-
-        // If the damaged region of a window is fully occluded, the only
-        // rendering done, if any, will have been to repair a reused back
-        // buffer, making it identical to the front buffer.
-        //
-        // In this case we won't post the back buffer. Instead we'll just
-        // set the buffer age to 1, so the repaired regions won't be
-        // rendered again in the next frame.
-        if (!renderedRegion.isEmpty())
-            glFlush();
-
-        m_bufferAge = 1;
-        return;
+    // If the GLX_INTEL_swap_event extension is not used for getting presentation feedback,
+    // assume that the frame will be presented at the next vblank event, this is racy.
+    if (m_vsyncMonitor) {
+        m_vsyncMonitor->arm();
     }
 
-    setLastDamage(renderedRegion);
-
-    if (!blocksForRetrace()) {
-        // This also sets lastDamage to empty which prevents the frame from
-        // being posted again when prepareRenderingFrame() is called.
-        present();
-    } else {
-        // Make sure that the GPU begins processing the command stream
-        // now and not the next time prepareRenderingFrame() is called.
-        glFlush();
-    }
+    present(renderedRegion);
 
     if (overlayWindow()->window())  // show the window only after the first pass,
         overlayWindow()->show();   // since that pass may take long
@@ -845,6 +751,12 @@ void GlxBackend::endFrame(int screenId, const QRegion &renderedRegion, const QRe
     // Save the damaged region to history
     if (supportsBufferAge())
         addToDamageHistory(damagedRegion);
+}
+
+void GlxBackend::vblank(std::chrono::nanoseconds timestamp)
+{
+    RenderLoopPrivate *renderLoopPrivate = RenderLoopPrivate::get(m_backend->renderLoop());
+    renderLoopPrivate->notifyFrameCompleted(timestamp);
 }
 
 bool GlxBackend::makeCurrent()
@@ -865,11 +777,6 @@ void GlxBackend::doneCurrent()
 OverlayWindow* GlxBackend::overlayWindow() const
 {
     return m_overlayWindow;
-}
-
-bool GlxBackend::usesOverlayWindow() const
-{
-    return true;
 }
 
 /********************************************************

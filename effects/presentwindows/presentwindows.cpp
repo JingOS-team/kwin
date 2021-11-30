@@ -62,25 +62,26 @@ PresentWindowsEffect::PresentWindowsEffect()
     announceSupportProperties();
     connect(effects, &EffectsHandler::xcbConnectionChanged, this, announceSupportProperties);
 
-//    QAction* exposeAction = m_exposeAction;
-//    exposeAction->setObjectName(QStringLiteral("Expose"));
-//    exposeAction->setText(i18n("Toggle Present Windows (Current desktop)"));
-//    KGlobalAccel::self()->setDefaultShortcut(exposeAction, QList<QKeySequence>() << Qt::CTRL + Qt::Key_F9);
-//    KGlobalAccel::self()->setShortcut(exposeAction, QList<QKeySequence>() << Qt::CTRL + Qt::Key_F9);
-//    shortcut = KGlobalAccel::self()->shortcut(exposeAction);
-//    effects->registerGlobalShortcut(Qt::CTRL + Qt::Key_F9, exposeAction);
-//    connect(exposeAction, &QAction::triggered, this, &PresentWindowsEffect::toggleActive);
+/*
+    QAction* exposeAction = m_exposeAction;
+    exposeAction->setObjectName(QStringLiteral("Expose"));
+    exposeAction->setText(i18n("Toggle Present Windows (Current desktop)"));
+    KGlobalAccel::self()->setDefaultShortcut(exposeAction, QList<QKeySequence>() << Qt::CTRL + Qt::Key_F9);
+    KGlobalAccel::self()->setShortcut(exposeAction, QList<QKeySequence>() << Qt::CTRL + Qt::Key_F9);
+    shortcut = KGlobalAccel::self()->shortcut(exposeAction);
+    effects->registerGlobalShortcut(Qt::CTRL + Qt::Key_F9, exposeAction);
+    connect(exposeAction, &QAction::triggered, this, &PresentWindowsEffect::toggleActive);
 
-//    QAction* exposeAllAction = m_exposeAllAction;
-//    exposeAllAction->setObjectName(QStringLiteral("ExposeAll"));
-//    exposeAllAction->setText(i18n("Toggle Present Windows (All desktops)"));
-//    KGlobalAccel::self()->setDefaultShortcut(exposeAllAction, QList<QKeySequence>() << Qt::CTRL + Qt::Key_F10 << Qt::Key_LaunchC);
-//    KGlobalAccel::self()->setShortcut(exposeAllAction, QList<QKeySequence>() << Qt::CTRL + Qt::Key_F10 << Qt::Key_LaunchC);
-//    shortcutAll = KGlobalAccel::self()->shortcut(exposeAllAction);
-//    effects->registerGlobalShortcut(Qt::CTRL + Qt::Key_F10, exposeAllAction);
-//    effects->registerTouchpadSwipeShortcut(SwipeDirection::Down, exposeAllAction);
-//    connect(exposeAllAction, &QAction::triggered, this, &PresentWindowsEffect::toggleActiveAllDesktops);
-
+    QAction* exposeAllAction = m_exposeAllAction;
+    exposeAllAction->setObjectName(QStringLiteral("ExposeAll"));
+    exposeAllAction->setText(i18n("Toggle Present Windows (All desktops)"));
+    KGlobalAccel::self()->setDefaultShortcut(exposeAllAction, QList<QKeySequence>() << Qt::CTRL + Qt::Key_F10 << Qt::Key_LaunchC);
+    KGlobalAccel::self()->setShortcut(exposeAllAction, QList<QKeySequence>() << Qt::CTRL + Qt::Key_F10 << Qt::Key_LaunchC);
+    shortcutAll = KGlobalAccel::self()->shortcut(exposeAllAction);
+    effects->registerGlobalShortcut(Qt::CTRL + Qt::Key_F10, exposeAllAction);
+    effects->registerTouchpadSwipeShortcut(SwipeDirection::Down, exposeAllAction);
+    connect(exposeAllAction, &QAction::triggered, this, &PresentWindowsEffect::toggleActiveAllDesktops);
+*/
     QAction* exposeClassAction = m_exposeClassAction;
     exposeClassAction->setObjectName(QStringLiteral("ExposeClass"));
     exposeClassAction->setText(i18n("Toggle Present Windows (Window class)"));
@@ -139,9 +140,7 @@ void PresentWindowsEffect::reconfigure(ReconfigureFlags)
         effects->reserveElectricBorder(ElectricBorder(i), this);
     }
 
-    // jing_kwin for jos task manager
-    //m_layoutMode = PresentWindowsConfig::layoutMode();
-    m_layoutMode = LayoutRegularGrid;
+    m_layoutMode = PresentWindowsConfig::layoutMode();
     m_showCaptions = PresentWindowsConfig::drawWindowCaptions();
     m_showIcons = PresentWindowsConfig::drawWindowIcons();
     m_doNotCloseWindows = !PresentWindowsConfig::allowClosingWindows();
@@ -336,7 +335,7 @@ void PresentWindowsEffect::prePaintWindow(EffectWindow *w, WindowPrePaintData &d
 
         if (winData->opacity <= 0.0) {
             // don't disable painting for panels if show panel is set
-            if (!(m_showPanel && w->isDock()))
+            if (!(m_showPanel && w->isStatusBar()))
                 w->disablePainting(EffectWindow::PAINT_DISABLED);
         } else if (winData->opacity != 1.0)
             data.setTranslucent();
@@ -376,7 +375,7 @@ void PresentWindowsEffect::paintWindow(EffectWindow *w, int mask, QRegion region
 {
     if (m_activated || m_motionManager.areWindowsMoving()) {
         DataHash::const_iterator winData = m_windowData.constFind(w);
-        if (winData == m_windowData.constEnd() || (w->isDock() && m_showPanel)) {
+        if (winData == m_windowData.constEnd() || (w->isStatusBar() && m_showPanel)) {
             // in case the panel should be shown just display it without any changes
             effects->paintWindow(w, mask, region, data);
             return;
@@ -1025,10 +1024,10 @@ void PresentWindowsEffect::rearrangeWindows()
 }
 
 void PresentWindowsEffect::calculateWindowTransformations(EffectWindowList windowlist, int screen,
-        WindowMotionManager& motionManager, bool external, bool fromBottom)
+        WindowMotionManager& motionManager, bool external)
 {
     if (m_layoutMode == LayoutRegularGrid)
-        calculateWindowTransformationsClosest(windowlist, screen, motionManager, fromBottom);
+        calculateWindowTransformationsClosest(windowlist, screen, motionManager);
     else if (m_layoutMode == LayoutFlexibleGrid)
         calculateWindowTransformationsKompose(windowlist, screen, motionManager);
     else
@@ -1047,7 +1046,7 @@ static inline int distance(QPoint &pos1, QPoint &pos2)
 }
 
 void PresentWindowsEffect::calculateWindowTransformationsClosest(EffectWindowList windowlist, int screen,
-        WindowMotionManager& motionManager, bool fromBottom)
+        WindowMotionManager& motionManager)
 {
     // This layout mode requires at least one window visible
     if (windowlist.count() == 0)
@@ -1056,30 +1055,9 @@ void PresentWindowsEffect::calculateWindowTransformationsClosest(EffectWindowLis
     QRect area = effects->clientArea(ScreenArea, screen, effects->currentDesktop());
     if (m_showPanel)   // reserve space for the panel
         area = effects->clientArea(MaximizeArea, screen, effects->currentDesktop());
-
     int columns = int(ceil(sqrt(double(windowlist.count()))));
     int rows = int(ceil(windowlist.count() / double(columns)));
 
-    int hM = 10;
-    int vM = 10;
-    int ceilNum = columns * rows;
-    if (ceilNum == 1) {
-        hM = 0;
-        vM = 0;
-        area.adjust(295 + hM, 169 + vM, -296 - hM, -200 - vM);
-    } else if (ceilNum == 2) {
-        hM = 13;
-        vM = 0;
-        area.adjust(71 + hM, 218 + vM, -71 - hM, -302 - vM);
-    } else if (ceilNum > 2 && ceilNum < 4) {
-        hM = 43;
-        vM = 27;
-        area.adjust(186 + hM, 68 + vM, -186 - hM, -164 - vM);
-    } else if (ceilNum > 4) {
-        hM = 10;
-        vM = 10;
-        area.adjust(38 + hM, 51 + vM, -38 - hM, -165 - vM);
-    }
     // Remember the size for later
     // If we are using this layout externally we don't need to remember m_gridSizes.
     if (m_gridSizes.size() != 0) {
@@ -1106,34 +1084,28 @@ void PresentWindowsEffect::calculateWindowTransformationsClosest(EffectWindowLis
     // Assign each window to the closest available slot
     EffectWindowList tmpList = windowlist; // use a QLinkedList copy instead?
     QPoint otherPos;
-
-    int i = 0;
     while (!tmpList.isEmpty()) {
         EffectWindow *w = tmpList.first();
         int slotCandidate = -1, slotCandidateDistance = INT_MAX;
         QPoint pos = w->geometry().center();
 
-        // jing_kwin for jos task manager
-//        for (int i = 0; i < columns*rows; ++i) { // all slots
-//            const int dist = distance(pos, slotCenters[i]);
-//            if (dist < slotCandidateDistance) { // window is interested in this slot
-//                EffectWindow *occupier = takenSlots[i];
-//                Q_ASSERT(occupier != w);
-//                if (!occupier || dist < distance((otherPos = occupier->geometry().center()), slotCenters[i])) {
-//                    // either nobody lives here, or we're better - takeover the slot if it's our best
-//                    slotCandidate = i;
-//                    slotCandidateDistance = dist;
-//                }
-//            }
-//        }
-//        Q_ASSERT(slotCandidate != -1);
-//        if (takenSlots[slotCandidate])
-//            tmpList << takenSlots[slotCandidate]; // occupier needs a new home now :p
-        tmpList.removeAll(w);
-        takenSlots[i++] = w; // ...and we rumble in =)
-        if (i >= columns*rows) {
-            break;
+        for (int i = 0; i < columns*rows; ++i) { // all slots
+            const int dist = distance(pos, slotCenters[i]);
+            if (dist < slotCandidateDistance) { // window is interested in this slot
+                EffectWindow *occupier = takenSlots[i];
+                Q_ASSERT(occupier != w);
+                if (!occupier || dist < distance((otherPos = occupier->geometry().center()), slotCenters[i])) {
+                    // either nobody lives here, or we're better - takeover the slot if it's our best
+                    slotCandidate = i;
+                    slotCandidateDistance = dist;
+                }
+            }
         }
+        Q_ASSERT(slotCandidate != -1);
+        if (takenSlots[slotCandidate])
+            tmpList << takenSlots[slotCandidate]; // occupier needs a new home now :p
+        tmpList.removeAll(w);
+        takenSlots[slotCandidate] = w; // ...and we rumble in =)
     }
 
     for (int slot = 0; slot < columns*rows; ++slot) {
@@ -1146,7 +1118,7 @@ void PresentWindowsEffect::calculateWindowTransformationsClosest(EffectWindowLis
             area.x() + (slot % columns) * slotWidth,
             area.y() + (slot / columns) * slotHeight,
             slotWidth, slotHeight);
-        target.adjust(hM, vM, -hM, -vM);   // Borders
+        target.adjust(10, 10, -10, -10);   // Borders
 
         double scale;
         if (target.width() / double(w->width()) < target.height() / double(w->height())) {
@@ -1168,14 +1140,7 @@ void PresentWindowsEffect::calculateWindowTransformationsClosest(EffectWindowLis
                          target.center().y() - int(w->height() * scale) / 2,
                          scale * w->width(), scale * w->height());
         }
-
-        if (fromBottom) {
-            QPoint pos = target.topLeft();
-            pos += QPoint(0, area.height());
-            motionManager.moveWindow(w, pos, target);
-        } else {
-            motionManager.moveWindow(w, target);
-        }
+        motionManager.moveWindow(w, target);
     }
 }
 
@@ -1583,7 +1548,6 @@ bool PresentWindowsEffect::isOverlappingAny(EffectWindow *w, const QHash<EffectW
 
 void PresentWindowsEffect::setActive(bool active)
 {
-    return;
     if (effects->activeFullScreenEffect() && effects->activeFullScreenEffect() != this)
         return;
     if (m_activated == active)
@@ -1643,9 +1607,7 @@ void PresentWindowsEffect::setActive(bool active)
             }
         }
 
-        if (m_motionManager.managedWindows().isEmpty() ||
-                ((m_motionManager.managedWindows().count() == 1) && m_motionManager.managedWindows().first()->isOnCurrentDesktop() &&
-                 (m_ignoreMinimized || !m_motionManager.managedWindows().first()->isMinimized()))) {
+        if (m_motionManager.managedWindows().isEmpty()) {
             // No point triggering if there is nothing to do
             m_activated = false;
 
@@ -2048,128 +2010,6 @@ void PresentWindowsEffect::reCreateGrids()
         m_gridSizes.append(GridSize());
     }
     rearrangeWindows();
-}
-
-QHash<EffectWindow*, QRectF> PresentWindowsEffect::calculateWindowTransformations_new(EffectWindowList windows, int screen, int& top)
-{
-    return calculateWindowTransformationsClosest_new(windows, screen, top);
-}
-
-QHash<EffectWindow*, QRectF> PresentWindowsEffect::calculateWindowTransformationsClosest_new(EffectWindowList windowlist, int screen, int& top)
-{
-    QHash<EffectWindow*, QRectF> results;
-    // This layout mode requires at least one window visible
-    if (windowlist.count() == 0)
-        return results;
-
-    QRect area = effects->clientArea(ScreenArea, screen, effects->currentDesktop());
-    if (m_showPanel)   // reserve space for the panel
-        area = effects->clientArea(MaximizeArea, screen, effects->currentDesktop());
-
-    int columns = int(ceil(sqrt(double(windowlist.count()))));
-    int rows = int(ceil(windowlist.count() / double(columns)));
-
-    int hM = 10;
-    int vM = 10;
-    int ceilNum = columns * rows;
-    if (ceilNum == 1) {
-        hM = 0;
-        vM = 0;
-        area.adjust(295 + hM, 169 + vM, -296 - hM, -200 - vM);
-    } else if (ceilNum == 2) {
-        hM = 13;
-        vM = 0;
-        area.adjust(71 + hM, 218 + vM, -71 - hM, -302 - vM);
-    } else if (ceilNum > 2 && ceilNum <= 4) {
-        hM = 43;
-        vM = 27;
-        area.adjust(186 + hM, 68 + vM, -186 - hM, -164 - vM);
-    } else if (ceilNum > 4) {
-        hM = 10;
-        vM = 10;
-        area.adjust(38 + hM, 51 + vM, -38 - hM, -165 - vM);
-    }
-    // Remember the size for later
-    // If we are using this layout externally we don't need to remember m_gridSizes.
-    if (m_gridSizes.size() != 0) {
-        m_gridSizes[screen].columns = columns;
-        m_gridSizes[screen].rows = rows;
-    }
-
-    // Assign slots
-    int slotWidth = area.width() / columns;
-    int slotHeight = area.height() / rows;
-    QVector<EffectWindow*> takenSlots;
-    takenSlots.resize(rows*columns);
-    takenSlots.fill(0);
-
-    // precalculate all slot centers
-    QVector<QPoint> slotCenters;
-    slotCenters.resize(rows*columns);
-    for (int x = 0; x < columns; ++x)
-        for (int y = 0; y < rows; ++y) {
-            slotCenters[x + y*columns] = QPoint(area.x() + slotWidth * x + slotWidth / 2,
-                                                area.y() + slotHeight * y + slotHeight / 2);
-        }
-
-    // Assign each window to the closest available slot
-    EffectWindowList tmpList = windowlist; // use a QLinkedList copy instead?
-    QPoint otherPos;
-
-    int i = 0;
-    while (!tmpList.isEmpty()) {
-        EffectWindow *w = tmpList.first();
-        int slotCandidate = -1, slotCandidateDistance = INT_MAX;
-        QPoint pos = w->geometry().center();
-
-        tmpList.removeAll(w);
-        takenSlots[i++] = w; // ...and we rumble in =)
-        if (i >= columns*rows) {
-            break;
-        }
-    }
-
-    for (int slot = 0; slot < columns*rows; ++slot) {
-        EffectWindow *w = takenSlots[slot];
-        if (!w) // some slots might be empty
-            continue;
-
-        // Work out where the slot is
-        QRect target(
-            area.x() + (slot % columns) * slotWidth,
-            area.y() + (slot / columns) * slotHeight,
-            slotWidth, slotHeight);
-        target.adjust(hM, vM, -hM, -vM);   // Borders
-
-        double scale;
-        if (target.width() / double(w->width()) < target.height() / double(w->height())) {
-            // Center vertically
-            scale = target.width() / double(w->width());
-            target.moveTop(target.top() + (target.height() - int(w->height() * scale)) / 2);
-            target.setHeight(int(w->height() * scale));
-        } else {
-            // Center horizontally
-            scale = target.height() / double(w->height());
-            target.moveLeft(target.left() + (target.width() - int(w->width() * scale)) / 2);
-            target.setWidth(int(w->width() * scale));
-        }
-        // Don't scale the windows too much
-        if (scale > 2.0 || (scale > 1.0 && (w->width() > 300 || w->height() > 300))) {
-            scale = (w->width() > 300 || w->height() > 300) ? 1.0 : 2.0;
-            target = QRect(
-                         target.center().x() - int(w->width() * scale) / 2,
-                         target.center().y() - int(w->height() * scale) / 2,
-                         scale * w->width(), scale * w->height());
-        }
-
-        if (slot == 0) {
-            top = target.y();
-        }
-
-        results.insert(w, QRectF(target));
-    }
-
-    return results;
 }
 
 CloseWindowView::CloseWindowView(QObject *parent)

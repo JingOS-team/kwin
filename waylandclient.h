@@ -38,7 +38,7 @@ public:
     void setOpacity(double opacity) override;
     AbstractClient *findModal(bool allow_itself = false) override;
     void resizeWithChecks(const QSize &size, ForceGeometry_t force = NormalGeometrySet) override;
-    void setFrameGeometry(const QRect &rect, ForceGeometry_t force = NormalGeometrySet) override;
+    void setFrameGeometry(const QRect &rect, ForceGeometry_t force = NormalGeometrySet, bool forInput = false) override;
     using AbstractClient::move;
     void move(int x, int y, ForceGeometry_t force = NormalGeometrySet) override;
     void killWindow() override;
@@ -75,6 +75,7 @@ protected:
 private:
     void updateClientOutputs();
     void updateIcon();
+    void updateTitle();
     void updateResourceName();
     void internalShow();
     void internalHide();

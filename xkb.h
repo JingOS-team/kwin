@@ -13,7 +13,7 @@
 
 #include <kwin_export.h>
 
-#include <KSharedConfig>
+#include <KConfigGroup>
 
 #include <QLoggingCategory>
 Q_DECLARE_LOGGING_CATEGORY(KWIN_XKB)
@@ -42,12 +42,8 @@ class KWIN_EXPORT Xkb : public QObject
 public:
     Xkb(QObject *parent = nullptr);
     ~Xkb() override;
-    void setConfig(KSharedConfigPtr config) {
-        m_config = std::move(config);
-    }
-    void setNumLockConfig(KSharedConfigPtr config) {
-        m_numLockConfig = std::move(config);
-    }
+    void setConfig(const KSharedConfigPtr &config);
+    void setNumLockConfig(const KSharedConfigPtr &config);
     void reconfigure();
 
     void installKeymap(int fd, uint32_t size);
@@ -67,7 +63,7 @@ public:
 
     void switchToNextLayout();
     void switchToPreviousLayout();
-    void switchToLayout(xkb_layout_index_t layout);
+    bool switchToLayout(xkb_layout_index_t layout);
 
     enum class LED {
         NumLock = 1 << 0,
@@ -90,9 +86,9 @@ public:
     quint32 currentLayout() const {
         return m_currentLayout;
     }
+    QString layoutName(xkb_layout_index_t index) const;
     QString layoutName() const;
-    const QString &layoutShortName() const;
-    QMap<xkb_layout_index_t, QString> layoutNames() const;
+    const QString &layoutShortName(int index) const;
     quint32 numberOfLayouts() const;
 
     /**
@@ -102,8 +98,11 @@ public:
 
     void setSeat(KWaylandServer::SeatInterface *seat);
 
+    bool isCapsOn();
+
 Q_SIGNALS:
     void ledsChanged(const LEDs &leds);
+    void capsChanged(bool status);
 
 private:
     void applyEnvironmentRules(xkb_rule_names &);
@@ -113,7 +112,6 @@ private:
     void createKeymapFile();
     void updateModifiers();
     void updateConsumedModifiers(uint32_t key);
-    QString layoutName(xkb_layout_index_t layout) const;
     xkb_context *m_context;
     xkb_keymap *m_keymap;
     QStringList m_layoutList;
@@ -137,7 +135,7 @@ private:
         xkb_compose_state *state = nullptr;
     } m_compose;
     LEDs m_leds;
-    KSharedConfigPtr m_config;
+    KConfigGroup m_configGroup;
     KSharedConfigPtr m_numLockConfig;
 
     struct {
@@ -153,6 +151,8 @@ private:
     Ownership m_ownership = Ownership::Server;
 
     QPointer<KWaylandServer::SeatInterface> m_seat;
+    
+    bool m_capsStatus = false;
 };
 
 inline

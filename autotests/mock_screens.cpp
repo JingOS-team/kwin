@@ -13,6 +13,7 @@ namespace KWin
 
 MockScreens::MockScreens(QObject *parent)
     : Screens(parent)
+    , m_changedTimer(new QTimer(this))
 {
 }
 
@@ -43,6 +44,11 @@ QSize MockScreens::size(int screen) const
     return geometry(screen).size();
 }
 
+QSizeF MockScreens::physicalSize(int screen) const
+{
+    return QSizeF(size(screen)) / 3.8;
+}
+
 int MockScreens::number(const QPoint &pos) const
 {
     int bestScreen = 0;
@@ -67,6 +73,12 @@ int MockScreens::number(const QPoint &pos) const
 void MockScreens::init()
 {
     Screens::init();
+
+    m_changedTimer->setSingleShot(true);
+    m_changedTimer->setInterval(100);
+    connect(m_changedTimer, &QTimer::timeout, this, &MockScreens::updateCount);
+    connect(m_changedTimer, &QTimer::timeout, this, &MockScreens::changed);
+
     m_scheduledGeometries << QRect(0, 0, 100, 100);
     updateCount();
 }
@@ -82,6 +94,16 @@ void MockScreens::setGeometries(const QList< QRect > &geometries)
 {
     m_scheduledGeometries = geometries;
     startChangedTimer();
+}
+
+bool MockScreens::isChanging() const
+{
+    return m_changedTimer->isActive();
+}
+
+void MockScreens::startChangedTimer()
+{
+    m_changedTimer->start();
 }
 
 }

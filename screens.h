@@ -24,6 +24,7 @@ struct wl_client;
 namespace KWin
 {
 class AbstractClient;
+class AbstractOutput;
 class Platform;
 
 class KWIN_EXPORT Screens : public QObject
@@ -54,7 +55,7 @@ public:
     void setCurrent(const AbstractClient *c);
     bool isCurrentFollowsMouse() const;
     void setCurrentFollowsMouse(bool follows);
-    virtual QRect geometry(int screen) const = 0;
+    virtual QRect geometry(int screen) const;
     /**
      * The bounding geometry of all screens combined. Overlapping areas
      * are not counted multiple times.
@@ -75,7 +76,7 @@ public:
      * To get the size of all screens combined use size().
      * @see size()
      */
-    virtual QSize size(int screen) const = 0;
+    virtual QSize size(int screen) const;
 
     /**
      * The highest scale() of all connected screens
@@ -97,9 +98,7 @@ public:
      * @see sizeChanged()
      */
     QSize size() const;
-    virtual int number(const QPoint &pos) const = 0;
-
-    inline bool isChanging() { return m_changedTimer->isActive(); }
+    virtual int number(const QPoint &pos) const;
 
     int intersecting(const QRect &r) const;
 
@@ -128,21 +127,15 @@ public:
      */
     virtual bool isInternal(int screen) const;
 
-    /**
-     * @returns @c true if the @p screen can be rotated.
-     * Default implementation returns @c false
-     */
-    virtual bool supportsTransformations(int screen) const;
-
     virtual Qt::ScreenOrientation orientation(int screen) const;
 
     int physicalDpiX(int screen) const;
     int physicalDpiY(int screen) const;
 
     // casper_yang for scale
-    virtual void setClientScale(wl_client* client, qreal scale) = 0;
-    virtual void unsetClientScale(wl_client* client) = 0;
-    virtual void setDefaultClientScale(qreal scale) = 0;
+    virtual void setClientScale(wl_client* client, qreal scale);
+    virtual void unsetClientScale(wl_client* client);
+    virtual void setDefaultClientScale(qreal scale);
 public Q_SLOTS:
     void reconfigure();
 
@@ -173,8 +166,7 @@ Q_SIGNALS:
 
 protected Q_SLOTS:
     void setCount(int count);
-    void startChangedTimer();
-    virtual void updateCount() = 0;
+    virtual void updateCount();
 
 protected:
     /**
@@ -188,10 +180,11 @@ private Q_SLOTS:
     void updateSize();
 
 private:
+    AbstractOutput *findOutput(int screenId) const;
+
     int m_count;
     int m_current;
     bool m_currentFollowsMouse;
-    QTimer *m_changedTimer;
     KSharedConfig::Ptr m_config;
     QSize m_boundingSize;
     qreal m_maxScale;
@@ -209,12 +202,6 @@ inline
 bool Screens::isCurrentFollowsMouse() const
 {
     return m_currentFollowsMouse;
-}
-
-inline
-void Screens::startChangedTimer()
-{
-    m_changedTimer->start();
 }
 
 inline

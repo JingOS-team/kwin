@@ -25,6 +25,7 @@
 
 // KDE
 #include <KCrash>
+#include <KDesktopFile>
 #include <KLocalizedString>
 #include <KPluginLoader>
 #include <KPluginMetaData>
@@ -39,6 +40,7 @@
 #include <QStyle>
 #include <QDebug>
 #include <QWindow>
+#include <QDBusInterface>
 
 // system
 #if HAVE_SYS_PRCTL_H
@@ -56,6 +58,12 @@
 
 #include <iostream>
 #include <iomanip>
+
+#include <stdio.h>
+#include <pthread.h>
+#include <sched.h>
+#include <assert.h>
+
 
 Q_IMPORT_PLUGIN(KWinIntegrationPlugin)
 Q_IMPORT_PLUGIN(KGlobalAccelImpl)
@@ -112,6 +120,12 @@ void gainRealTime(RealTimeFlags flags = RealTimeFlags::DontReset)
 ApplicationWayland::ApplicationWayland(int &argc, char **argv)
     : ApplicationWaylandAbstract(OperationModeWaylandOnly, argc, argv)
 {
+    // Stop restarting the input method if it starts crashing very frequently
+    m_inputMethodCrashTimer.setInterval(20000);
+    m_inputMethodCrashTimer.setSingleShot(true);
+    connect(&m_inputMethodCrashTimer, &QTimer::timeout, this, [this] {
+        m_inputMethodCrashes = 0;
+    });
 }
 
 ApplicationWayland::~ApplicationWayland()
@@ -149,6 +163,7 @@ void ApplicationWayland::performStartup()
     }
     // first load options - done internally by a different thread
     createOptions();
+    createSession();
     createColorManager();
     waylandServer()->createInternalConnection();
 
@@ -215,55 +230,97 @@ void ApplicationWayland::continueStartupWithScene()
     m_xwayland->start();
 }
 
-void ApplicationWayland::startInputMethod()
-{
-    if (!m_inputMethodServerToStart.isEmpty()) {
-        QStringList arguments = KShell::splitArgs(m_inputMethodServerToStart);
-        if (!arguments.isEmpty()) {
-            QString program = arguments.takeFirst();
-            int socket = dup(waylandServer()->createInputMethodConnection());
-            if (socket >= 0) {
-                QProcessEnvironment environment = processStartupEnvironment();
-                environment.insert(QStringLiteral("WAYLAND_SOCKET"), QByteArray::number(socket));
-                environment.insert(QStringLiteral("QT_QPA_PLATFORM"), QStringLiteral("wayland"));
-                if (m_inputMethodServerToStart.contains("fcitx")) {
-                    environment.remove("QT_QPA_PLATFORM");
-                } else {
-                    environment.remove("DISPLAY");
-                }
-                environment.remove("WAYLAND_DISPLAY");
-                QProcess *p = new Process(this);
-                p->setProcessChannelMode(QProcess::ForwardedErrorChannel);
-                connect(p, qOverload<int, QProcess::ExitStatus>(&QProcess::finished), this,
-                    [this, p] {
-                        if (waylandServer()) {
-                            waylandServer()->destroyInputMethodConnection();
-                        }
-                        p->deleteLater();
 
-                        startInputMethod();
-                    }
-                );
-                p->setProcessEnvironment(environment);
-                p->setProgram(program);
-                p->setArguments(arguments);
-                p->start();
-                connect(waylandServer(), &WaylandServer::terminatingInternalClientConnection, p, [p] {
-                    p->kill();
-                    p->waitForFinished();
-                });
-            }
-        } else {
-            qWarning("Failed to launch the input method server: %s is an invalid command",
-                     qPrintable(m_inputMethodServerToStart));
-        }
+void ApplicationWayland::stopInputMethod()
+{
+    if (!m_inputMethodProcess) {
+        return;
     }
+    disconnect(m_inputMethodProcess, nullptr, this, nullptr);
+
+    m_inputMethodProcess->terminate();
+    if (!m_inputMethodProcess->waitForFinished()) {
+        m_inputMethodProcess->kill();
+        m_inputMethodProcess->waitForFinished();
+    }
+    if (waylandServer()) {
+        waylandServer()->destroyInputMethodConnection();
+    }
+    m_inputMethodProcess->deleteLater();
+    m_inputMethodProcess = nullptr;
+}
+
+void ApplicationWayland::startInputMethod(const QString &executable)
+{
+    stopInputMethod();
+    if (executable.isEmpty() || isTerminating()) {
+        return;
+    }
+
+    connect(waylandServer(), &WaylandServer::terminatingInternalClientConnection, this, &ApplicationWayland::stopInputMethod, Qt::UniqueConnection);
+
+    QStringList arguments = KShell::splitArgs(executable);
+    if (arguments.isEmpty()) {
+        qWarning("Failed to launch the input method server: %s is an invalid command", qPrintable(m_inputMethodServerToStart));
+        return;
+    }
+
+    const QString program = arguments.takeFirst();
+    int socket = dup(waylandServer()->createInputMethodConnection());
+    if (socket < 0) {
+        qWarning("Failed to create the input method connection");
+        return;
+    }
+
+    QProcessEnvironment environment = processStartupEnvironment();
+    environment.insert(QStringLiteral("WAYLAND_SOCKET"), QByteArray::number(socket));
+    environment.insert(QStringLiteral("QT_QPA_PLATFORM"), QStringLiteral("wayland"));
+    environment.remove("DISPLAY");
+    environment.remove("WAYLAND_DISPLAY");
+
+    m_inputMethodProcess = new Process(this);
+    m_inputMethodProcess->setProcessChannelMode(QProcess::ForwardedErrorChannel);
+    m_inputMethodProcess->setProcessEnvironment(environment);
+    m_inputMethodProcess->setProgram(program);
+    m_inputMethodProcess->setArguments(arguments);
+    m_inputMethodProcess->start();
+    connect(m_inputMethodProcess, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished), this, [this, executable] (int exitCode, QProcess::ExitStatus exitStatus) {
+        if (exitStatus == QProcess::CrashExit) {
+            m_inputMethodCrashes++;
+            m_inputMethodCrashTimer.start();
+            qWarning() << "Input Method crashed" << executable << exitCode << exitStatus;
+            if (m_inputMethodCrashes < 5) {
+                startInputMethod(executable);
+            } else {
+                qWarning() << "Input Method keeps crashing, please fix" << executable;
+                stopInputMethod();
+            }
+        }
+    });
+}
+
+void ApplicationWayland::refreshSettings(const KConfigGroup &group, const QByteArrayList &names)
+{
+    if (group.name() != "Wayland" || !names.contains("InputMethod")) {
+        return;
+    }
+
+    startInputMethod(group.readEntry("InputMethod", QString()));
 }
 
 void ApplicationWayland::startSession()
 {
+    if (!m_inputMethodServerToStart.isEmpty()) {
+        startInputMethod(m_inputMethodServerToStart);
+    } else {
+        KSharedConfig::Ptr kwinSettings = kwinApp()->config();
+        m_settingsWatcher = KConfigWatcher::create(kwinSettings);
+        connect(m_settingsWatcher.data(), &KConfigWatcher::configChanged, this, &ApplicationWayland::refreshSettings);
 
-    startInputMethod();
+        KConfigGroup group = kwinSettings->group("Wayland");
+        KDesktopFile file(group.readEntry("InputMethod", QString()));
+        startInputMethod(file.desktopGroup().readEntry("Exec", QString()));
+    }
 
     // start session
     if (!m_sessionArgument.isEmpty()) {
@@ -326,12 +383,23 @@ static const QString s_drmPlugin = QStringLiteral("KWinWaylandDrmBackend");
 #endif
 #if HAVE_LIBHYBRIS
 static const QString s_hwcomposerPlugin = QStringLiteral("KWinWaylandHwcomposerBackend");
+static const QString s_surfaceflingerPlugin = QStringLiteral("KWinWaylandSurfaceFlingerBackend");
 #endif
 static const QString s_virtualPlugin = QStringLiteral("KWinWaylandVirtualBackend");
 
-static QString automaticBackendSelection()
+
+enum SpawnMode {
+    Standalone,
+    ReusedSocket
+};
+
+static QString automaticBackendSelection(SpawnMode spawnMode)
 {
-    if (qEnvironmentVariableIsSet("WAYLAND_DISPLAY")) {
+    /* WAYLAND_DISPLAY is set by the kwin_wayland_wrapper, so we can't use it for automatic detection.
+    * If kwin_wayland_wrapper is used nested on wayland, we won't be in this path as
+    * it explicitly sets '--socket' which means a backend is set and we won't be in this path anyway
+    */
+    if (qEnvironmentVariableIsSet("WAYLAND_DISPLAY") && spawnMode == Standalone) {
         return s_waylandPlugin;
     }
     if (qEnvironmentVariableIsSet("DISPLAY")) {
@@ -340,6 +408,9 @@ static QString automaticBackendSelection()
 #if HAVE_LIBHYBRIS
     if (qEnvironmentVariableIsSet("ANDROID_ROOT")) {
         return s_hwcomposerPlugin;
+    }
+    if (qEnvironmentVariableIsSet("ANDROID_ROOT_2")) {
+        return s_surfaceflingerPlugin;
     }
 #endif
 #if HAVE_DRM
@@ -407,17 +478,190 @@ void dropNiceCapability()
 
 } // namespace
 
+/*! --------------------------------------------------------------------------------*/
+/*! -dba debug -*/
+/*! ---------------------------------------------------------------------------------*/
+#if HAVE_PERFETTO
+    #include <perfetto.h>
+    /*! define Category*/
+    PERFETTO_DEFINE_CATEGORIES(
+    perfetto::Category("perfetto-kwin-events")
+            .SetTags("perfetto-kwin-events")
+            .SetDescription("perfetto-kwin-events")
+            );
+    PERFETTO_TRACK_EVENT_STATIC_STORAGE();
+#endif
+
+#include <QMutex>
+#include <QMessageLogContext>
+#include <QtMessageHandler>
+void kwinMessageOutput(QtMsgType type, const QMessageLogContext &context, const QString &msg)
+{   
+    QByteArray localMsg = msg.toLocal8Bit();
+    QString strMsg("");
+    switch(type)
+    {
+    case QtDebugMsg:
+        strMsg = QString("[Debug]");
+        break;
+    case QtWarningMsg: 
+        strMsg = QString( "[Warning]");
+        break;
+    case QtCriticalMsg:
+        strMsg = QString("[Critical] ");
+        break;
+    case QtFatalMsg:
+        strMsg = QString("[Fatal] ");
+        break;
+    }
+ 
+    // 设置输出信息格式
+    QString strTag     = QString(":%1 -:%2:%3  - %4").arg(QDateTime::currentDateTime().toString("hh:mm:ss ddd")).arg(context.file).arg(context.line).arg(context.function);
+    QString strMessage = localMsg.constData();
+
+#if 0
+    static QMutex mutex;
+    mutex.lock(); // 加锁
+    // 输出信息至文件中（读写、追加形式）
+    QString  MyLogFilePath = "/tmp/dba_kwin_log.txt";
+    QFile file(MyLogFilePath);
+    file.open(QIODevice::ReadWrite | QIODevice::Append);
+    QTextStream stream(&file);
+    stream << strMessage << "\r\n";
+    file.flush();
+    file.close();
+    mutex.unlock(); //! 解锁
+#else
+#if HAVE_PERFETTO
+    //QString strFunction = QString(context.function);
+    //QString strPosition = QString(":%1:%2").arg(context.file).arg(context.line);
+    if (strMessage.contains("[PERFETTO]")) {
+      if (strMessage.contains("[START]")) {
+        TRACE_EVENT_BEGIN("perfetto-kwin-events", "T", 
+                            "strTag",
+                            (std::string)strTag.toUtf8().constData(),
+                            "strMessage",
+                            (std::string)strMessage.toUtf8().constData());
+
+        TRACE_EVENT_INSTANT("perfetto-kwin-events",
+                            "[START]",
+                            "strTag",
+                            (std::string)strTag.toUtf8().constData(),
+                            "strMessage",
+                            (std::string)strMessage.toUtf8().constData());
+      } else if (strMessage.contains("[STOP]")) {
+        TRACE_EVENT_END("perfetto-kwin-events");
+        TRACE_EVENT_INSTANT("perfetto-kwin-events",
+                            "[STOP]",
+                            "strTag",
+                            (std::string)strTag.toUtf8().constData(),
+                            "strMessage",
+                            (std::string)strMessage.toUtf8().constData());
+      } else {
+        TRACE_EVENT_INSTANT("perfetto-kwin-events",
+                            "[Debug]",
+                            "strTag",
+                            (std::string)strTag.toUtf8().constData(),
+                            "strMessage",
+                            (std::string)strMessage.toUtf8().constData());
+      }
+    } else {
+#endif
+      qDebug() << strTag;
+      qDebug() << "\033[32m" << strMessage << "\033[0m";
+#if HAVE_PERFETTO
+    }
+#endif
+
+#endif
+}
+
+static int api_get_thread_policy (pthread_attr_t *attr)
+{
+    int policy;
+    int rs = pthread_attr_getschedpolicy (attr, &policy);
+    assert (rs == 0);
+
+    switch (policy)
+    {
+        case SCHED_FIFO:
+            printf ("policy = SCHED_FIFO\n");
+            break;
+        case SCHED_RR:
+            printf ("policy = SCHED_RR\n");
+            break;
+        case SCHED_OTHER:
+            printf ("policy = SCHED_OTHER\n");
+            break;
+        default:
+            printf ("policy = UNKNOWN\n");
+            break;
+    }
+    return policy;
+}
+
+static void api_show_thread_priority (pthread_attr_t *attr,int policy)
+{
+    int priority = sched_get_priority_max (policy);
+    assert (priority != -1);
+    printf ("max_priority = %d\n", priority);
+    priority = sched_get_priority_min (policy);
+    assert (priority != -1);
+    printf ("min_priority = %d\n", priority);
+}
+
+static int api_get_thread_priority (pthread_attr_t *attr)
+{
+    struct sched_param param;
+    int rs = pthread_attr_getschedparam (attr, &param);
+    assert (rs == 0);
+    printf ("priority = %d\n", param.__sched_priority);
+    return param.__sched_priority;
+}
+
+static void api_set_thread_policy (pthread_attr_t *attr,int policy)
+{
+    int rs = pthread_attr_setschedpolicy (attr, policy);
+    assert (rs == 0);
+    api_get_thread_policy (attr);
+}
+
+
+
+/*! ---------------------------------------------------------------------------------*/
+
 int main(int argc, char * argv[])
 {
+  QString envVal = qgetenv("KWIN_HAVE_PERFETTO");
+  qDebug()<<"[DBA DEBUG]"<<__FILE__<<__LINE__<<__FUNCTION__<<"KWIN_HAVE_PERFETTO"<<envVal;
+  if (envVal.contains("yes", Qt::CaseInsensitive)) {
+#if HAVE_PERFETTO
+    qDebug()<<"[DBA DEBUG]"<<__FILE__<<__LINE__<<__FUNCTION__<<"init: perfetto.";
+    perfetto::TracingInitArgs args;
+    //args.backends = perfetto::kInProcessBackend;
+    args.backends = perfetto::kSystemBackend;
+    perfetto::Tracing::Initialize(args);
+    perfetto::TrackEvent::Register();
+    TRACE_EVENT_BEGIN("perfetto-kwin-events", "main");
+    TRACE_EVENT_INSTANT("perfetto-kwin-events", "main");
+#endif
+    qInstallMessageHandler(kwinMessageOutput);
+  }
+
+#if 0	
     if (getuid() == 0) {
         std::cerr << "kwin_wayland does not support running as root." << std::endl;
         return 1;
     }
+#endif
+
     KWin::disablePtrace();
     KWin::Application::setupMalloc();
     KWin::Application::setupLocalizedString();
     KWin::gainRealTime();
     KWin::dropNiceCapability();
+
+
 
     if (signal(SIGTERM, KWin::sighandler) == SIG_IGN)
         signal(SIGTERM, SIG_IGN);
@@ -434,6 +678,49 @@ int main(int argc, char * argv[])
     sigaddset(&userSignals, SIGUSR1);
     sigaddset(&userSignals, SIGUSR2);
     pthread_sigmask(SIG_BLOCK, &userSignals, nullptr);
+
+    pthread_attr_t attr;       // 线程属性
+    struct sched_param sched;  // 调度策略
+    int rs;
+
+    /* 
+     * 对线程属性初始化
+     * 初始化完成以后，pthread_attr_t 结构所包含的结构体
+     * 就是操作系统实现支持的所有线程属性的默认值
+     */
+    rs = pthread_attr_init (&attr);
+    assert (rs == 0);     // 如果 rs 不等于 0，程序 abort() 退出
+
+    /* 获得当前调度策略 */
+    int policy = api_get_thread_policy (&attr);
+
+    /* 显示当前调度策略的线程优先级范围 */
+    printf ("Show current configuration of priority\n");
+    api_show_thread_priority(&attr, policy);
+
+    /* 获取 SCHED_FIFO 策略下的线程优先级范围 */
+    printf ("show SCHED_FIFO of priority\n");
+    api_show_thread_priority(&attr, SCHED_FIFO);
+
+    /* 获取 SCHED_RR 策略下的线程优先级范围 */
+    printf ("show SCHED_RR of priority\n");
+    api_show_thread_priority(&attr, SCHED_RR);
+
+        /* 显示当前线程的优先级 */
+    printf ("show priority of current thread\n");
+    int priority = api_get_thread_priority (&attr);
+
+    /* 手动设置调度策略 */
+    printf ("Set thread policy\n");
+
+        printf ("set SCHED_FIFO policy\n");
+    api_set_thread_policy(&attr, SCHED_FIFO);
+    sched.sched_priority = 99; //设置优先级
+    pthread_attr_setschedparam(&attr, &sched);
+    priority = api_get_thread_priority (&attr);
+    //printf ("set SCHED_RR policy\n");
+    //api_set_thread_policy(&attr, SCHED_RR);
+
 
     QProcessEnvironment environment = QProcessEnvironment::systemEnvironment();
 
@@ -456,6 +743,7 @@ int main(int argc, char * argv[])
     auto hasPlugin = [&availablePlugins] (const QString &name) {
         return std::any_of(availablePlugins.begin(), availablePlugins.end(),
             [name] (const KPluginMetaData &plugin) {
+                qDebug()<<__FILE__<<__LINE__<<"name:"<<name<<"  id:"<<plugin.pluginId();
                 return plugin.pluginId() == name;
             }
         );
@@ -471,6 +759,7 @@ int main(int argc, char * argv[])
 #endif
 #if HAVE_LIBHYBRIS
     const bool hasHwcomposerOption = hasPlugin(KWin::s_hwcomposerPlugin);
+    const bool hasSurfaceflingerOption = hasPlugin(KWin::s_surfaceflingerPlugin);
 #endif
 
     QCommandLineOption xwaylandOption(QStringLiteral("xwayland"),
@@ -509,10 +798,20 @@ int main(int argc, char * argv[])
                                     QStringLiteral("count"));
     outputCountOption.setDefaultValue(QString::number(1));
 
+    QCommandLineOption waylandSocketFdOption(QStringLiteral("wayland_fd"),
+                                    i18n("Wayland socket to use for incoming connections."),
+                                    QStringLiteral("wayland_fd"));
+
+    QCommandLineOption replaceOption(QStringLiteral("replace"),
+                                    i18n("Exits this instance so it can be restarted by kwin_wayland_wrapper."));
+
     QCommandLineParser parser;
     a.setupCommandLine(&parser);
     parser.addOption(xwaylandOption);
     parser.addOption(waylandSocketOption);
+    parser.addOption(waylandSocketFdOption);
+    parser.addOption(replaceOption);
+
     if (hasX11Option) {
         parser.addOption(x11DisplayOption);
     }
@@ -538,6 +837,11 @@ int main(int argc, char * argv[])
     QCommandLineOption hwcomposerOption(QStringLiteral("hwcomposer"), i18n("Use libhybris hwcomposer"));
     if (hasHwcomposerOption) {
         parser.addOption(hwcomposerOption);
+    }
+
+    QCommandLineOption surfaceflingerOption(QStringLiteral("surfaceflinger"), i18n("Use libhybris surfaceflinger"));
+    if (hasSurfaceflingerOption) {
+        parser.addOption(surfaceflingerOption);
     }
 #endif
     QCommandLineOption libinputOption(QStringLiteral("libinput"),
@@ -580,6 +884,11 @@ int main(int argc, char * argv[])
                                  i18n("Applications to start once Wayland and Xwayland server are started"),
                                  QStringLiteral("[/path/to/application...]"));
 
+
+    QCommandLineOption setupModeOption(QStringLiteral("setup-mode"),
+                                            i18n("Applications to start for setup"));
+    parser.addOption(setupModeOption);
+
     parser.process(a);
     a.processCommandLine(&parser);
 
@@ -587,6 +896,12 @@ int main(int argc, char * argv[])
     a.setUseKActivities(false);
 #endif
 
+    if (parser.isSet(replaceOption)) {
+        QDBusMessage msg = QDBusMessage::createMethodCall(QStringLiteral("org.kde.KWin"), QStringLiteral("/KWin"),
+                                         QStringLiteral("org.kde.KWin"), QStringLiteral("replace"));
+        QDBusConnection::sessionBus().call(msg, QDBus::NoBlock);
+        return 0;
+    }
     if (parser.isSet(listBackendsOption)) {
         for (const auto &plugin: availablePlugins) {
             std::cout << std::setw(40) << std::left << qPrintable(plugin.name()) << qPrintable(plugin.description()) << std::endl;
@@ -658,6 +973,10 @@ int main(int argc, char * argv[])
     if (hasHwcomposerOption && parser.isSet(hwcomposerOption)) {
         pluginName = KWin::s_hwcomposerPlugin;
     }
+    if (hasSurfaceflingerOption && parser.isSet(surfaceflingerOption)) {
+        pluginName = KWin::s_surfaceflingerPlugin;
+    }
+
 #endif
     if (hasVirtualOption && parser.isSet(virtualFbOption)) {
         pluginName = KWin::s_virtualPlugin;
@@ -665,7 +984,7 @@ int main(int argc, char * argv[])
 
     if (pluginName.isEmpty()) {
         std::cerr << "No backend specified through command line argument, trying auto resolution" << std::endl;
-        pluginName = KWin::automaticBackendSelection();
+        pluginName = KWin::automaticBackendSelection(parser.isSet(waylandSocketFdOption) ? KWin::ReusedSocket : KWin::Standalone);
     }
 
     auto pluginIt = std::find_if(availablePlugins.begin(), availablePlugins.end(),
@@ -690,7 +1009,28 @@ int main(int argc, char * argv[])
     if (parser.isSet(noGlobalShortcutsOption)) {
         flags |= KWin::WaylandServer::InitializationFlag::NoGlobalShortcuts;
     }
-    if (!server->init(parser.value(waylandSocketOption), flags)) {
+
+    if (parser.isSet(waylandSocketFdOption)) {
+        bool ok;
+        int fd = parser.value(waylandSocketFdOption).toInt(&ok);
+        if (ok ) {
+            // make sure we don't leak this FD to children
+            fcntl(fd, F_SETFD, O_CLOEXEC);
+            server->display()->addSocketFileDescriptor(fd);
+        } else {
+            std::cerr << "FATAL ERROR: could not parse socket FD" << std::endl;
+            return 1;
+        }
+    } else {
+        const QString socketName = parser.value(waylandSocketOption);
+        // being empty is fine here, addSocketName will automatically pick one
+        if (!server->display()->addSocketName(socketName)) {
+            std::cerr << "FATAL ERROR: could not add wayland socket " << qPrintable(socketName) << std::endl;
+            return 1;
+        }
+    }
+
+    if (!server->init(flags)) {
         std::cerr << "FATAL ERROR: could not create Wayland server" << std::endl;
         return 1;
     }
@@ -703,19 +1043,34 @@ int main(int argc, char * argv[])
     if (!deviceIdentifier.isEmpty()) {
         a.platform()->setDeviceIdentifier(deviceIdentifier);
     }
+
+     qDebug()<<"[DBA DEBUG]"<<__FILE__<<__LINE__<<__FUNCTION__<<initialWindowSize<<initialWindowSize.isValid();
+     initialWindowSize = QSize(1440, 2560);
+     qDebug()<<"[DBA DEBUG]"<<__FILE__<<__LINE__<<__FUNCTION__<<initialWindowSize<<initialWindowSize.isValid();
     if (initialWindowSize.isValid()) {
         a.platform()->setInitialWindowSize(initialWindowSize);
     }
     a.platform()->setInitialOutputScale(outputScale);
     a.platform()->setInitialOutputCount(outputCount);
 
+    if (parser.isSet(setupModeOption)) {
+        a.platform()->setSetupMode(true);
+    }
+
     QObject::connect(&a, &KWin::Application::workspaceCreated, server, &KWin::WaylandServer::initWorkspace);
-    environment.insert(QStringLiteral("WAYLAND_DISPLAY"), server->socketName());
+    if (!server->socketName().isEmpty()) {
+        environment.insert(QStringLiteral("WAYLAND_DISPLAY"), server->socketName());
+    }
     a.setProcessStartupEnvironment(environment);
     a.setStartXwayland(parser.isSet(xwaylandOption));
     a.setApplicationsToStart(parser.positionalArguments());
     a.setInputMethodServerToStart(parser.value(inputMethodOption));
     a.start();
+
+ #if HAVE_PERFETTO
+    perfetto::TrackEvent::Flush();
+    TRACE_EVENT_END("perfetto-kwin-events");
+ #endif   
 
     return a.exec();
 }

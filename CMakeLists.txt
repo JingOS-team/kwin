@@ -1,13 +1,11 @@
 cmake_minimum_required(VERSION 3.1 FATAL_ERROR)
 
-set(PROJECT_VERSION "5.20.80") # Handled by release scripts
+set(PROJECT_VERSION "5.21.80") # Handled by release scripts
 project(KWin VERSION ${PROJECT_VERSION})
 
 set(QT_MIN_VERSION "5.15.0")
-set(KF5_MIN_VERSION "5.74")
-set(CMAKE_BUILD_TYPE "Debug")
-set(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -O0 -Wall -g -ggdb")
-set(CMAKE_CXX_FLAGS_RELEASE "$ENV{CXXFLAGS} -O3 -Wall")
+set(KF5_MIN_VERSION "5.78")
+
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules ${CMAKE_MODULE_PATH})
 
 find_package(ECM 5.38 REQUIRED NO_MODULE)
@@ -18,7 +16,7 @@ include(GenerateExportHeader)
 
 # where to look first for cmake modules, before ${CMAKE_ROOT}/Modules/ is checked
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${ECM_MODULE_PATH} )
-
+set(CMAKE_PREFIX_PATH "/opt/libhybris/")
 find_package(Qt5 ${QT_MIN_VERSION} CONFIG REQUIRED COMPONENTS
     Concurrent
     Core
@@ -26,7 +24,6 @@ find_package(Qt5 ${QT_MIN_VERSION} CONFIG REQUIRED COMPONENTS
     Quick
     QuickWidgets
     Script
-    Sensors
     UiTools
     Widgets
     X11Extras
@@ -228,13 +225,21 @@ find_package(libhybris)
 set_package_properties(libhybris PROPERTIES TYPE OPTIONAL PURPOSE "Required for libhybris backend")
 set(HAVE_LIBHYBRIS ${libhybris_FOUND})
 
+find_package(libjingsideproxy)
+set_package_properties(libjingsideproxy PROPERTIES TYPE OPTIONAL PURPOSE "Required for jingsideproxy")
+set(HAVE_JINGSIDEPROXY ${libjingsideproxy_FOUND})
+
+find_package(perfetto)
+set_package_properties(libperfetto PROPERTIES TYPE OPTIONAL PURPOSE "Required for perfetto")
+set(HAVE_PERFETTO ${libperfetto_FOUND})
+
 find_package(X11)
 set_package_properties(X11 PROPERTIES
     DESCRIPTION "X11 libraries"
     URL "https://www.x.org"
     TYPE REQUIRED
 )
-add_feature_info("XInput" X11_Xinput_FOUND "Required for poll-free mouse cursor updates")
+add_feature_info("XInput" X11_Xi_FOUND "Required for poll-free mouse cursor updates")
 set(HAVE_X11_XINPUT ${X11_Xinput_FOUND})
 
 find_package(lcms2)
@@ -366,7 +371,6 @@ endif()
 
 include_directories(${XKB_INCLUDE_DIR})
 
-include_directories(${epoxy_INCLUDE_DIR})
 set(HAVE_EPOXY_GLX ${epoxy_HAS_GLX})
 
 # for things that are also used by kwin libraries
@@ -418,7 +422,7 @@ configure_file(config-kwin.h.cmake ${CMAKE_CURRENT_BINARY_DIR}/config-kwin.h)
 set(kwin_effects_dbus_xml ${CMAKE_CURRENT_SOURCE_DIR}/org.kde.kwin.Effects.xml)
 qt5_add_dbus_interface(effects_interface_SRCS ${kwin_effects_dbus_xml} kwineffects_interface)
 add_library(KWinEffectsInterface STATIC ${effects_interface_SRCS})
-target_link_libraries(KWinEffectsInterface Qt5::DBus)
+target_link_libraries(KWinEffectsInterface Qt::DBus)
 
 include_directories(BEFORE
     ${CMAKE_CURRENT_BINARY_DIR}/libkwineffects
@@ -471,14 +475,12 @@ set(kwin_SRCS
     egl_context_attribute_builder.cpp
     events.cpp
     focuschain.cpp
+    ftrace.cpp
     geometrytip.cpp
     gestures.cpp
     globalshortcuts.cpp
-    globalmotions.cpp
-    globalswipegestures.cpp
     group.cpp
     idle_inhibition.cpp
-    globalgesture.cpp
     input.cpp
     input_event.cpp
     input_event_spy.cpp
@@ -502,6 +504,10 @@ set(kwin_SRCS
     linux_dmabuf.cpp
     logind.cpp
     main.cpp
+    globalmotions.cpp
+    globalswipegestures.cpp
+    globalpinchgestures.cpp
+    globalgesture.cpp
     modifier_only_shortcuts.cpp
     moving_client_x11_filter.cpp
     netinfo.cpp
@@ -509,7 +515,6 @@ set(kwin_SRCS
     options.cpp
     osd.cpp
     outline.cpp
-    outputscreens.cpp
     overlaywindow.cpp
     placement.cpp
     platform.cpp
@@ -517,6 +522,8 @@ set(kwin_SRCS
     pluginmanager.cpp
     pointer_input.cpp
     popup_input_filter.cpp
+    renderjournal.cpp
+    renderloop.cpp
     rootinfo_filter.cpp
     rulebooksettings.cpp
     rules.cpp
@@ -565,28 +572,8 @@ set(kwin_SRCS
     xkb.cpp
     xwaylandclient.cpp
     xwl/xwayland_interface.cpp
+    3rdparty/jappmanager/jappmanagerclient.cpp
 )
-
-if (KWIN_BUILD_TABBOX)
-    include_directories(${Qt5Gui_PRIVATE_INCLUDE_DIRS})
-    set(kwin_SRCS ${kwin_SRCS}
-        tabbox/clientmodel.cpp
-        tabbox/desktopchain.cpp
-        tabbox/desktopmodel.cpp
-        tabbox/switcheritem.cpp
-        tabbox/tabbox.cpp
-        tabbox/tabbox_logging.cpp
-        tabbox/tabboxconfig.cpp
-        tabbox/tabboxhandler.cpp
-        tabbox/x11_filter.cpp
-    )
-endif()
-
-if (KWIN_BUILD_ACTIVITIES)
-    set(kwin_SRCS ${kwin_SRCS}
-        activities.cpp
-    )
-endif()
 
 if (HAVE_LINUX_VT_H)
     set(kwin_SRCS ${kwin_SRCS}
@@ -628,20 +615,32 @@ ki18n_wrap_ui(kwin_SRCS
 
 ########### target link libraries ###############
 
-set(kwin_OWN_LIBS
-    kwineffects
+add_library(kwin SHARED ${kwin_SRCS})
+if (Libinput_VERSION_STRING VERSION_GREATER 1.14)
+    set_source_files_properties(libinput/connection.cpp PROPERTIES COMPILE_DEFINITIONS LIBINPUT_HAS_TOTEM)
+endif ()
+
+if(HAVE_JINGSIDEPROXY)
+    target_link_libraries(kwin jing_android_proxy)
+endif()
+
+target_link_libraries(kwin jappm_cli)
+
+set_target_properties(kwin PROPERTIES
+   VERSION ${PROJECT_VERSION}
+   SOVERSION ${PROJECT_VERSION_MAJOR}
+)
+
+target_link_libraries(kwin
     kwin4_effect_builtins
-)
+    kwineffects
+    kwinglutils
 
-set(kwin_QT_LIBS
-    Qt5::Concurrent
-    Qt5::DBus
-    Qt5::Quick
-    Qt5::Script
-    Qt5::Sensors
-)
+    Qt::Concurrent
+    Qt::DBus
+    Qt::Quick
+    Qt::Script
 
-set(kwin_KDE_LIBS
     KF5::ConfigCore
     KF5::ConfigWidgets
     KF5::CoreAddons
@@ -652,21 +651,15 @@ set(kwin_KDE_LIBS
     KF5::Package
     KF5::Plasma
     KF5::QuickAddons
+    KF5::WaylandClient
     KF5::WindowSystem
 
     KDecoration2::KDecoration
     KDecoration2::KDecoration2Private
 
     PW::KScreenLocker
-)
+    Plasma::KWaylandServer
 
-set(kwin_XLIB_LIBS
-    ${X11_ICE_LIB}
-    ${X11_SM_LIB}
-    ${X11_X11_LIB}
-)
-
-set(kwin_XCB_LIBS
     XCB::COMPOSITE
     XCB::DAMAGE
     XCB::GLX
@@ -679,41 +672,14 @@ set(kwin_XCB_LIBS
     XCB::SYNC
     XCB::XCB
     XCB::XFIXES
-)
 
-set(kwin_WAYLAND_LIBS
-    KF5::WaylandClient
-    Plasma::KWaylandServer
+    Libinput::Libinput
+    UDev::UDev
     XKB::XKB
+    epoxy::epoxy
+
     ${CMAKE_THREAD_LIBS_INIT}
 )
-
-if (KWIN_BUILD_ACTIVITIES)
-    set(kwin_KDE_LIBS ${kwin_KDE_LIBS} KF5::Activities)
-endif()
-
-set(kwinLibs
-    ${kwin_OWN_LIBS}
-    ${kwin_QT_LIBS}
-    ${kwin_KDE_LIBS}
-    ${kwin_XLIB_LIBS}
-    ${kwin_XCB_LIBS}
-    ${kwin_WAYLAND_LIBS}
-    ${UDEV_LIBS}
-    Libinput::Libinput
-)
-
-add_library(kwin SHARED ${kwin_SRCS})
-if (Libinput_VERSION_STRING VERSION_GREATER 1.14)
-    set_source_files_properties(libinput/connection.cpp PROPERTIES COMPILE_DEFINITIONS LIBINPUT_HAS_TOTEM)
-endif ()
-
-set_target_properties(kwin PROPERTIES
-   VERSION ${PROJECT_VERSION}
-   SOVERSION ${PROJECT_VERSION_MAJOR}
-)
-
-target_link_libraries(kwin ${kwinLibs} kwinglutils ${epoxy_LIBRARY})
 
 if (KWIN_BUILD_CMS)
     target_sources(kwin PRIVATE
@@ -723,19 +689,39 @@ if (KWIN_BUILD_CMS)
     target_link_libraries(kwin lcms2::lcms2)
 endif()
 
+if (KWIN_BUILD_ACTIVITIES)
+    target_sources(kwin PRIVATE activities.cpp)
+    target_link_libraries(kwin KF5::Activities)
+endif()
+
+if (KWIN_BUILD_TABBOX)
+    target_sources(kwin PRIVATE
+        tabbox/clientmodel.cpp
+        tabbox/desktopchain.cpp
+        tabbox/desktopmodel.cpp
+        tabbox/switcheritem.cpp
+        tabbox/tabbox.cpp
+        tabbox/tabbox_logging.cpp
+        tabbox/tabboxconfig.cpp
+        tabbox/tabboxhandler.cpp
+        tabbox/x11_filter.cpp
+    )
+    target_include_directories(kwin PRIVATE ${Qt5Gui_PRIVATE_INCLUDE_DIRS})
+endif()
+
 generate_export_header(kwin EXPORT_FILE_NAME kwin_export.h)
 
 if(CMAKE_SYSTEM MATCHES "FreeBSD")
     # epoll is required, includes live under ${LOCALBASE}, separate library
     target_include_directories(kwin PUBLIC ${epoll_INCLUDE_DIRS})
-    target_link_libraries(kwin ${kwinLibs} ${epoll_LIBRARIES}) 
+    target_link_libraries(kwin ${epoll_LIBRARIES}) 
 endif()
 
 add_executable(kwin_x11 main_x11.cpp)
-target_link_libraries(kwin_x11 kwin KF5::Crash Qt5::X11Extras)
+target_link_libraries(kwin_x11 kwin KF5::Crash Qt::X11Extras)
 
-install(TARGETS kwin ${INSTALL_TARGETS_DEFAULT_ARGS} LIBRARY NAMELINK_SKIP)
-install(TARGETS kwin_x11 ${INSTALL_TARGETS_DEFAULT_ARGS})
+install(TARGETS kwin ${KDE_INSTALL_TARGETS_DEFAULT_ARGS} LIBRARY NAMELINK_SKIP)
+install(TARGETS kwin_x11 ${KDE_INSTALL_TARGETS_DEFAULT_ARGS})
 
 set(kwin_XWAYLAND_SRCS
    ${CMAKE_CURRENT_SOURCE_DIR}/xwl/clipboard.cpp
@@ -771,11 +757,16 @@ target_link_libraries(kwin_wayland
                       kwin
                       KF5::Crash
 )
+
+if (HAVE_PERFETTO)
+    target_link_libraries(kwin_wayland libperfetto::sdk)
+endif()
+
 if (HAVE_LIBCAP)
     target_link_libraries(kwin_wayland ${Libcap_LIBRARIES})
 endif()
 
-install(TARGETS kwin_wayland ${INSTALL_TARGETS_DEFAULT_ARGS})
+install(TARGETS kwin_wayland ${KDE_INSTALL_TARGETS_DEFAULT_ARGS})
 if (HAVE_LIBCAP)
     install(
     CODE "execute_process(
@@ -822,7 +813,7 @@ install(FILES scripting/kwinscript.desktop DESTINATION ${SERVICETYPES_INSTALL_DI
 add_subdirectory(qml)
 
 if (BUILD_TESTING)
-    find_package(WaylandProtocols REQUIRED)
+    find_package(WaylandProtocols 1.19 REQUIRED)
     find_package(QtWaylandScanner ${QT_MIN_VERSION} REQUIRED)
     find_package(Wayland REQUIRED COMPONENTS Client)
 
@@ -851,7 +842,10 @@ configure_package_config_file(KWinDBusInterfaceConfig.cmake.in
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/KWinDBusInterfaceConfig.cmake
     DESTINATION ${CMAKECONFIG_INSTALL_DIR})
 
-ecm_install_configured_files(INPUT plasma-kwin_x11.service.in plasma-kwin_wayland.service.in @ONLY
+
+# plasma-kwin_wayland.service.in is currently disabled as plasma-workspace currently launches
+# kwin-wayland explicitly. Porting this is currently blocked on propogating DISPLAY
+ecm_install_configured_files(INPUT plasma-kwin_x11.service.in @ONLY
             DESTINATION ${SYSTEMD_USER_UNIT_INSTALL_DIR})
 
 find_package(KF5I18n CONFIG REQUIRED)

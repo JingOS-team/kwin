@@ -12,6 +12,8 @@
 #include <QQmlContext>
 #include <QMouseEvent>
 #include "kwinglutils.h"
+#include "workspace.h"
+#include "sm.h"
 
 namespace KWin
 {
@@ -33,6 +35,8 @@ ShowSysInfo::ShowSysInfo()
             hideDockBg(animate);
         }
     });
+
+    connect(effects, &EffectsHandler::aboutToQuit, this, &ShowSysInfo::slotAboutToQuit);
 
     _noticeView = new EffectQuickScene(this);
 
@@ -88,6 +92,11 @@ void ShowSysInfo::prePaintScreen(ScreenPrePaintData &data, std::chrono::millisec
     _lastPresentTime = presentTime;
 
     _timeLine.update(delta);
+    if (_timeLine.value() == 0) {
+        _isShowingDockBg = false;
+    } else if (_timeLine.value() == 1) {
+        _isShowingDockBg = true;
+    }
     _bottomAnimationTimeLine.update(delta);
 
     effects->prePaintScreen(data, presentTime);
@@ -122,13 +131,23 @@ void ShowSysInfo::postPaintScreen()
     if (!_bottomAnimationTimeLine.done()) {
         effects->addRepaintFull();
     }
+
+    if (_isShowingQuitBg) {
+        if (!_quitTexture) {
+            QImage image("/usr/share/kwin_icons/quit.png");
+
+            _quitTexture.reset(new GLTexture(image));
+            _quitTexture->setWrapMode(GL_CLAMP_TO_EDGE);
+        }
+
+        effects->renderTexture(_quitTexture.data(), infiniteRegion(), QRect(QPoint(0,0), effects->screenSize(0)));
+    }
 }
 
 bool ShowSysInfo::isActive() const
 {
-    bool isActive = taskManager->getTaskState() == TaskManager::TS_None && effects->activeWindow() && !effects->isScreenLocked();;
+    bool isActive = _isShowingQuitBg || (taskManager->isInitState() && !effects->isScreenLocked());
     return isActive;
-    //  && !effects->isScreenLocked() && (effects->showCloseNotice() || effects->activeWindow()->isNormalWindow())
 }
 
 bool ShowSysInfo::pointerEvent(QMouseEvent *e)
@@ -169,13 +188,12 @@ void ShowSysInfo::prePaintWindow(EffectWindow *w, WindowPrePaintData &data, std:
                 data.quads = data.quads.splitAtY(screenGeom.y() + screenGeom.height() - w->y());
         }
     }
-
     effects->prePaintWindow(w, data, presentTime);
 }
 
 void ShowSysInfo::paintWindow(EffectWindow *w, int mask, QRegion region, WindowPaintData &data)
 {
-    if (w->isDock() && !effects->showingDesktop()) {
+    if (w->isStatusBar() && !effects->showingDesktop()) {
         GLVertexBuffer* vbo = GLVertexBuffer::streamingBuffer();
         vbo->reset();
 
@@ -205,29 +223,72 @@ void ShowSysInfo::paintWindow(EffectWindow *w, int mask, QRegion region, WindowP
             effects->addRepaintFull();
         }
     }
+
+    if (effects->activeWindow() == w && !w->fillBgRegion().isEmpty()) {
+        qDebug()<<"yanggx1234:"<<w->geometry()<<" "<<QRect(w->geometry().bottomLeft(), w->fillBgRegion().boundingRect().bottomRight());
+        GLVertexBuffer* vbo = GLVertexBuffer::streamingBuffer();
+        vbo->reset();
+
+        ShaderBinder binder(ShaderTrait::UniformColor);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+        vbo->setUseColor(true);
+        vbo->setColor(w->fillBgColor());
+        QVector<float> verts;
+        QRegion paintRegin = region.intersected(QRect(w->geometry().bottomLeft(), w->fillBgRegion().boundingRect().bottomRight()));
+        verts.reserve(paintRegin.rectCount() * 12);
+        for (const QRect &r : paintRegin) {
+            verts << r.x() + r.width() << r.y();
+            verts << r.x() << r.y();
+            verts << r.x() << r.y() + r.height();
+            verts << r.x() << r.y() + r.height();
+            verts << r.x() + r.width() << r.y() + r.height();
+            verts << r.x() + r.width() << r.y();
+        }
+        vbo->setData(verts.size() / 2, 2, verts.data(), nullptr);
+        vbo->render(GL_TRIANGLES);
+        glDisable(GL_BLEND);
+    }
     if (w->isBackApp() || w->isDeleted()) {
         return;
     }
-    if (isActive() && w->isScaleApp() && !w->isBackApp()) {
-        WindowQuadList screenQuads;
-        foreach (const WindowQuad & quad, data.quads)
-            screenQuads.append(quad);
 
-        if (screenQuads.isEmpty())
-            return;
+#if 0
+    if (w && !w->fillBgRegion().isEmpty() ) {
+        GLVertexBuffer* vbo = GLVertexBuffer::streamingBuffer();
+        vbo->reset();
 
-        WindowPaintData d = data;
-        d.quads = screenQuads;
-        d.setXScale(w->getAppScale());
-        d.setYScale(w->getAppScale());
+        ShaderBinder binder(ShaderTrait::UniformColor);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-        QRect rect = region.boundingRect();
-        rect.setSize(rect.size() * w->getAppScale());
-        rect.intersected(w->geometry());
-        effects->paintWindow(w, mask, rect, d);
-    } else {
-        effects->paintWindow(w, mask, region, data);
+        vbo->setUseColor(true);
+        vbo->setColor(QColor(w->fillBgColor().red(), w->fillBgColor().green(), w->fillBgColor().blue(), w->fillBgColor().alpha()));
+        QVector<float> verts;
+        QRegion paintRegin = w->fillBgRegion();
+        verts.reserve(paintRegin.rectCount() * 12);
+        for (const QRect &r : paintRegin) {
+            verts << r.x() + r.width() << r.y();
+            verts << r.x() << r.y();
+            verts << r.x() << r.y() + r.height();
+            verts << r.x() << r.y() + r.height();
+            verts << r.x() + r.width() << r.y() + r.height();
+            verts << r.x() + r.width() << r.y();
+        }
+        vbo->setData(verts.size() / 2, 2, verts.data(), nullptr);
+        vbo->render(GL_TRIANGLES);
+        glDisable(GL_BLEND);
     }
+#endif
+
+//    if (w->jingWindowType() != JingWindowType::TYPE_INPUT_METHOD)
+            effects->paintWindow(w, mask, region, data);
+}
+
+void ShowSysInfo::postPaintWindow(EffectWindow *w)
+{
+    effects->postPaintWindow(w);
 }
 
 bool ShowSysInfo::supported()
@@ -285,18 +346,32 @@ void ShowSysInfo::switchWindow(bool toRight)
     taskManager->onTaskSwipe(toRight);
 }
 
+bool ShowSysInfo::enabledByDefault()
+{
+    return true;
+}
+
 bool ShowSysInfo::isShowNextWindow()
 {
     auto curW = effects->activeWindow();
-    return !curW->opaqueRegion().isEmpty() || curW->maximizeMode() != 3;
+    return curW && (!curW->opaqueRegion().isEmpty() || curW->maximizeMode() != 3);
 }
 
 void ShowSysInfo::slotShowingDesktopChanged(bool show)
 {
+    Q_UNUSED(show);
 //    _barScale = 1.0;
 //    if (!effects->showingDesktop() && effects->activeWindow() && _bottomControlview) {
 //        _bottomControlview->rootContext()->setContextProperty("barScale", _barScale);
 //    }
+}
+
+void ShowSysInfo::slotAboutToQuit()
+{
+    qDebug() << Q_FUNC_INFO;
+
+    _isShowingQuitBg = true;
+    effects->addRepaintFull();
 }
 
 }

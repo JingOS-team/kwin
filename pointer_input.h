@@ -157,12 +157,16 @@ private:
         BCS_BOTTOMLEFT_ONECE,
         BCS_BOTTOMLEFT,
         BCS_BOTTOMRIGHT_ONECE,
-        BCS_BOTTOMRIGHT
+        BCS_BOTTOMRIGHT,
+        BCS_TOPLEFT_ONECE,
+        BCS_TOPLEFT,
+        BCS_TOPRIGHT_ONECE,
+        BCS_TOPRIGHT
     };
 
     void getPointPCSState();
     void pointPreProcess(const QPointF &pos, const QSizeF &delta);
-    void buttonPreProcess(QEvent::Type type, const QPointF &pos, uint32_t time);
+    bool buttonPreProcess(QEvent::Type type, const QPointF &pos, uint32_t time);
 
     void cleanupInternalWindow(QWindow *old, QWindow *now) override;
     void cleanupDecoration(Decoration::DecoratedClientImpl *old, Decoration::DecoratedClientImpl *now) override;
@@ -202,7 +206,16 @@ private:
     QTimer *m_pointerTimer = nullptr;
     QTimer *m_buttonTimer = nullptr;
     uint32_t m_lastButtonTime = 0;
+    qreal m_wheelHDelta = 0;
+    qreal m_wheelVDelta = 0;
+    qreal m_wheelDelta = 0;
+    QSizeF m_motionDelta ;
+    int m_isPositive = 0;
 
+    bool m_bPointerMotionEnabled = true;
+    QTimer *m_motionEnabledTimer = nullptr;
+    QTimer *m_motionTimer = nullptr;
+    QTimer *m_wheelTimer = nullptr;
 };
 
 class WaylandCursorImage : public QObject

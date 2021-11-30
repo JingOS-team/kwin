@@ -199,7 +199,7 @@ void SlideEffect::paintScreen(int mask, const QRegion &region, ScreenPaintData &
 bool SlideEffect::isTranslated(const EffectWindow *w) const
 {
     if (w->isOnAllDesktops()) {
-        if (w->isDock()) {
+        if (w->isStatusBar()) {
             return m_slideDocks;
         }
         if (w->isDesktop()) {
@@ -221,7 +221,7 @@ bool SlideEffect::isTranslated(const EffectWindow *w) const
 bool SlideEffect::isPainted(const EffectWindow *w) const
 {
     if (w->isOnAllDesktops()) {
-        if (w->isDock()) {
+        if (w->isStatusBar()) {
             if (!m_slideDocks) {
                 return m_paintCtx.lastPass;
             }
@@ -336,7 +336,7 @@ bool SlideEffect::shouldElevate(const EffectWindow *w) const
     // Static docks(i.e. this effect doesn't slide docks) should be elevated
     // so they can properly animate themselves when an user enters or leaves
     // a virtual desktop with a window in fullscreen mode.
-    return w->isDock() && !m_slideDocks;
+    return w->isStatusBar() && !m_slideDocks;
 }
 
 void SlideEffect::start(int old, int current, EffectWindow *movingWindow)

@@ -26,6 +26,7 @@
 #include <QFile>
 #include <QTimer>
 #include <QtConcurrentRun>
+#include "workspace.h"
 
 // system
 #ifdef HAVE_UNISTD_H
@@ -127,7 +128,15 @@ void Xwayland::start()
     m_xwaylandProcess->setProgram(QStringLiteral("Xwayland"));
     QProcessEnvironment env = m_app->processStartupEnvironment();
     env.insert("WAYLAND_SOCKET", QByteArray::number(wlfd));
+#if HAVE_LIBHYBRIS
+    // shabin 0971c14bb5
+    env.insert("EGL_PLATFORM", QByteArrayLiteral("wayland"));
+#else 
     env.insert("EGL_PLATFORM", QByteArrayLiteral("DRM"));
+#endif
+    if (qEnvironmentVariableIsSet("KWIN_XWAYLAND_DEBUG")) {
+        env.insert("WAYLAND_DEBUG", QByteArrayLiteral("1"));
+    }
     m_xwaylandProcess->setProcessEnvironment(env);
     m_xwaylandProcess->setArguments({QStringLiteral("-displayfd"),
                            QString::number(pipeFds[1]),
@@ -314,6 +323,7 @@ void Xwayland::handleXwaylandReady()
     qCInfo(KWIN_XWL) << "Xwayland server started on display" << m_displayName;
     qputenv("DISPLAY", m_displayName);
 
+    workspace()->setDisplayName(m_displayName);
     // create selection owner for WM_S0 - magic X display number expected by XWayland
     KSelectionOwner owner("WM_S0", kwinApp()->x11Connection(), kwinApp()->x11RootWindow());
     owner.claim(true);

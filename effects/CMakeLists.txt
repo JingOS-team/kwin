@@ -31,10 +31,10 @@ if (HAVE_ACCESSIBILITY)
 endif()
 
 set(kwin_effect_QT_LIBS
-    Qt5::Concurrent
-    Qt5::DBus
-    Qt5::Quick
-    Qt5::X11Extras
+    Qt::Concurrent
+    Qt::DBus
+    Qt::Quick
+    Qt::X11Extras
 )
 
 set(kwin_effect_XLIB_LIBS
@@ -70,7 +70,7 @@ macro(KWIN4_ADD_EFFECT name)
 
     set_target_properties(kwin4_effect_${name} PROPERTIES VERSION 1.0.0 SOVERSION 1)
     set_target_properties(kwin4_effect_${name} PROPERTIES OUTPUT_NAME ${KWIN_NAME}4_effect_${name})
-    install(TARGETS kwin4_effect_${name} ${INSTALL_TARGETS_DEFAULT_ARGS})
+    install(TARGETS kwin4_effect_${name} ${KDE_INSTALL_TARGETS_DEFAULT_ARGS})
 endmacro()
 
 # Install the KWin/Effect service type
@@ -98,6 +98,7 @@ set(kwin4_effect_builtins_sources
     magiclamp/magiclamp.cpp
     switchwindows/switchwindows.cpp
     showsysinfo/showsysinfo.cpp
+    showwindowinfo/showwindowinfo.cpp
     magnifier/magnifier.cpp
     mouseclick/mouseclick.cpp
     mousemark/mousemark.cpp
@@ -115,6 +116,7 @@ set(kwin4_effect_builtins_sources
     zoom/zoom.cpp
     taskpanel/taskpanel.cpp
     taskpanel/tasklist.cpp
+    floatball/floatball.cpp
     ../service_utils.cpp
 )
 
@@ -141,6 +143,7 @@ kconfig_add_kcfg_files(kwin4_effect_builtins_sources
     magiclamp/magiclampconfig.kcfgc
     switchwindows/switchwindowsconfig.kcfgc
     showsysinfo/showsysinfoconfig.kcfgc
+    showwindowinfo/showwindowinfoconfig.kcfgc
     magnifier/magnifierconfig.kcfgc
     mouseclick/mouseclickconfig.kcfgc
     mousemark/mousemarkconfig.kcfgc

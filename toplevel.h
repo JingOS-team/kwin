@@ -37,6 +37,7 @@ class SurfaceInterface;
 namespace KWin
 {
 
+class AbstractOutput;
 class ClientMachine;
 class Deleted;
 class EffectWindowImpl;
@@ -137,7 +138,7 @@ class KWIN_EXPORT Toplevel : public QObject
      * Returns whether the window is a dock (i.e. a panel).
      * See _NET_WM_WINDOW_TYPE_DOCK at https://standards.freedesktop.org/wm-spec/wm-spec-latest.html .
      */
-    Q_PROPERTY(bool dock READ isDock)
+    Q_PROPERTY(bool dock READ isStatusBar)
 
     /**
      * Returns whether the window is a standalone (detached) toolbar window.
@@ -347,6 +348,7 @@ public:
     int width() const;
     int height() const;
     bool isOnScreen(int screen) const;   // true if it's at least partially there
+    bool isOnOutput(AbstractOutput *output) const;
     bool isOnActiveScreen() const;
     int screen() const; // the screen where the center is
     /**
@@ -393,8 +395,14 @@ public:
     // 0 for supported types means default for managed/unmanaged types
     virtual NET::WindowType windowType(bool direct = false, int supported_types = 0) const = 0;
     bool hasNETSupport() const;
+
     bool isDesktop() const;
+    bool isStatusBar() const;
+    bool isWallPaper() const;
+    bool isStatusBarPanel() const;
+    bool isSysSplash() const;
     bool isDock() const;
+
     bool isToolbar() const;
     bool isMenu() const;
     bool isNormalWindow() const; // normal as in 'NET::Normal or NET::Unknown non-transient'
@@ -420,6 +428,7 @@ public:
      * or NET::OnAllDesktops. Do not use desktop() directly, use
      * isOnDesktop() instead.
      */
+    virtual bool isSystemUI() const;
     virtual int desktop() const = 0;
     virtual QVector<VirtualDesktop *> desktops() const = 0;
     virtual QStringList activities() const = 0;
@@ -463,7 +472,6 @@ public:
     void addWorkspaceRepaint(const QRect& r);
     void addWorkspaceRepaint(int x, int y, int w, int h);
     void addWorkspaceRepaint(const QRegion &region);
-    bool wantsRepaint() const;
     QRegion damage() const;
     void resetDamage();
     EffectWindowImpl* effectWindow();
@@ -501,8 +509,9 @@ public:
      */
     const QRegion& opaqueRegion() const;
 
-    virtual Layer layer() const = 0;
+    virtual JingLayer jingLayer() const = 0;
 
+    virtual JingWindowType jingWindowType() const = 0;
     /**
      * Resets the damage state and sends a request for the damage region.
      * A call to this function must be followed by a call to getDamageRegionReply(),
@@ -609,7 +618,16 @@ public:
 
     virtual void sendScale(qreal scale = 1.);
 
-    virtual bool visible();
+    virtual bool visible() const;
+
+    virtual bool canAcceptEvent() const;
+
+    virtual bool isSystemDialog() const;
+
+    virtual QRegion fillBgRegion() const;
+    virtual QColor fillBgColor() const;
+
+    virtual QRect taskGeometry() const;
 Q_SIGNALS:
     void opacityChanged(KWin::Toplevel* toplevel, qreal oldOpacity);
     void damaged(KWin::Toplevel* toplevel, const QRegion& damage);
@@ -796,7 +814,7 @@ inline QSize Toplevel::clientSize() const
 
 inline QRect Toplevel::frameGeometry() const
 {
-    return  m_frameGeometry;
+    return m_frameGeometry;
 }
 
 inline QSize Toplevel::size() const
@@ -843,15 +861,34 @@ inline xcb_visualid_t Toplevel::visual() const
 {
     return m_visual;
 }
+inline bool Toplevel::isDock() const
+{
+    return jingWindowType() == JingWindowType::TYPE_DOCK;
+}
+
+inline bool Toplevel::isSysSplash() const
+{
+    return jingWindowType() == JingWindowType::TYPE_SYS_SPLASH;
+}
+
+inline bool Toplevel::isStatusBarPanel() const
+{
+    return jingWindowType() == JingWindowType::TYPE_STATUS_BAR_PANEL;
+}
 
 inline bool Toplevel::isDesktop() const
 {
-    return windowType() == NET::Desktop;
+    return jingWindowType() == JingWindowType::TYPE_DESKTOP;
 }
 
-inline bool Toplevel::isDock() const
+inline bool Toplevel::isStatusBar() const
 {
-    return windowType() == NET::Dock;
+    return jingWindowType() == JingWindowType::TYPE_STATUS_BAR;
+}
+
+inline bool Toplevel::isWallPaper() const
+{
+    return jingWindowType() == JingWindowType::TYPE_WALLPAPER;
 }
 
 inline bool Toplevel::isMenu() const

@@ -25,6 +25,7 @@ public:
 
     QRegion beginFrame(int screenId) override;
     void endFrame(int screenId, const QRegion &damage, const QRegion &damagedRegion) override;
+    bool scanout(int screenId, KWaylandServer::SurfaceInterface *surface) override;
 
     bool makeCurrent() override;
     void doneCurrent() override;
@@ -32,19 +33,16 @@ public:
     SceneOpenGLTexturePrivate *createBackendTexture(SceneOpenGLTexture *texture) override;
     QSharedPointer<GLTexture> textureForOutput(AbstractOutput *requestedOutput) const override;
 
-    bool usesOverlayWindow() const override;
-
     void screenGeometryChanged(const QSize &size) override;
 
     void addBackend(AbstractEglDrmBackend *backend);
 
-protected:
-    void present() override;
+    bool directScanoutAllowed(int screen) const override;
 
 private:
     QVector<AbstractEglDrmBackend*> m_backends;
 
-    AbstractEglDrmBackend *findBackend(int screenId, int& internalScreenId);
+    AbstractEglDrmBackend *findBackend(int screenId, int& internalScreenId) const;
 
 };
 

@@ -69,6 +69,7 @@
 
 // Qt
 #include <QCryptographicHash>
+#include <QDBusConnection>
 #include <QDir>
 #include <QFileInfo>
 #include <QThread>
@@ -89,10 +90,109 @@ namespace KWin
 
 KWIN_SINGLETON_FACTORY(WaylandServer)
 
+class KWinDisplay : public KWaylandServer::FilteredDisplay
+{
+public:
+    KWinDisplay(QObject *parent)
+        : KWaylandServer::FilteredDisplay(parent)
+    {}
+
+    static QByteArray sha256(const QString &fileName)
+    {
+        QFile f(fileName);
+        if (f.open(QFile::ReadOnly)) {
+            QCryptographicHash hash(QCryptographicHash::Sha256);
+            if (hash.addData(&f)) {
+                return hash.result();
+            }
+        }
+        return QByteArray();
+    }
+
+    bool isTrustedOrigin(KWaylandServer::ClientConnection *client) const {
+        const auto fullPathSha = sha256(client->executablePath());
+        const auto localSha = sha256(QLatin1String("/proc/") + QString::number(client->processId()) + QLatin1String("/exe"));
+        const bool trusted = !localSha.isEmpty() && fullPathSha == localSha;
+
+        if (!trusted) {
+            qCWarning(KWIN_CORE) << "Could not trust" << client->executablePath() << "sha" << localSha << fullPathSha;
+        }
+
+        return trusted;
+    }
+
+    QStringList fetchRequestedInterfaces(KWaylandServer::ClientConnection *client) const {
+        return KWin::fetchRequestedInterfaces(client->executablePath());
+    }
+
+    const QSet<QByteArray> interfacesBlackList = {"org_kde_kwin_remote_access_manager", "org_kde_plasma_window_management", "org_kde_kwin_fake_input", "org_kde_kwin_keystate", "zkde_screencast_unstable_v1"};
+
+    const QSet<QByteArray> inputmethodInterfaces = { "zwp_input_panel_v1", "zwp_input_method_v1" };
+
+    QSet<QString> m_reported;
+
+    bool allowInterface(KWaylandServer::ClientConnection *client, const QByteArray &interfaceName) override {
+        if (client->processId() == getpid()) {
+            return true;
+        }
+
+        if (client != waylandServer()->inputMethodConnection() && inputmethodInterfaces.contains(interfaceName)) {
+            return false;
+        }
+
+        if (!interfacesBlackList.contains(interfaceName)) {
+            return true;
+        }
+
+        if (client->executablePath().isEmpty()) {
+            qCWarning(KWIN_CORE) << "Could not identify process with pid" << client->processId();
+            return false;
+        }
+
+        {
+            auto requestedInterfaces = client->property("requestedInterfaces");
+            if (requestedInterfaces.isNull()) {
+                requestedInterfaces = fetchRequestedInterfaces(client);
+                client->setProperty("requestedInterfaces", requestedInterfaces);
+            }
+            if (!requestedInterfaces.toStringList().contains(QString::fromUtf8(interfaceName))) {
+                if (KWIN_CORE().isDebugEnabled()) {
+                    const QString id = client->executablePath() + QLatin1Char('|') + QString::fromUtf8(interfaceName);
+                    if (!m_reported.contains({id})) {
+                        m_reported.insert(id);
+                        qCDebug(KWIN_CORE) << "Interface" << interfaceName << "not in X-KDE-Wayland-Interfaces of" << client->executablePath();
+                    }
+                }
+                return false;
+            }
+        }
+
+        {
+            auto trustedOrigin = client->property("isPrivileged");
+            if (trustedOrigin.isNull()) {
+                trustedOrigin = isTrustedOrigin(client);
+                client->setProperty("isPrivileged", trustedOrigin);
+            }
+
+            if (!trustedOrigin.toBool()) {
+                return false;
+            }
+        }
+        qCDebug(KWIN_CORE) << "authorized" << client->executablePath() << interfaceName;
+        return true;
+    }
+};
+
 WaylandServer::WaylandServer(QObject *parent)
     : QObject(parent)
+    , m_display(new KWinDisplay(this))
 {
     qRegisterMetaType<KWaylandServer::OutputInterface::DpmsMode>();
+
+    QDBusConnection::sessionBus().connect("org.kde.LogoutPrompt",
+                                              "/LogoutPrompt",
+                                              "org.kde.LogoutPrompt",
+                                              "toBeShow", this, SLOT(showLoutPrompt()));
 }
 
 WaylandServer::~WaylandServer()
@@ -137,11 +237,9 @@ void WaylandServer::terminateClientConnections()
 {
     destroyInternalConnection();
     destroyInputMethodConnection();
-    if (m_display) {
-        const auto connections = m_display->connections();
-        for (auto it = connections.begin(); it != connections.end(); ++it) {
-            (*it)->destroy();
-        }
+    const auto connections = m_display->connections();
+    for (auto it = connections.begin(); it != connections.end(); ++it) {
+        (*it)->destroy();
     }
 }
 
@@ -238,99 +336,6 @@ AbstractWaylandOutput *WaylandServer::findOutput(KWaylandServer::OutputInterface
     return outputFound;
 }
 
-class KWinDisplay : public KWaylandServer::FilteredDisplay
-{
-public:
-    KWinDisplay(QObject *parent)
-        : KWaylandServer::FilteredDisplay(parent)
-    {}
-
-    static QByteArray sha256(const QString &fileName)
-    {
-        QFile f(fileName);
-        if (f.open(QFile::ReadOnly)) {
-            QCryptographicHash hash(QCryptographicHash::Sha256);
-            if (hash.addData(&f)) {
-                return hash.result();
-            }
-        }
-        return QByteArray();
-    }
-
-    bool isTrustedOrigin(KWaylandServer::ClientConnection *client) const {
-        const auto fullPathSha = sha256(client->executablePath());
-        const auto localSha = sha256(QLatin1String("/proc/") + QString::number(client->processId()) + QLatin1String("/exe"));
-        const bool trusted = !localSha.isEmpty() && fullPathSha == localSha;
-
-        if (!trusted) {
-            qCWarning(KWIN_CORE) << "Could not trust" << client->executablePath() << "sha" << localSha << fullPathSha;
-        }
-
-        return trusted;
-    }
-
-    QStringList fetchRequestedInterfaces(KWaylandServer::ClientConnection *client) const {
-        return KWin::fetchRequestedInterfaces(client->executablePath());
-    }
-
-    const QSet<QByteArray> interfacesBlackList = {"org_kde_kwin_remote_access_manager", "org_kde_plasma_window_management", "org_kde_kwin_fake_input", "org_kde_kwin_keystate", "zkde_screencast_unstable_v1"};
-
-    const QSet<QByteArray> inputmethodInterfaces = { "zwp_input_panel_v1", "zwp_input_method_v1" };
-
-    QSet<QString> m_reported;
-
-    bool allowInterface(KWaylandServer::ClientConnection *client, const QByteArray &interfaceName) override {
-        if (client->processId() == getpid()) {
-            return true;
-        }
-
-        if (client != waylandServer()->inputMethodConnection() && inputmethodInterfaces.contains(interfaceName)) {
-            return false;
-        }
-
-        if (!interfacesBlackList.contains(interfaceName)) {
-            return true;
-        }
-
-        if (client->executablePath().isEmpty()) {
-            qCWarning(KWIN_CORE) << "Could not identify process with pid" << client->processId();
-            return false;
-        }
-
-        {
-            auto requestedInterfaces = client->property("requestedInterfaces");
-            if (requestedInterfaces.isNull()) {
-                requestedInterfaces = fetchRequestedInterfaces(client);
-                client->setProperty("requestedInterfaces", requestedInterfaces);
-            }
-            if (!requestedInterfaces.toStringList().contains(QString::fromUtf8(interfaceName))) {
-                if (KWIN_CORE().isDebugEnabled()) {
-                    const QString id = client->executablePath() + QLatin1Char('|') + QString::fromUtf8(interfaceName);
-                    if (!m_reported.contains({id})) {
-                        m_reported.insert(id);
-                        qCDebug(KWIN_CORE) << "Interface" << interfaceName << "not in X-KDE-Wayland-Interfaces of" << client->executablePath();
-                    }
-                }
-                return false;
-            }
-        }
-
-        {
-            auto trustedOrigin = client->property("isPrivileged");
-            if (trustedOrigin.isNull()) {
-                trustedOrigin = isTrustedOrigin(client);
-                client->setProperty("isPrivileged", trustedOrigin);
-            }
-
-            if (!trustedOrigin.toBool()) {
-                return false;
-            }
-        }
-        qCDebug(KWIN_CORE) << "authorized" << client->executablePath() << interfaceName;
-        return true;
-    }
-};
-
 bool WaylandServer::start()
 {
     return m_display->start();
@@ -338,11 +343,15 @@ bool WaylandServer::start()
 
 bool WaylandServer::init(const QString &socketName, InitializationFlags flags)
 {
-    m_initFlags = flags;
-    m_display = new KWinDisplay(this);
     if (!m_display->addSocketName(socketName)) {
         return false;
     }
+    return init(flags);
+}
+
+bool WaylandServer::init(InitializationFlags flags)
+{
+    m_initFlags = flags;
     m_compositor = new CompositorInterface(m_display, m_display);
     connect(m_compositor, &CompositorInterface::surfaceCreated, this,
         [this] (SurfaceInterface *surface) {
@@ -353,7 +362,7 @@ bool WaylandServer::init(const QString &socketName, InitializationFlags flags)
                 return;
             }
             if (surface->client() != xWaylandConnection()) {
-                // setting surface is only relevat for Xwayland clients
+                // setting surface is only relevant for Xwayland clients
                 return;
             }
 
@@ -603,6 +612,25 @@ void WaylandServer::initScreenLocker()
         }
     );
 
+    connect(ScreenLocker::KSldApp::self(), &ScreenLocker::KSldApp::clear, this,
+        [this, screenLockerApp] () {
+            if (m_screenLockerClientConnection) {
+                m_screenLockerClientConnection->destroy();
+                delete m_screenLockerClientConnection;
+                m_screenLockerClientConnection = nullptr;
+            }
+
+            for (auto *seat : m_display->seats()) {
+                disconnect(seat, &KWaylandServer::SeatInterface::timestampChanged,
+                           screenLockerApp, &ScreenLocker::KSldApp::userActivity);
+            }
+            ScreenLocker::KSldApp::self()->setWaylandFd(-1);
+            // casper_yang for app scale
+            screens()->setDefaultClientScale(Workspace::self()->getAppDefaultScale());
+            Workspace::self()->setHasLogin(true);
+        }
+    );
+
     connect(ScreenLocker::KSldApp::self(), &ScreenLocker::KSldApp::unlocked, this,
         [this, screenLockerApp] () {
             if (m_screenLockerClientConnection) {
@@ -649,7 +677,15 @@ int WaylandServer::createScreenLockerConnection()
     }
     m_screenLockerClientConnection = socket.connection;
     connect(m_screenLockerClientConnection, &KWaylandServer::ClientConnection::disconnected,
-            this, [this] { m_screenLockerClientConnection = nullptr; });
+            this, [this] {
+        if (m_screenLockerClientConnection != nullptr) {
+#if defined (__arm64__) || defined (__aarch64__)
+//        m_screenLockerClientConnection->destroy();
+//        delete m_screenLockerClientConnection;
+#endif
+        m_screenLockerClientConnection = nullptr;
+        }
+    });
     return socket.fd;
 }
 
@@ -790,6 +826,9 @@ XdgSurfaceClient *WaylandServer::findXdgSurfaceClient(SurfaceInterface *surface)
 
 bool WaylandServer::isScreenLocked() const
 {
+    if (m_showLogout) {
+        return false;
+    }
     if (!hasScreenLockerIntegration()) {
         return false;
     }
@@ -841,6 +880,11 @@ QString WaylandServer::socketName() const
         return socketNames.first();
     }
     return QString();
+}
+
+void WaylandServer::showLoutPrompt(bool set)
+{
+    m_showLogout = set;
 }
 
 }

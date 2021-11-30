@@ -8,18 +8,19 @@
 */
 #ifndef KWIN_GLX_BACKEND_H
 #define KWIN_GLX_BACKEND_H
-#include "backend.h"
+#include "openglbackend.h"
 #include "texture.h"
-#include "swap_profiler.h"
 #include "x11eventfilter.h"
 
 #include <xcb/glx.h>
 #include <epoxy/glx.h>
 #include <fixx11h.h>
-#include <memory>
 
 namespace KWin
 {
+
+class VsyncMonitor;
+class X11StandalonePlatform;
 
 // GLX_MESA_swap_interval
 using glXSwapIntervalMESA_func = int (*)(unsigned int interval);
@@ -54,10 +55,12 @@ private:
 /**
  * @brief OpenGL Backend using GLX over an X overlay window.
  */
-class GlxBackend : public OpenGLBackend
+class GlxBackend : public QObject, public OpenGLBackend
 {
+    Q_OBJECT
+
 public:
-    GlxBackend(Display *display);
+    GlxBackend(Display *display, X11StandalonePlatform *backend);
     ~GlxBackend() override;
     void screenGeometryChanged(const QSize &size) override;
     SceneOpenGLTexturePrivate *createBackendTexture(SceneOpenGLTexture *texture) override;
@@ -66,17 +69,14 @@ public:
     bool makeCurrent() override;
     void doneCurrent() override;
     OverlayWindow* overlayWindow() const override;
-    bool usesOverlayWindow() const override;
     void init() override;
 
-protected:
-    void present() override;
-
 private:
+    void vblank(std::chrono::nanoseconds timestamp);
+    void present(const QRegion &damage);
     bool initBuffer();
     bool checkVersion();
     void initExtensions();
-    void waitSync();
     bool initRenderingContext();
     bool initFbConfig();
     void initVisualDepthHashTable();
@@ -105,10 +105,9 @@ private:
     bool m_haveEXTSwapControl = false;
     bool m_haveSGISwapControl = false;
     bool m_haveINTELSwapEvent = false;
-    bool haveSwapInterval = false;
-    bool haveWaitSync = false;
     Display *m_x11Display;
-    SwapProfiler m_swapProfiler;
+    X11StandalonePlatform *m_backend;
+    VsyncMonitor *m_vsyncMonitor = nullptr;
     friend class GlxTexture;
 };
 

@@ -33,6 +33,12 @@ namespace KWin
 TouchInputRedirection::TouchInputRedirection(InputRedirection *parent)
     : InputDeviceHandler(parent)
 {
+
+    connect(this, &TouchInputRedirection::decorationChanged, this, [this]() {
+        if (!decoration()) {
+            setDecorationPressId(-1);
+        }
+    });
 }
 
 TouchInputRedirection::~TouchInputRedirection() = default;
@@ -79,7 +85,7 @@ bool TouchInputRedirection::positionValid() const
 {
     Q_ASSERT(m_touches >= 0);
     // we can only determine a position with at least one touch point
-    return m_touches == 0;
+    return m_touches;
 }
 
 void TouchInputRedirection::focusUpdate(Toplevel *focusOld, Toplevel *focusNow)
@@ -107,6 +113,10 @@ void TouchInputRedirection::focusUpdate(Toplevel *focusOld, Toplevel *focusNow)
     // TODO: invalidate pointer focus?
 
     // FIXME: add input transformation API to KWaylandServer::SeatInterface for touch input
+//    if (focusNow && focusNow->isLockScreen()) {
+//        seat->cancelTouchSequence();
+//    }
+
     seat->setFocusedTouchSurface(focusNow->surface(), -1 * focusNow->inputTransformation().map(focusNow->pos()) + focusNow->pos());
     m_focusGeometryConnection = connect(focusNow, &Toplevel::frameGeometryChanged, this,
         [this] {
@@ -140,11 +150,13 @@ void TouchInputRedirection::cleanupDecoration(Decoration::DecoratedClientImpl *o
 
 void TouchInputRedirection::insertId(qint32 internalId, qint32 kwaylandId)
 {
+    qDebug()<<"Touch_test insertId:"<<internalId<<" "<<kwaylandId;
     m_idMapper.insert(internalId, kwaylandId);
 }
 
 qint32 TouchInputRedirection::mappedId(qint32 internalId)
 {
+    qDebug()<<"Touch_test mappedId:"<<internalId;
     auto it = m_idMapper.constFind(internalId);
     if (it != m_idMapper.constEnd()) {
         return it.value();
@@ -154,6 +166,7 @@ qint32 TouchInputRedirection::mappedId(qint32 internalId)
 
 void TouchInputRedirection::removeId(qint32 internalId)
 {
+    qDebug()<<"Touch_test removeId:"<<internalId;
     m_idMapper.remove(internalId);
 }
 
@@ -166,6 +179,7 @@ void TouchInputRedirection::processDown(qint32 id, const QPointF &pos, quint32 t
     m_lastPosition = pos;
     m_windowUpdatedInCycle = false;
     m_touches++;
+    qDebug()<<"Touch_test_input TouchInputRedirection::processDown m_touches:"<<m_touches;
     if (m_touches == 1) {
         update();
     }
@@ -177,7 +191,7 @@ void TouchInputRedirection::processDown(qint32 id, const QPointF &pos, quint32 t
 void TouchInputRedirection::processUp(qint32 id, quint32 time, LibInput::Device *device)
 {
     Q_UNUSED(device)
-    if (!inited()) {
+    if (!inited() || m_touches == 0) {
         return;
     }
     m_windowUpdatedInCycle = false;
@@ -185,7 +199,9 @@ void TouchInputRedirection::processUp(qint32 id, quint32 time, LibInput::Device 
     input()->processFilters(std::bind(&InputEventFilter::touchUp, std::placeholders::_1, id, time));
     m_windowUpdatedInCycle = false;
     m_touches--;
+    qDebug()<<"Touch_test_input TouchInputRedirection::processUp m_touches:"<<m_touches;
     if (m_touches == 0) {
+        waylandServer()->seat()->cancelTouchSequence();
         update();
     }
 }
@@ -203,6 +219,13 @@ void TouchInputRedirection::processMotion(qint32 id, const QPointF &pos, quint32
     m_windowUpdatedInCycle = false;
 }
 
+void TouchInputRedirection::processCancel()
+{
+    m_touches--;
+    cancel();
+    qDebug()<<"Touch_test_input TouchInputRedirection::processCancel m_touches:"<<m_touches;
+}
+
 void TouchInputRedirection::cancel()
 {
     if (!inited()) {
@@ -210,6 +233,9 @@ void TouchInputRedirection::cancel()
     }
     waylandServer()->seat()->cancelTouchSequence();
     m_idMapper.clear();
+    m_touches = 0;
+    qDebug()<<"Touch_test_input TouchInputRedirection::cancel m_touches:"<<m_touches;
+    input()->processAllFilters(std::bind(&InputEventFilter::touchCancel, std::placeholders::_1, m_touches));
 }
 
 void TouchInputRedirection::frame()

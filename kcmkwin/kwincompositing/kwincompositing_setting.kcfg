@@ -45,7 +45,6 @@
        <entry name="glPreferBufferSwap" key="GLPreferBufferSwap" type="Enum">
            <default>AutoSwapStrategy</default>
            <choices>
-               <choice name="NoSwapEncourage" value="n" />
                <choice name="AutoSwapStrategy" value="a" />
                <choice name="ExtendDamage" value="e" />
                <choice name="PaintFullScreen" value="p" />
@@ -67,6 +66,17 @@
 
        <entry name="WindowsBlockCompositing" type="Bool">
            <default>true</default>
+       </entry>
+
+       <entry name="LatencyPolicy" type="Enum">
+           <choices name="LatencyPolicy">
+               <choice name="LatencyExtremelyLow" value="ExtremelyLow"/>
+               <choice name="LatencyLow" value="Low"/>
+               <choice name="LatencyMedium" value="Medium"/>
+               <choice name="LatencyHigh" value="High"/>
+               <choice name="LatencyExtremelyHigh" value="ExtremelyHigh"/>
+           </choices>
+           <default>LatencyMedium</default>
        </entry>
 
     </group>

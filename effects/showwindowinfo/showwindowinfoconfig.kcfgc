@@ -1,0 +1,5 @@
+File=showwindowinfo.kcfg
+ClassName=ShowWindowInfoConfig
+NameSpace=KWin
+Singleton=true
+Mutators=true

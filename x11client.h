@@ -93,6 +93,8 @@ public:
     QMatrix4x4 inputTransformation() const override;
 
     bool isTransient() const override;
+    bool hasParent() const override;
+
     bool groupTransient() const override;
     bool wasOriginallyGroupTransient() const;
     QList<AbstractClient*> mainClients() const override; // Call once before loop , is not indirect
@@ -144,9 +146,6 @@ public:
     void setFullScreen(bool set, bool user = true) override;
     bool isFullScreen() const override;
     bool userCanSetFullScreen() const override;
-    QRect geometryFSRestore() const {
-        return geom_fs_restore;     // only for session saving
-    }
     int fullScreenMode() const {
         return m_fullscreenMode;    // only for session saving
     }
@@ -175,7 +174,7 @@ public:
 
     using AbstractClient::move;
     void move(int x, int y, ForceGeometry_t force = NormalGeometrySet) override;
-    void setFrameGeometry(const QRect &rect, ForceGeometry_t force = NormalGeometrySet) override;
+    void setFrameGeometry(const QRect &rect, ForceGeometry_t force = NormalGeometrySet, bool forInput = false) override;
     /// plainResize() simply resizes
     void plainResize(int w, int h, ForceGeometry_t force = NormalGeometrySet);
     void plainResize(const QSize& s, ForceGeometry_t force = NormalGeometrySet);
@@ -484,7 +483,6 @@ private:
 
     MaximizeMode max_mode;
     QRect m_bufferGeometry = QRect(0, 0, 100, 100);
-    QRect geom_fs_restore;
     xcb_colormap_t m_colormap;
     QString cap_normal, cap_iconic, cap_suffix;
     Group* in_group;
@@ -513,8 +511,6 @@ private:
     QPoint input_offset;
 
     QTimer *m_focusOutTimer;
-
-    QList<QMetaObject::Connection> m_connections;
 
     QMetaObject::Connection m_edgeRemoveConnection;
     QMetaObject::Connection m_edgeGeometryTrackingConnection;
@@ -547,6 +543,11 @@ inline bool X11Client::wasOriginallyGroupTransient() const
 inline bool X11Client::isTransient() const
 {
     return m_transientForId != XCB_WINDOW_NONE;
+}
+
+inline bool X11Client::hasParent() const
+{
+    return m_transientForId != XCB_WINDOW_NONE && m_transientForId != rootWindow();
 }
 
 inline const Group* X11Client::group() const

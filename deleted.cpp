@@ -27,8 +27,8 @@ Deleted::Deleted()
     : Toplevel()
     , delete_refcount(1)
     , m_frame(XCB_WINDOW_NONE)
-    , no_border(true)
-    , m_layer(UnknownLayer)
+    , m_jingLayer(JingLayer::LAYER_APPLICATION)
+    , m_jingWindowType(JingWindowType::TYPE_APPLICATION)
     , m_minimized(false)
     , m_modal(false)
     , m_wasClient(false)
@@ -42,6 +42,7 @@ Deleted::Deleted()
     , m_wasGroupTransient(false)
     , m_wasPopupWindow(false)
     , m_wasOutline(false)
+    , m_wasDecorated(false)
 {
 }
 
@@ -94,7 +95,8 @@ void Deleted::copyToDeleted(Toplevel* c)
     contentsRect = QRect(c->clientPos(), c->clientSize());
     m_contentPos = c->clientContentPos();
     transparent_rect = c->transparentRect();
-    m_layer = c->layer();
+    m_jingLayer = c->jingLayer();
+    m_jingWindowType = c->jingWindowType();
     m_frame = c->frameId();
     m_opacity = c->opacity();
     m_type = c->windowType();
@@ -102,8 +104,8 @@ void Deleted::copyToDeleted(Toplevel* c)
     if (WinInfo* cinfo = dynamic_cast< WinInfo* >(info))
         cinfo->disable();
     if (AbstractClient *client = dynamic_cast<AbstractClient*>(c)) {
-        no_border = client->noBorder();
-        if (!no_border) {
+        m_wasDecorated = client->isDecorated();
+        if (m_wasDecorated) {
             client->layoutDecorationRects(decoration_left,
                                           decoration_top,
                                           decoration_right,
@@ -127,7 +129,7 @@ void Deleted::copyToDeleted(Toplevel* c)
         m_keepAbove = client->keepAbove();
         m_keepBelow = client->keepBelow();
         m_caption = client->caption();
-
+        m_title = client->title();
         m_wasActive = client->isActive();
 
         m_wasGroupTransient = client->groupTransient();
@@ -194,6 +196,11 @@ QVector<VirtualDesktop *> Deleted::desktops() const
 QPoint Deleted::clientPos() const
 {
     return contentsRect.topLeft();
+}
+
+bool Deleted::wasDecorated() const
+{
+    return m_wasDecorated;
 }
 
 void Deleted::layoutDecorationRects(QRect& left, QRect& top, QRect& right, QRect& bottom) const

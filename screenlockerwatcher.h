@@ -33,6 +33,7 @@ Q_SIGNALS:
     void locked(bool locked);
     void aboutToLock();
 private Q_SLOTS:
+    void updateLocked();
     void setLocked(bool activated);
     void activeQueried(QDBusPendingCallWatcher *watcher);
     void serviceOwnerChanged(const QString &serviceName, const QString &oldOwner, const QString &newOwner);

@@ -1,0 +1,113 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR This file is copyright:
+# This file is distributed under the same license as the kwin package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: kwin_scripting\n"
+"Report-Msgid-Bugs-To: https://bugs.kde.org\n"
+"POT-Creation-Date: 2020-10-24 02:29+0200\n"
+"PO-Revision-Date: 2020-06-27 03:51+0000\n"
+"Last-Translator: transxx.py program <null@kde.org>\n"
+"Language-Team: KDE Test Language <kde-i18n-doc@kde.org>\n"
+"Language: x-test\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+#, kde-format
+msgctxt "NAME OF TRANSLATORS"
+msgid "Your names"
+msgstr "xxYour namesxx"
+
+#, kde-format
+msgctxt "EMAIL OF TRANSLATORS"
+msgid "Your emails"
+msgstr "xxYour emailsxx"
+
+#: genericscriptedconfig.cpp:70
+#, kde-format
+msgctxt "Error message"
+msgid "Plugin does not provide configuration file in expected location"
+msgstr "xxPlugin does not provide configuration file in expected locationxx"
+
+#: scripting.cpp:116
+#, kde-format
+msgctxt "Assertion failed in KWin script with given value"
+msgid "Assertion failed: %1 is not null"
+msgstr "xxAssertion failed: %1 is not nullxx"
+
+#: scripting.cpp:134
+#, kde-format
+msgctxt "Assertion failed in KWin script"
+msgid "Assertion failed: argument is null"
+msgstr "xxAssertion failed: argument is nullxx"
+
+#: scripting.cpp:176
+#, kde-format
+msgctxt "Error in KWin Script"
+msgid ""
+"Invalid number of arguments. At least service, path, interface and method "
+"need to be provided"
+msgstr ""
+"xxInvalid number of arguments. At least service, path, interface and method "
+"need to be providedxx"
+
+#: scripting.cpp:182
+#, kde-format
+msgctxt "Error in KWin Script"
+msgid ""
+"Invalid type. Service, path, interface and method need to be string values"
+msgstr ""
+"xxInvalid type. Service, path, interface and method need to be string "
+"valuesxx"
+
+#: scriptingutils.cpp:17
+#, kde-format
+msgctxt "syntax error in KWin script"
+msgid "Invalid number of arguments"
+msgstr "xxInvalid number of argumentsxx"
+
+#: scriptingutils.cpp:30
+#, kde-format
+msgctxt "KWin Scripting function received incorrect value for an expected type"
+msgid "%1 is not a variant type"
+msgstr "xx%1 is not a variant typexx"
+
+#: scriptingutils.h:40
+#, kde-format
+msgctxt "KWin Scripting function received incorrect value for an expected type"
+msgid "%1 is not of required type"
+msgstr "xx%1 is not of required typexx"
+
+#: scriptingutils.h:147
+#, kde-format
+msgctxt "KWin Scripting error thrown due to incorrect argument"
+msgid "Second argument to registerScreenEdge needs to be a callback"
+msgstr "xxSecond argument to registerScreenEdge needs to be a callbackxx"
+
+#: scriptingutils.h:202
+#, kde-format
+msgctxt "KWin Scripting error thrown due to incorrect argument"
+msgid "Second argument to registerTouchScreenEdge needs to be a callback"
+msgstr "xxSecond argument to registerTouchScreenEdge needs to be a callbackxx"
+
+#: scriptingutils.h:239
+#, kde-format
+msgctxt "KWin Scripting error thrown due to incorrect argument"
+msgid "Argument for registerUserActionsMenu needs to be a callback"
+msgstr "xxArgument for registerUserActionsMenu needs to be a callbackxx"
+
+#: scriptingutils.h:294
+#, kde-format
+msgctxt "Assertion failed in KWin script with given value"
+msgid "Assertion failed: %1"
+msgstr "xxAssertion failed: %1xx"
+
+#: scriptingutils.h:305
+#, kde-format
+msgctxt "Assertion failed in KWin script with expected value and actual value"
+msgid "Assertion failed: Expected %1, got %2"
+msgstr "xxAssertion failed: Expected %1, got %2xx"

@@ -67,6 +67,11 @@ QByteArray AbstractOutput::uuid() const
     return QByteArray();
 }
 
+bool AbstractOutput::isEnabled() const
+{
+    return true;
+}
+
 void AbstractOutput::setEnabled(bool enable)
 {
     Q_UNUSED(enable)
@@ -116,6 +121,25 @@ QString AbstractOutput::model() const
 QString AbstractOutput::serialNumber() const
 {
     return QString();
+}
+
+RenderLoop *AbstractOutput::renderLoop() const
+{
+    return nullptr;
+}
+
+void AbstractOutput::inhibitDirectScanout()
+{
+    m_directScanoutCount++;
+}
+void AbstractOutput::uninhibitDirectScanout()
+{
+    m_directScanoutCount--;
+}
+
+bool AbstractOutput::directScanoutInhibited() const
+{
+    return m_directScanoutCount;
 }
 
 } // namespace KWin

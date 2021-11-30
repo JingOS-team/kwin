@@ -37,14 +37,19 @@ public:
     void init(int pid);
 private:
     void minimumWindow();
+    void takeScreenShot();
 
 private:
+    qreal _progress = 0.;
+    bool _upGesture = false;
     QSizeF _lastSpead = QSizeF(0., 0.);
     static GlobalGesture* _self;
     QSizeF _lastSwipDelta;
     bool _swipeStarted = false;
     quint32 _swipeTime = 0;
     QSizeF _swipeDelta;
+
+    bool _screenShotStart = false;
 };
 }
 

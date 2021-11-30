@@ -176,7 +176,7 @@ void PointerInputRedirection::updateToReset()
         disconnect(m_internalWindowConnection);
         m_internalWindowConnection = QMetaObject::Connection();
         QEvent event(QEvent::Leave);
-        QCoreApplication::sendEvent(internalWindow().data(), &event);
+        QCoreApplication::sendEvent(internalWindow(), &event);
         setInternalWindow(nullptr);
     }
     if (decoration()) {
@@ -247,9 +247,13 @@ QVector<PositionUpdateBlocker::ScheduledPosition> PositionUpdateBlocker::s_sched
 
 void PointerInputRedirection::processMotion(const QPointF &pos, const QSizeF &delta, const QSizeF &deltaNonAccelerated, uint32_t time, quint64 timeUsec, LibInput::Device *device)
 {
-    if (!inited()) {
+    if (hypot(delta.width(), delta.height()) > 80) {
+        m_bPointerMotionEnabled = true;
+    }
+    if (!inited() || !m_bPointerMotionEnabled) {
         return;
     }
+
     if (PositionUpdateBlocker::isPositionBlocked()) {
         PositionUpdateBlocker::schedulePosition(pos, delta, deltaNonAccelerated, time, timeUsec);
         return;
@@ -258,7 +262,9 @@ void PointerInputRedirection::processMotion(const QPointF &pos, const QSizeF &de
     PositionUpdateBlocker blocker(this);
     updatePosition(pos);
 
-    pointPreProcess(pos, delta);
+    if (!kwinApp()->platform()->isSetupMode()) {
+        pointPreProcess(pos, delta);
+    }
     MouseEvent event(QEvent::MouseMove, m_pos, Qt::NoButton, m_qtButtons,
                      input()->keyboardModifiers(), time,
                      delta, deltaNonAccelerated, timeUsec, device);
@@ -285,8 +291,20 @@ void PointerInputRedirection::processButton(uint32_t button, InputRedirection::P
         return;
     }
 
+    m_bPointerMotionEnabled = false;
+    if (m_motionEnabledTimer == nullptr) {
+        m_motionEnabledTimer = new QTimer();
+        m_motionEnabledTimer->setSingleShot(true);
+        m_motionEnabledTimer->setInterval(100);
+        connect(m_motionEnabledTimer, &QTimer::timeout, this, [this]() {
+            m_bPointerMotionEnabled = true;
+        });
+    }
+    m_motionEnabledTimer->start();
     updateButton(button, state);
-    buttonPreProcess(type, m_pos, time);
+    if (!kwinApp()->platform()->isSetupMode() && buttonPreProcess(type, m_pos, time)) {
+        return;
+    }
     MouseEvent event(type, m_pos, buttonToQtMouseButton(button), m_qtButtons,
                      input()->keyboardModifiers(), time, QSizeF(), QSizeF(), 0, device);
     event.setModifiersRelevantForGlobalShortcuts(input()->modifiersRelevantForGlobalShortcuts());
@@ -305,24 +323,83 @@ void PointerInputRedirection::processButton(uint32_t button, InputRedirection::P
     }
 }
 
+static InputRedirection::PointerAxis g_axis;
 void PointerInputRedirection::processAxis(InputRedirection::PointerAxis axis, qreal delta, qint32 discreteDelta,
     InputRedirection::PointerAxisSource source, uint32_t time, LibInput::Device *device)
 {
     update();
 
-    emit input()->pointerAxisChanged(axis, delta);
+    auto initData  = [=]() {
+        m_wheelHDelta = 0;
+        m_wheelVDelta = 0;
+        m_wheelDelta = 0;
+        m_isPositive = 0;
+    };
 
-    WheelEvent wheelEvent(m_pos, delta, discreteDelta,
-                           (axis == InputRedirection::PointerAxisHorizontal) ? Qt::Horizontal : Qt::Vertical,
-                           m_qtButtons, input()->keyboardModifiers(), source, time, device);
-    wheelEvent.setModifiersRelevantForGlobalShortcuts(input()->modifiersRelevantForGlobalShortcuts());
+    auto sendEvent = [=]() {
+        if (std::abs(m_wheelDelta) < 1.0 && m_wheelDelta != 0) {
+            m_wheelDelta = 1.0 * (std::abs(m_wheelDelta) / m_wheelDelta);
+        }
 
-    input()->processSpies(std::bind(&InputEventSpy::wheelEvent, std::placeholders::_1, &wheelEvent));
+        m_isPositive = m_wheelDelta > 0 ? 1 : -1;
 
-    if (!inited()) {
-        return;
+        emit input()->pointerAxisChanged(g_axis, m_wheelDelta);
+
+        WheelEvent wheelEvent(m_pos, m_wheelDelta, discreteDelta,
+                               (g_axis == InputRedirection::PointerAxisHorizontal) ? Qt::Horizontal : Qt::Vertical,
+                               m_qtButtons, input()->keyboardModifiers(), source, time, device);
+        wheelEvent.setModifiersRelevantForGlobalShortcuts(input()->modifiersRelevantForGlobalShortcuts());
+
+        input()->processSpies(std::bind(&InputEventSpy::wheelEvent, std::placeholders::_1, &wheelEvent));
+
+        if (!inited()) {
+            return;
+        }
+        input()->processFilters(std::bind(&InputEventFilter::wheelEvent, std::placeholders::_1, &wheelEvent));
+        initData();
+    };
+
+    if (axis == InputRedirection::PointerAxisHorizontal) {
+        m_wheelHDelta += delta;
+    } else {
+        m_wheelVDelta += delta;
     }
-    input()->processFilters(std::bind(&InputEventFilter::wheelEvent, std::placeholders::_1, &wheelEvent));
+    if (std::abs(m_wheelHDelta) > std::abs(m_wheelVDelta)) {
+        g_axis = InputRedirection::PointerAxisHorizontal;
+        m_wheelDelta = m_wheelHDelta;
+    } else {
+        g_axis = InputRedirection::PointerAxisVertical;
+        m_wheelDelta = m_wheelVDelta;
+    }
+    if (std::abs(m_wheelDelta) < 1.0 && delta != 0) {
+        if (m_wheelTimer == nullptr) {
+            m_wheelTimer = new QTimer();
+            m_wheelTimer->setSingleShot(true);
+            m_wheelTimer->setInterval(300);
+            connect(m_wheelTimer, &QTimer::timeout, this, sendEvent);
+        }
+        if ((m_isPositive * m_wheelDelta < 0)) {
+            m_wheelTimer->setInterval(500);
+            m_wheelTimer->start();
+        } else if (!m_wheelTimer->isActive()) {
+            m_wheelTimer->setInterval(300);
+            m_wheelTimer->start();
+        }
+        return;
+    } else {
+        if ((m_isPositive * m_wheelDelta < 0)) {
+            m_wheelTimer->setInterval(500);
+            m_wheelTimer->start();
+        } else {
+            if (m_wheelTimer && m_wheelTimer->isActive()) {
+                m_wheelTimer->stop();
+            }
+            if (delta == 0) {
+                initData();
+            }
+            sendEvent();
+        }
+    }
 }
 
 void PointerInputRedirection::processSwipeGestureBegin(int fingerCount, quint32 time, KWin::LibInput::Device *device)
@@ -456,16 +533,16 @@ void PointerInputRedirection::setPointState()
 void PointerInputRedirection::getPointPCSState()
 {
     QRect screenGeometry = screens()->geometry(0);
-    if (m_pos == screenGeometry.bottomLeft()) {
+    if (m_pos.x() <= screenGeometry.bottomLeft().x() && m_pos.y() >= screenGeometry.bottomLeft().y()) {
         m_pcs = PCS_TOBEONBOTTOMLEFT;
         m_pointerTimer->start();
-    } else if (m_pos == screenGeometry.bottomRight()) {
+    } else if (m_pos.x() >= screenGeometry.bottomRight().x() && m_pos.y() >= screenGeometry.bottomRight().y()) {
         m_pcs = PCS_TOBEONBOTTOMRIGHT;
         m_pointerTimer->start();
-    } else if (m_pos == screenGeometry.topLeft()) {
+    } else if (m_pos.x() <= screenGeometry.topLeft().x() && m_pos.y() <= screenGeometry.topLeft().y()) {
         m_pcs = PCS_TOBEONTOPLEFT;
         m_pointerTimer->start();
-    } else if (m_pos == screenGeometry.topRight()) {
+    } else if (m_pos.x() >= screenGeometry.topRight().x() &&  m_pos.y() <= screenGeometry.topRight().y()) {
         m_pcs = PCS_TOBEONTOPRIGHT;
         m_pointerTimer->start();
     } else {
@@ -478,6 +555,11 @@ void PointerInputRedirection::getPointPCSState()
 const int MAX_DELTA = 150;
 void PointerInputRedirection::pointPreProcess(const QPointF &pos, const QSizeF &delta)
 {
+    Q_UNUSED(delta)
+    if (kwinApp()->platform()->isSetupMode()) {
+        return;
+    }
+
     if (!inited() && !ScreenLockerWatcher::self()->isLocked() && m_qtButtons == Qt::LeftButton) {
         return;
     }
@@ -488,7 +570,7 @@ void PointerInputRedirection::pointPreProcess(const QPointF &pos, const QSizeF &
         getPointPCSState();
         break;
     case PCS_ONTOPLEFTING:
-        if (m_pos == screenGeometry.topLeft()) {
+        if (m_pos.x() <= screenGeometry.topLeft().x() && m_pos.y() <= screenGeometry.topLeft().y()) {
             m_delta += (pos - screenGeometry.topLeft()).manhattanLength();
             m_pointerTimer->start();
             if(m_delta > MAX_DELTA) {
@@ -502,7 +584,7 @@ void PointerInputRedirection::pointPreProcess(const QPointF &pos, const QSizeF &
         }
         break;
     case PCS_ONTOPRIGHTING:
-        if (m_pos == screenGeometry.topRight()) {
+        if (m_pos.x() >= screenGeometry.topRight().x() &&  m_pos.y() <= screenGeometry.topRight().y()) {
             m_delta +=  (pos - screenGeometry.topRight()).manhattanLength();
             m_pointerTimer->start();
             if(m_delta > MAX_DELTA) {
@@ -515,7 +597,7 @@ void PointerInputRedirection::pointPreProcess(const QPointF &pos, const QSizeF &
         }
         break;
     case PCS_ONBOTTOMLEFTING:
-        if (m_pos == screenGeometry.bottomLeft()) {
+        if (m_pos.x() <= screenGeometry.bottomLeft().x() && m_pos.y() >= screenGeometry.bottomLeft().y()) {
             m_delta +=  (pos - screenGeometry.bottomLeft()).manhattanLength();
             m_pointerTimer->start();
             if(m_delta > MAX_DELTA) {
@@ -528,7 +610,7 @@ void PointerInputRedirection::pointPreProcess(const QPointF &pos, const QSizeF &
         }
         break;
     case PCS_ONBOTTOMRIGHTING:
-        if (m_pos == screenGeometry.bottomRight()) {
+        if (m_pos.x() >= screenGeometry.bottomRight().x() && m_pos.y() >= screenGeometry.bottomRight().y()) {
             m_delta +=  (pos - screenGeometry.bottomRight()).manhattanLength();
             m_pointerTimer->start();
             if(m_delta > MAX_DELTA) {
@@ -544,11 +626,12 @@ void PointerInputRedirection::pointPreProcess(const QPointF &pos, const QSizeF &
     case PCS_ONTOPRIGHT:
     case PCS_ONBOTTOMLEFT:
     case PCS_ONBOTTOMRIGHT:
+        m_pointerTimer->start();
+	break;
     case PCS_TOBEONTOPLEFT:
     case PCS_TOBEONTOPRIGHT:
     case PCS_TOBEONBOTTOMLEFT:
     case PCS_TOBEONBOTTOMRIGHT:
-        m_pointerTimer->start();
         break;
     default:
         getPointPCSState();
@@ -557,18 +640,26 @@ void PointerInputRedirection::pointPreProcess(const QPointF &pos, const QSizeF &
 }
 
 const uint32_t BUTTON_INTERVAL = 800;
-void PointerInputRedirection::buttonPreProcess(QEvent::Type type, const QPointF &pos, uint32_t time)
+bool PointerInputRedirection::buttonPreProcess(QEvent::Type type, const QPointF &pos, uint32_t time)
 {
+    bool dealed = false;
     if (!inited() && !ScreenLockerWatcher::self()->isLocked() && m_qtButtons == Qt::NoButton) {
-        return;
+        return dealed;
     }
 
     QRect screenGeometry = screens()->geometry(0);
     qreal screenScale = screens()->scale(0);
     QRectF bottomRight(0, 0, 32 / screenScale, 32 / screenScale);
     QRectF bottomLeft(0, 0, 32 / screenScale, 32 / screenScale);
+
+    QRectF topRight(0, 0, 32 / screenScale, 32 / screenScale);
+    QRectF topLeft(0, 0, 32 / screenScale, 32 / screenScale);
+
     bottomRight.moveBottomRight(screenGeometry.bottomRight());
     bottomLeft.moveBottomLeft(screenGeometry.bottomLeft());
+
+    topRight.moveTopRight(screenGeometry.topRight());
+    topLeft.moveTopLeft(screenGeometry.topLeft());
 
     auto init = [this]() {
         m_lastButtonTime = 0;
@@ -612,7 +703,41 @@ void PointerInputRedirection::buttonPreProcess(QEvent::Type type, const QPointF 
         } else if (time - m_lastButtonTime > BUTTON_INTERVAL) {
             init();
         }
+    } else if (topRight.contains(pos)) {
+        dealed = true;
+        if (BCS_NONE == m_bcs &&  QEvent::MouseButtonPress == type) {
+            m_bcs = BCS_TOPRIGHT;
+            m_lastButtonTime = time;
+            m_buttonTimer->start();
+        } else if (QEvent::MouseButtonRelease == type && time - m_lastButtonTime < BUTTON_INTERVAL) {
+            if (BCS_TOPRIGHT == m_bcs) {
+                m_bcs = BCS_TOPRIGHT_ONECE;
+            } else if (BCS_TOPRIGHT_ONECE == m_bcs) {
+                init();
+                workspace()->mouseOnTopRightConer();
+            }
+        } else if (time - m_lastButtonTime > BUTTON_INTERVAL) {
+            init();
+        }
+    }  else if (topLeft.contains(pos)) {
+        dealed = true;
+        if (BCS_NONE == m_bcs &&  QEvent::MouseButtonPress == type) {
+            m_bcs = BCS_TOPLEFT;
+            m_lastButtonTime = time;
+            m_buttonTimer->start();
+        } else if (QEvent::MouseButtonRelease == type && time - m_lastButtonTime < BUTTON_INTERVAL) {
+            if (BCS_TOPLEFT == m_bcs) {
+                m_bcs = BCS_TOPLEFT_ONECE;
+            } else if (BCS_TOPLEFT_ONECE == m_bcs) {
+                init();
+                workspace()->mouseOnTopLeftConer();
+            }
+        } else if (time - m_lastButtonTime > BUTTON_INTERVAL) {
+            init();
+        }
     }
+
+    return dealed;
 }
 
 bool PointerInputRedirection::areButtonsPressed() const
@@ -659,7 +784,7 @@ void PointerInputRedirection::cleanupInternalWindow(QWindow *old, QWindow *now)
     }
 
     if (now) {
-        m_internalWindowConnection = connect(internalWindow().data(), &QWindow::visibleChanged, this,
+        m_internalWindowConnection = connect(internalWindow(), &QWindow::visibleChanged, this,
             [this] (bool visible) {
                 if (!visible) {
                     update();
@@ -731,7 +856,7 @@ void PointerInputRedirection::focusUpdate(Toplevel *focusOld, Toplevel *focusNow
         // enter internal window
         const auto pos = at()->pos();
         QEnterEvent enterEvent(pos, pos, m_pos);
-        QCoreApplication::sendEvent(internalWindow().data(), &enterEvent);
+        QCoreApplication::sendEvent(internalWindow(), &enterEvent);
     }
 
     auto seat = waylandServer()->seat();
@@ -1233,7 +1358,7 @@ void CursorImage::updateDecoration()
 {
     disconnect(m_decorationConnection);
     auto deco = m_pointer->decoration();
-    AbstractClient *c = deco.isNull() ? nullptr : deco->client();
+    AbstractClient *c = deco ? deco->client() : nullptr;
     if (c) {
         m_decorationConnection = connect(c, &AbstractClient::moveResizeCursorChanged, this, &CursorImage::updateDecorationCursor);
     } else {
@@ -1246,10 +1371,10 @@ void CursorImage::updateDecorationCursor()
 {
     m_decorationCursor = {};
     auto deco = m_pointer->decoration();
-    if (AbstractClient *c = deco.isNull() ? nullptr : deco->client()) {
+    if (AbstractClient *c = deco ? deco->client() : nullptr) {
         loadThemeCursor(c->cursor(), &m_decorationCursor);
         if (m_currentSource == CursorSource::Decoration) {
-            onChanged();
+            emit changed();
         }
     }
     reevaluteSource();
@@ -1304,10 +1429,11 @@ void CursorImage::updateServerCursor()
 
     int screenScale = std::ceil(effects->screenScale(0));
     if (screenScale != cursorSurface->bufferScale()) {
-        m_serverCursor.cursor.hotspot = c->hotspot() / screenScale;
+        m_serverCursor.cursor.hotspot = c->hotspot() * cursorSurface->bufferScale();
     } else {
         m_serverCursor.cursor.hotspot = c->hotspot();
     }
+
     m_serverCursor.cursor.image = buffer->data().copy();
     m_serverCursor.cursor.image.setDevicePixelRatio(screenScale);
     if (needsEmit) {
@@ -1556,7 +1682,7 @@ void CursorImage::reevaluteSource()
         setSource(CursorSource::MoveResize);
         return;
     }
-    if (!m_pointer->decoration().isNull()) {
+    if (m_pointer->decoration()) {
         setSource(CursorSource::Decoration);
         return;
     }

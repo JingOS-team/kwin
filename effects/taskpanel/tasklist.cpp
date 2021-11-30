@@ -19,6 +19,7 @@ const int MARGIN = 100;
 const int ITEMS_PER_PAGE = 9;
 const int SLIDE_TIME = 1500;
 const int ROW_COUNT = 2;
+const int END_MARGIN = 15;
 TaskList::TaskList(QObject *parent)
     : QObject(parent)
 {
@@ -113,10 +114,11 @@ void TaskList::toOriginal(bool toNormal)
 
 void TaskList::toNormalWindow(EffectWindow *window)
 {
+    QRect area = effects->clientArea(ScreenArea, 0, effects->currentDesktop());
     for (WindowItem* item : _items.values()) {
         if (item->w == window) {
             QRect geometry = window->geometry();
-            item->_destPos = geometry.topLeft();
+            item->_destPos = area.topLeft();
             if (item->_curPos.x() < (geometry.width() * item->_curScale).width() * -1){
                 item->_srcPos = item->_curPos = QPointF((geometry.width() * item->_curScale).width() * -1, item->_curPos.y());
             } else if (item->_curPos.x() > _pageSize.width()) {
@@ -255,11 +257,12 @@ void TaskList::hideItem(EffectWindow *curWindow)
         }
     }
 
-    resetAnimate(250);
+    resetAnimate(250, QEasingCurve::Linear);
 }
 
 void TaskList::addWindowToGrid(EffectWindow *w)
 {
+    qDebug()<<"TaskPanel-1 addWindowToGrid:"<<w->pid()<<w;
     _resetingGride = true;
     WindowItem *item = new WindowItem;
     item->w = w;
@@ -302,6 +305,7 @@ void TaskList::addWindowToGrid(EffectWindow *w)
 void TaskList::removeWindowFromGrid(EffectWindow *w)
 {
     if (_items.contains(w)) {
+        qDebug()<<"TaskPanel-1 removeWindowFromGrid:"<<w->pid()<<w;
         QRect area = effects->clientArea(ScreenArea, 0, effects->currentDesktop());
         if (_showPanel)   // reserve space for the panel
             area = effects->clientArea(MaximizeArea, 0, effects->currentDesktop());
@@ -334,8 +338,8 @@ void TaskList::removeWindowFromGrid(EffectWindow *w)
             }
 
 
-            bool shownNow = QRectF(item->_curPos, QSizeF(item->w->size().width() * item->_curScale.width(), item->w->size().height() * item->_curScale.height())).intersects(area);
-            bool toShow = QRectF(item->_destPos, QSizeF(item->w->size().width() * item->_curScale.width(), item->w->size().height() * item->_curScale.height())).intersects(area);
+            bool shownNow = QRectF(item->_curPos, itemSize() * item->_itemScale).intersects(area);
+            bool toShow = QRectF(item->_destPos, itemSize() * item->_itemScale).intersects(area);
             if (shownNow || toShow) {
                 item->_oriPos = item->_destPos;
                 item->_srcPos = item->_curPos;
@@ -353,10 +357,12 @@ void TaskList::removeWindowFromGrid(EffectWindow *w)
         resetAnimate(200, QEasingCurve::Linear);
         _resetingGride = true;
         _waitForNextAnimate = false;
+
+        emit itemsChanged();
     }
 }
 
-void TaskList::hideList(EffectWindow* curWindow)
+void TaskList::hideList(EffectWindow* curWindow, bool animate)
 {
     if (_itemsIndex.size() < 1) {
         return;
@@ -367,7 +373,7 @@ void TaskList::hideList(EffectWindow* curWindow)
         return;
     }
 
-    resetAnimate(150);
+    resetAnimate(animate ? 150 : 20);
     auto lIndex = _itemsIndex.indexOf(it);
 
     if (_orientation == Horizontal) {
@@ -446,12 +452,6 @@ void TaskList::showList(qreal x, qreal y, EffectWindow *curWindow)
             nIt.value()->_srcPos = nIt.value()->_curPos;
         }
     }
-
-    qDebug()<<Q_FUNC_INFO<<pCurItem->_curPos;
-    if (!pCurItem->w->isJingApp()) {
-        pCurItem->_curPos += QPointF(0., effects->panelGeometry().height() * pCurItem->_curScale.height());
-    }
-    qDebug()<<Q_FUNC_INFO<<pCurItem->_curPos;
 }
 
 void TaskList::moveItem(QSizeF size, EffectWindow *window)
@@ -517,18 +517,8 @@ void TaskList::translateItems(qreal x, qreal y, EffectWindow* w, qreal scale)
             int direction =  (_layoutDirection == RightToLeft) ? 1 : -1;
             if (item->_isPosAnimating) {
                 item->_destPos = curPos - (QPointF((pageSize().width() *  scale + MARGIN) * num, 0)) * direction;
-                qDebug()<<Q_FUNC_INFO<<__LINE__<<item->_destPos<<" "<<effects->panelGeometry()<<" "<<item->_curScale;
-                if (!item->w->isJingApp()) {
-                    item->_destPos += QPointF(0., effects->panelGeometry().height() * item->_curScale.height());
-                }
-                qDebug()<<Q_FUNC_INFO<<__LINE__<<item->_destPos;
             } else {
                 item->_curPos = curPos - (QPointF((pageSize().width() *  scale + MARGIN) * num, 0)) * direction;
-                qDebug()<<Q_FUNC_INFO<<__LINE__<<item->_curPos<<" "<<effects->panelGeometry()<<" "<<item->_curScale;
-                if (!item->w->isJingApp()) {
-                    item->_curPos += QPointF(0., effects->panelGeometry().height() * item->_curScale.height());
-                }
-                qDebug()<<Q_FUNC_INFO<<__LINE__<<item->_curPos;
             }
         } else {
             int direction =  (_verticalLayoutDirection == BottomToTop) ? 1 : -1;
@@ -550,11 +540,6 @@ void TaskList::translateItem(qreal x, qreal y, EffectWindow *w)
     }
     WindowItem *pCurItem = it.value();
     pCurItem->_curPos =  QPointF(x, y);
-    qDebug()<<Q_FUNC_INFO<<pCurItem->_curPos;
-    if (!w->isJingApp()) {
-        pCurItem->_curPos += QPointF(0., effects->panelGeometry().height() * pCurItem->_curScale.height());
-    }
-    qDebug()<<Q_FUNC_INFO<<pCurItem->_curPos;
 }
 
 void TaskList::setItemOpacity(qreal opacity)
@@ -601,7 +586,7 @@ WindowItem *TaskList::getRemoveWindowItem(EffectWindow *w)
     return nullptr;
 }
 
-void TaskList::updateTime(std::chrono::milliseconds presentTime)
+void TaskList::updateTime(std::chrono::milliseconds presentTime, bool toFinish)
 {
     bool isAnimating = false;
     std::chrono::milliseconds delta = std::chrono::milliseconds::zero();
@@ -610,8 +595,13 @@ void TaskList::updateTime(std::chrono::milliseconds presentTime)
     }
     _lastPresentTime = presentTime;
 
-    _timeLine.update(delta);
-    _speadLine.update(delta);
+    if (!toFinish) {
+        _timeLine.update(delta);
+        _speadLine.update(delta);
+    } else {
+        _timeLine.stop();
+        _speadLine.stop();
+    }
 
     const qreal progress = _timeLine.value();
 
@@ -626,45 +616,53 @@ void TaskList::updateTime(std::chrono::milliseconds presentTime)
 
     QList<WindowItem*> items = _items.values();
     items.append(_removeList.values());
-    for (WindowItem* item : items) {
-        if (item->_isPosAnimating) {
-            item->_curPos = item->_srcPos + (item->_destPos - item->_srcPos) * progress;
-        }
-
-        if (!_speadLine.done()) {
-            item->_curPos = item->_curPos += distance;
-            item->_oriPos = item->_curPos;
-        }
-
-        if (_timeLine.done() && _speadLine.done()) {
-            item->_isPosAnimating = false;
-            if (item->_isToClose) {
-                _waitForNextAnimate = true;
-                item->_srcScale = item->_curScale = item->_destScale = item->_oriScale;
-                effects->setElevatedWindow(item->w, false);
-                item->w->kill();
-            }
-        } else {
+    EffectWindow *closeWindow = nullptr;
+    if (items.isEmpty()) {
+        if (!_timeLine.done() || !_speadLine.done()) {
             isAnimating = true;
         }
+    } else {
+        for (WindowItem* item : items) {
+            if (item->_isPosAnimating) {
+                item->_curPos = item->_srcPos + (item->_destPos - item->_srcPos) * progress;
+            }
 
-        if (item->_isScaleAnimating) {
-            item->_curScale = item->_srcScale + (item->_destScale - item->_srcScale) * progress;
-            if (_timeLine.done()) {
-                item->_isScaleAnimating = false;
+            if (!_speadLine.done()) {
+                item->_curPos = item->_curPos += distance;
+                item->_oriPos = item->_curPos;
+            }
+
+            if (_timeLine.done() && _speadLine.done()) {
+                item->_isPosAnimating = false;
+                if (item->_isToClose) {
+                    _waitForNextAnimate = true;
+                    item->_srcScale = item->_curScale = item->_destScale = item->_oriScale;
+                    effects->setElevatedWindow(item->w, false);
+                    closeWindow = item->w;
+                }
             } else {
                 isAnimating = true;
             }
-        }
 
-        if (item->_isOpacityAnimating) {
-            item->_curOpacity = item->_srcOpacity + (item->_destOpacity - item->_srcOpacity) * progress;
-            if (_timeLine.done()) {
-                item->_isOpacityAnimating = false;
-            } else {
-                isAnimating = true;
+            if (item->_isScaleAnimating) {
+                item->_curScale = item->_srcScale + (item->_destScale - item->_srcScale) * progress;
+                if (_timeLine.done()) {
+                    item->_isScaleAnimating = false;
+                }
+            }
+
+            if (item->_isOpacityAnimating) {
+                item->_curOpacity = item->_srcOpacity + (item->_destOpacity - item->_srcOpacity) * progress;
+                if (_timeLine.done()) {
+                    item->_isOpacityAnimating = false;
+                }
             }
         }
+    }
+
+    if (closeWindow) {
+        removeWindowFromGrid(closeWindow);
+        effects->killWindow(closeWindow);
     }
 
     if (!_speadLine.done()) {
@@ -675,16 +673,16 @@ void TaskList::updateTime(std::chrono::milliseconds presentTime)
     } else if (_isSliding) {
         _isSliding = false;
     }
-    _isAnimating = isAnimating;
-    if (_resetingGride && !_isAnimating && !_waitForNextAnimate) {
+    if (_resetingGride && !isAnimating && !_waitForNextAnimate) {
         _resetingGride = false;
     }
+    _isAnimating = isAnimating || _waitForNextAnimate || _resetingGride;
     emit isAnimatingChanged(isAnimating, progress);
 }
 
 qreal TaskList::pageHeight(EffectWindow* w)
 {
-    return pageSize().height() -  w->isJingApp() ? 0 : effects->panelGeometry().height();
+    return pageSize().height();
 }
 
 void TaskList::resetAnimate(int time, QEasingCurve::Type type)
@@ -693,6 +691,7 @@ void TaskList::resetAnimate(int time, QEasingCurve::Type type)
     _timeLine.setEasingCurve(type);
     _timeLine.setDuration(std::chrono::milliseconds(static_cast<int>(Effect::animationTime(time))));
     _timeLine.reset();
+    _isAnimating = true;
 }
 
 void TaskList::makeupGride(QList<QHash<EffectWindow*, WindowItem*>::iterator> items, int screen, int curIndex)
@@ -701,20 +700,22 @@ void TaskList::makeupGride(QList<QHash<EffectWindow*, WindowItem*>::iterator> it
     if (items.count() == 0)
         return;
 
-    QRect area = effects->clientArea(ScreenArea, screen, effects->currentDesktop());
+    QRectF screenArea = effects->clientArea(ScreenArea, screen, effects->currentDesktop());
+    QRectF area = screenArea;
     if (_showPanel)   // reserve space for the panel
         area = effects->clientArea(MaximizeArea, screen, effects->currentDesktop());
 
     int rows = ROW_COUNT;
     int columns = int(ceil(items.count() / double(rows)));
 
-    _hM = 28 / 640.0 * area.width();
+    _hM = 0 / 640.0 * area.width();
     _vM = 48 / 472.0 * area.height();
-    area.adjust(26 / 640.0 * area.width(), 30 / 472.0 * area.height(), -26 / 640.0 * area.width(), -68 / 472.0 * area.height());
+    area.adjust(6 / 640.0 * area.width(), 20 / 472.0 * area.height(), -6 / 640.0 * area.width(), -68 / 472.0 * area.height());
 
+    _beginOrEndMargin = END_MARGIN / 640.0 * area.width();
     // Assign slots
-    int slotWidth = (area.width() + _hM) / 2.5;
-    int slotHeight = area.height() / 2;
+    qreal slotWidth = (area.width() + _hM) / 2.5;
+    qreal slotHeight = area.height() / 2;
 
     int curColumnIndex = curIndex / rows;
     QPointF start;
@@ -741,6 +742,18 @@ void TaskList::makeupGride(QList<QHash<EffectWindow*, WindowItem*>::iterator> it
     }
 
 breakLoop:
+
+    double scale;
+    QRectF itemRect = QRectF(0, 0, slotWidth, slotHeight);
+    itemRect.adjust(_hM/4, _vM/4 + 20, -_hM/4, -_vM/4);   // Borders
+    QPointF movePos = QPointF(0, 0);
+    if (itemRect.width() / screenArea.width() >= itemRect.height() / screenArea.height()) {
+        scale = itemRect.height() / double(screenArea.height());
+        movePos = QPointF((itemRect.width() - (screenArea.width() * scale)) / 2, 0);
+        itemRect.adjust(movePos.x(), movePos.y(), -1 * movePos.x(), -1 * movePos.y());
+    }
+
+
     for (int slot = 0; slot < columns*rows; ++slot) {
         WindowItem *item = takenSlots[slot];
         if (!item) // some slots might be empty
@@ -748,31 +761,27 @@ breakLoop:
         EffectWindow *w = item->w;
 
         // Work out where the slot is
-        QRect target(_pageSize.width() - (slot / rows + 1) * slotWidth + start.x(),
-                    area.y() + (slot % rows) * slotHeight + start.y(),
-                    slotWidth, slotHeight);
-        target.adjust(_hM/4, _vM/4, -_hM/4, -_vM/4);   // Borders
+        QRectF target(_pageSize.width() - (slot / rows + 1) * slotWidth + start.x(),
+                     area.y() + (slot % rows) * slotHeight + start.y(),
+                     slotWidth, slotHeight);
+        target.adjust(_hM/4, _vM/4 + 20, -_hM/4, -_vM/4);   // Borders
+        itemRect = target;
+        itemRect.adjust(movePos.x(), movePos.y(), -1 * movePos.x(), -1 * movePos.y());
 
-        double scale;
-        if (target.width() / double(w->width()) < target.height() / double(w->height())) {
+        _itemSize = itemRect.size();
+
+        QRectF windowGeometry = w->taskGeometry();
+        if (target.width() / double(screenArea.width()) < target.height() / double(screenArea.height())) {
             // Center vertically
-            scale = target.width() / double(w->width());
-            target.moveTop(target.top() + (target.height() - int(w->height() * scale)) / 2);
+            scale = target.width() / double(screenArea.width());
         } else {
             // Center horizontally
-            scale = target.height() / double(w->height());
-            target.moveLeft(target.left() + (target.width() - int(w->width() * scale)) / 2);
+            scale = target.height() / double(screenArea.height());
         }
-//        // Don't scale the windows too much
-//        if (scale > 2.0 || (scale > 1.0 && (w->width() > 300 || w->height() > 300))) {
-//            scale = (w->width() > 300 || w->height() > 300) ? 1.0 : 2.0;
-//            target = QRect(
-//                        target.center().x() - int(w->width() * scale) / 2,
-//                        target.center().y() - int(w->height() * scale) / 2,
-//                        scale * w->width(), scale * w->height());
-//        }
+        target.moveTop(target.top() + (target.height() - int(windowGeometry.height() * scale)) / 2);
+        target.moveLeft(target.left() + (target.width() - int(windowGeometry.width() * scale)) / 2);
 
-        bool shownNow = QRectF(item->_curPos, QSizeF(item->w->size().width() * item->_curScale.width(), item->w->size().height() * item->_curScale.height())).intersects(area);
+        bool shownNow = QRectF(item->_curPos, itemSize()).intersects(area);
         item->_destScale = QSizeF(scale, scale);
         if (shownNow) {
             item->_srcScale = item->_curScale;
@@ -781,10 +790,10 @@ breakLoop:
             item->_srcScale = item->_curScale = item->_destScale;
         }
 
-        item->_destPos = target.topLeft();
-        bool toShow = QRectF(item->_destPos, QSizeF(item->w->size().width() * item->_curScale.width(), item->w->size().height() * item->_curScale.height())).intersects(area);
+        item->_destPos = itemRect.topLeft();
+        bool toShow = QRectF(item->_destPos, itemSize()).intersects(area);
         if (shownNow || toShow) {
-            item->_oriPos = item->_destPos = target.topLeft();
+            item->_oriPos = item->_destPos = itemRect.topLeft();
             item->_srcPos = item->_curPos;
             item->_isPosAnimating = true;
         } else {
@@ -792,11 +801,11 @@ breakLoop:
         }
     }
 
-
-    _headPos = QPointF(pageSize().width() - slotWidth, items.first().value()->_destPos.y());
+    _headPos = QPointF(_pageSize.width() - itemRect.width() - _beginOrEndMargin, items.first().value()->_destPos.y());
     _tailPos = items.last().value()->_destPos;
     _elementSize = QSizeF(slotWidth, slotHeight);
     _bigThenOnPage = ceil(_items.size() / double(ROW_COUNT)) * _elementSize.width() > _pageSize.width();
+    _waitForNextAnimate = false;
 }
 
 bool TaskList::boundCheck()
@@ -811,9 +820,9 @@ bool TaskList::boundCheck()
                 if (distance > 0) {
                     rebound(QSize(distance, 0));
                     result = false;
-                } else if (endItem->_curPos.x() +  _elementSize.width() < pageSize().width()) {
+                } else if (endItem->_curPos.x() +  _elementSize.width() + _beginOrEndMargin < pageSize().width()) {
                     if (_bigThenOnPage) {
-                        rebound(QSize(pageSize().width() - (endItem->_curPos.x() +  _elementSize.width()), 0));
+                        rebound(QSize(pageSize().width() - (endItem->_curPos.x() +  _elementSize.width() + _beginOrEndMargin), 0));
                     } else {
                         rebound(QSize(distance, 0));
                     }
@@ -826,7 +835,7 @@ bool TaskList::boundCheck()
                     result = false;
                 } else if (endItem->_curPos.x() > _hM / 2) {
                     if (_bigThenOnPage) {
-                        rebound(QSize( _hM / 2 - endItem->_curPos.x(), 0));
+                        rebound(QSize( _hM / 2 - endItem->_curPos.x() + _beginOrEndMargin, 0));
                     } else {
                         rebound(QSize(distance,  _hM / 2));
                     }
@@ -896,17 +905,17 @@ void TaskList::setupWindowItems(EffectWindowList windowlist, int screen, EffectW
     }
 
     QRect area = effects->clientArea(ScreenArea, screen, effects->currentDesktop());
-    if (_showPanel)   // reserve space for the panel
-        area = effects->clientArea(MaximizeArea, screen, effects->currentDesktop());
+//    if (_showPanel)   // reserve space for the panel
+//        area = effects->clientArea(MaximizeArea, screen, effects->currentDesktop());
 
     for (int i = 0; i < windowlist.size() ; i++) {
         WindowItem *item = new WindowItem;
         item->w = windowlist[i];
         if (_orientation == Horizontal) {
             if (_layoutDirection == LeftToRight) {
-                item->_destPos = QPointF((pageSize().width()  + MARGIN) * (i + start - lIndex), item->w->y());
+                item->_destPos = QPointF((pageSize().width()  + MARGIN) * (i + start - lIndex), 0);
             } else {
-                item->_destPos = QPointF(0 - (pageSize().width()  + MARGIN)* (i + start - lIndex), item->w->y());
+                item->_destPos = QPointF(0 - (pageSize().width()  + MARGIN)* (i + start - lIndex), 0);
             }
         } else {
             if (_verticalLayoutDirection == TopToBottom) {
@@ -917,7 +926,7 @@ void TaskList::setupWindowItems(EffectWindowList windowlist, int screen, EffectW
         }
 
         if (animation) {
-            item->_srcPos = item->_curPos;
+            item->_srcPos = item->_curPos = item->w->pos();
             item->_oriPos = item->_destPos;
             item->_isScaleAnimating = true;
         } else {
@@ -925,6 +934,8 @@ void TaskList::setupWindowItems(EffectWindowList windowlist, int screen, EffectW
         }
 
         item->_oriScale = item->_srcScale = item->_curScale = QSizeF(item->w->appScale(), item->w->appScale());
+
+        item->_windowPosTranslate = item->w->geometry().topLeft() - area.topLeft() ;
 
         _itemsIndex.append(_items.insert(windowlist[i], item));
     }
@@ -934,7 +945,7 @@ void TaskList::setupWindowItems(EffectWindowList windowlist, int screen, EffectW
     }
 
     _pageCount = _itemsIndex.size();
-    _hasSetup = true;
+    _hasSetup = _pageCount > 0;
 }
 
 QHash<EffectWindow *, WindowItem *> TaskList::toGrideModel(EffectWindow* curWindow)
@@ -968,6 +979,11 @@ void TaskList::clear()
     _pageCount = 0;
     _hasSetup = false;
     _isAnimating = false;
+}
+
+void TaskList::deleteAllData()
+{
+    _items.clear();
 }
 
 bool TaskList::isManageWindow(EffectWindow *w)

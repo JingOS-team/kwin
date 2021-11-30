@@ -98,6 +98,115 @@ AbstractClient::AbstractClient()
     connect(ApplicationMenu::self(), &ApplicationMenu::applicationMenuEnabledChanged, this, [this] {
         emit hasApplicationMenuChanged(hasApplicationMenu());
     });
+
+    connect(this, &AbstractClient::surfaceChanged, this, &AbstractClient::updateIsSystemUI);
+    connect(this, &AbstractClient::windowClassChanged, this, &AbstractClient::updateIsSystemUI);
+}
+
+void AbstractClient::updateJingLayer()
+{
+    if (m_jingWindowType == JingWindowType::TYPE_KEYGUARD && !isLockScreen()) {
+        m_jingLayer = JingLayer::LAYER_APPLICATION;
+    } else if (isFullScreen() && m_active && isApplication()) {
+        m_jingLayer = JingLayer::LAYER_FULL_SCREEN;
+    } else {
+        switch(m_jingWindowType) {
+        case JingWindowType::TYPE_WALLPAPER :
+            m_jingLayer = JingLayer::LAYER_WALLPAPER;
+            break;
+        case JingWindowType::TYPE_DESKTOP :
+            m_jingLayer = JingLayer::LAYER_DESKTOP;
+            break;
+        case JingWindowType::TYPE_DIALOG :
+            m_jingLayer = JingLayer::LAYER_DIALOG;
+            break;
+        case JingWindowType::TYPE_SYS_SPLASH :
+            m_jingLayer = JingLayer::LAYER_SYS_SPLASH;
+            break;
+        case JingWindowType::TYPE_SEARCH_BAR :
+            m_jingLayer = JingLayer::LAYER_SEARCH_BAR;
+            break;
+        case JingWindowType::TYPE_NOTIFICATION :
+            m_jingLayer = JingLayer::LAYER_NOTIFICATION;
+            break;
+        case JingWindowType::TYPE_CRITICAL_NOTIFICATION :
+            m_jingLayer = JingLayer::LAYER_CRITICAL_NOTIFICATION;
+            break;
+        case JingWindowType::TYPE_INPUT_METHOD :
+            m_jingLayer = JingLayer::LAYER_INPUT_METHOD;
+            break;
+        case JingWindowType::TYPE_INPUT_METHOD_DIALOG :
+            m_jingLayer = JingLayer::LAYER_INPUT_METHOD_DIALOG;
+            break;
+        case JingWindowType::TYPE_DND :
+            m_jingLayer = JingLayer::LAYER_DND;
+            break;
+        case JingWindowType::TYPE_DOCK :
+            m_jingLayer = JingLayer::LAYER_DOCK;
+            break;
+        case JingWindowType:: TYPE_APPLICATION_OVERLAY :
+            m_jingLayer = JingLayer::LAYER_APPLICATION_OVERLAY;
+            break;
+        case JingWindowType::TYPE_STATUS_BAR :
+            m_jingLayer = JingLayer::LAYER_STATUS_BAR;
+            break;
+        case JingWindowType::TYPE_STATUS_BAR_PANEL :
+            m_jingLayer = JingLayer::LAYER_STATUS_BAR_PANEL;
+            break;
+        case JingWindowType::TYPE_TOAST :
+            m_jingLayer = JingLayer::LAYER_TOAST;
+            break;
+        case JingWindowType::TYPE_KEYGUARD :
+            m_jingLayer = JingLayer::LAYER_KEYGUARD;
+            break;
+        case JingWindowType::TYPE_PHONE :
+            m_jingLayer = JingLayer::LAYER_PHONE;
+            break;
+        case JingWindowType::TYPE_SYSTEM_DIALOG :
+            m_jingLayer = JingLayer::LAYER_SYSTEM_DIALOG;
+            break;
+        case JingWindowType::TYPE_SYSTEM_OVERLAY:
+            m_jingLayer = JingLayer::LAYER_SYSTEM_OVERLAY;
+            break;
+        case JingWindowType::TYPE_SYSTEM_ERROR :
+            m_jingLayer = JingLayer::LAYER_SYSTEM_ERROR;
+            break;
+        case JingWindowType::TYPE_VOICE_INTERACTION :
+            m_jingLayer = JingLayer::LAYER_SYSTEM_INTERACTION;
+            break;
+        case JingWindowType:: TYPE_SCREENSHOT :
+            m_jingLayer = JingLayer::LAYER_SCREENSHOT;
+            break;
+        case JingWindowType::TYPE_BOOT_PROGRESS :
+            m_jingLayer = JingLayer::LAYER_BOOT_PROGRESS;
+            break;
+        case JingWindowType::TYPE_POINTER :
+            m_jingLayer = JingLayer::LAYER_POINTER;
+            break;
+        case JingWindowType::TYPE_LAST_SYS_LAYER :
+            m_jingLayer = JingLayer::LAYER_LAST_LAYER;
+            break;
+        case JingWindowType::TYPE_BASE_APPLICATION :
+            m_jingLayer = JingLayer::LAYER_APPLICATION;
+            break;
+        case JingWindowType::TYPE_APPLICATION :
+            m_jingLayer = JingLayer::LAYER_APPLICATION;
+            break;
+        case JingWindowType::TYPE_APPLICATION_STARTING:
+            m_jingLayer = JingLayer::LAYER_APPLICATION;
+            break;
+        case JingWindowType::TYPE_LAST_APPLICATION_WINDOW:
+            m_jingLayer = JingLayer::LAYER_APPLICATION;
+            break;
+        case JingWindowType::TYPE_UNKNOW:
+            m_jingLayer = JingLayer::LAYER_APPLICATION;
+            break;
+        default:
+            m_jingLayer = JingLayer::LAYER_APPLICATION;
+        }
+    }
+
+    postUpdateWidnwoType();
 }
 
 AbstractClient::~AbstractClient()
@@ -118,6 +227,11 @@ bool AbstractClient::belongToSameApplication(const AbstractClient *c1, const Abs
 bool AbstractClient::isTransient() const
 {
     return false;
+}
+
+bool AbstractClient::hasParent() const
+{
+    return isTransient();
 }
 
 void AbstractClient::setClientShown(bool shown)
@@ -157,11 +271,20 @@ void AbstractClient::setJingWindowType(JingWindowType windowType)
         m_jingWindowType = windowType;
 
         emit jingWindowTypeChanged();
+
+        updateJingLayer();
+
+        if (m_jingWindowType == JingWindowType::TYPE_DESKTOP) {
+            workspace()->setDesktop(this);
+        }
     }
 }
 
-JingWindowType AbstractClient::jingWindowType()
+JingWindowType AbstractClient::jingWindowType() const
 {
+    if (isLockScreen()) {
+        return JingWindowType::TYPE_KEYGUARD;
+    }
     return m_jingWindowType;
 }
 
@@ -212,8 +335,15 @@ void AbstractClient::doSetSkipSwitcher()
 
 void AbstractClient::setIcon(const QIcon &icon)
 {
-    m_icon = icon;
-    emit iconChanged();
+    if (!icon.isNull()) {
+        m_icon = icon;
+        emit iconChanged();
+    }
+}
+
+void AbstractClient::setTitle(const QString &title)
+{
+    m_title = title;
 }
 
 void AbstractClient::setActive(bool act)
@@ -232,10 +362,15 @@ void AbstractClient::setActive(bool act)
                              ? rules()->checkOpacityActive(qRound(opacity() * 100.0))
                              : rules()->checkOpacityInactive(qRound(opacity() * 100.0));
     setOpacity(ruledOpacity / 100.0);
-    workspace()->setActiveClient(act ? this : nullptr);
 
-    if (!m_active)
+    updateJingLayer();
+
+    if (!m_active) {
         cancelAutoRaise();
+        setVirtualKeyboardGeometry({});
+    }
+
+    workspace()->setActiveClient(act ? this : nullptr);
 
     if (!m_active && shadeMode() == ShadeActivated)
         setShade(ShadeNormal);
@@ -270,22 +405,12 @@ void AbstractClient::markAsZombie()
     addWorkspaceRepaint(visibleRect());
 }
 
-Layer AbstractClient::layer() const
+JingLayer AbstractClient::jingLayer() const
 {
-    if (m_layer == UnknownLayer)
-        const_cast< AbstractClient* >(this)->m_layer = belongsToLayer();
-    return m_layer;
-}
-
-void AbstractClient::updateLayer()
-{
-    if (layer() == belongsToLayer())
-        return;
-    StackingUpdatesBlocker blocker(workspace());
-    invalidateLayer(); // invalidate, will be updated when doing restacking
-    for (auto it = transients().constBegin(),
-                                  end = transients().constEnd(); it != end; ++it)
-        (*it)->updateLayer();
+    if (isLockScreen()) {
+        return JingLayer::LAYER_KEYGUARD;
+    }
+    return m_jingLayer;
 }
 
 void AbstractClient::placeIn(const QRect &area)
@@ -296,67 +421,9 @@ void AbstractClient::placeIn(const QRect &area)
     setGeometryRestore(frameGeometry());
 }
 
-void AbstractClient::invalidateLayer()
-{
-    m_layer = UnknownLayer;
-}
-
-Layer AbstractClient::belongsToLayer() const
-{
-    // NOTICE while showingDesktop, desktops move to the AboveLayer
-    // (interchangeable w/ eg. yakuake etc. which will at first remain visible)
-    // and the docks move into the NotificationLayer (which is between Above- and
-    // ActiveLayer, so that active fullscreen windows will still cover everything)
-    // Since the desktop is also activated, nothing should be in the ActiveLayer, though
-    if (isInternal())
-        return UnmanagedLayer;
-    if (isLockScreen())
-        return UnmanagedLayer;
-    if (isInputMethod())
-        return UnmanagedLayer;
-    if (isDesktop())
-        return workspace()->showingDesktop() ? AboveLayer : DesktopLayer;
-    if (isSplash())          // no damn annoying splashscreens
-        return NormalLayer; // getting in the way of everything else
-    if (isDock()) {
-        if (workspace()->showingDesktop())
-            return NotificationLayer;
-        return layerForDock();
-    }
-    if (isOnScreenDisplay())
-        return OnScreenDisplayLayer;
-    if (isNotification())
-        return NotificationLayer;
-    if (isCriticalNotification())
-        return CriticalNotificationLayer;
-    if (workspace()->showingDesktop() && belongsToDesktop()) {
-        return AboveLayer;
-    }
-    if (keepBelow())
-        return BelowLayer;
-    if (isActiveFullScreen())
-        return ActiveLayer;
-    if (keepAbove())
-        return AboveLayer;
-
-    return NormalLayer;
-}
-
 bool AbstractClient::belongsToDesktop() const
 {
     return false;
-}
-
-Layer AbstractClient::layerForDock() const
-{
-    // slight hack for the 'allow window to cover panel' Kicker setting
-    // don't move keepbelow docks below normal window, but only to the same
-    // layer, so that both may be raised to cover the other
-    if (keepBelow())
-        return NormalLayer;
-    if (keepAbove()) // slight hack for the autohiding panels
-        return AboveLayer;
-    return DockLayer;
 }
 
 void AbstractClient::setKeepAbove(bool b)
@@ -434,7 +501,7 @@ bool AbstractClient::wantsTabFocus() const
 bool AbstractClient::isSpecialWindow() const
 {
     // TODO
-    return isDesktop() || isDock() || isSplash() || isToolbar() || isNotification() || isOnScreenDisplay() || isCriticalNotification();
+    return isDesktop() || isStatusBar() || isSplash() || isToolbar() || isNotification() || isOnScreenDisplay() || isCriticalNotification() || (!isApplication() && !isLockScreen());
 }
 
 void AbstractClient::demandAttention(bool set)
@@ -657,6 +724,11 @@ void AbstractClient::shadeUnhover()
     cancelShadeHoverTimer();
 }
 
+void AbstractClient::updateIsSystemUI()
+{
+    m_isSystemUI = workspace()->isSystemUI(this);
+}
+
 void AbstractClient::startShadeHoverTimer()
 {
     if (!isShade())
@@ -727,7 +799,7 @@ void AbstractClient::setMinimized(bool set)
 
 void AbstractClient::minimize(bool avoid_animation)
 {
-    if (!isMinimizable() || isMinimized())
+    if (!isMinimizable() || isMinimized() || isLockScreen())
         return;
 
     m_minimized = true;
@@ -970,6 +1042,7 @@ bool AbstractClient::startMoveResize()
     Q_ASSERT(!isMoveResize());
     Q_ASSERT(QWidget::keyboardGrabber() == nullptr);
     Q_ASSERT(QWidget::mouseGrabber() == nullptr);
+    return false;
     stopDelayedMoveResize();
     if (QApplication::activePopupWidget() != nullptr)
         return false; // popups have grab
@@ -1034,15 +1107,19 @@ void AbstractClient::finishMoveResize(bool cancel)
     }
     checkScreen(); // needs to be done because clientFinishUserMovedResized has not yet re-activated online alignment
     if (screen() != moveResizeStartScreen()) {
+        if (isFullScreen() || isElectricBorderMaximizing()) {
+            updateGeometryRestoresForFullscreen();
+        }
         workspace()->sendClientToScreen(this, screen()); // checks rule validity
-        if (maximizeMode() != MaximizeRestore)
+        if (maximizeMode() != MaximizeRestore) {
             checkWorkspacePosition();
+        }
     }
 
     if (isElectricBorderMaximizing()) {
         setQuickTileMode(electricBorderMode());
         setElectricBorderMaximizing(false);
-    } else if (!cancel) {
+    } else if (!cancel && !isFullScreen()) {
         QRect geom_restore = geometryRestore();
         if (!(maximizeMode() & MaximizeHorizontal)) {
             geom_restore.setX(frameGeometry().x());
@@ -1569,7 +1646,10 @@ void AbstractClient::setupWindowManagementInterface()
     connect(this, &AbstractClient::captionChanged, w, [w, this] { w->setTitle(caption()); });
 
     connect(this, &AbstractClient::activeChanged, w, [w, this] { w->setActive(isActive()); });
-    connect(this, &AbstractClient::fullScreenChanged, w, [w, this] { w->setFullscreen(isFullScreen()); });
+    connect(this, &AbstractClient::fullScreenChanged, w, [w, this] {
+        w->setFullscreen(isFullScreen());
+        updateJingLayer();
+    });
     connect(this, &AbstractClient::keepAboveChanged, w, &PlasmaWindowInterface::setKeepAbove);
     connect(this, &AbstractClient::keepBelowChanged, w, &PlasmaWindowInterface::setKeepBelow);
     connect(this, &AbstractClient::minimizedChanged, w, [w, this] { w->setMinimized(isMinimized()); });
@@ -1869,29 +1949,29 @@ bool AbstractClient::performMouseCommand(Options::MouseCommand cmd, const QPoint
     case Options::MouseClose:
         closeWindow();
         break;
-    case Options::MouseActivateRaiseAndMove:
-    case Options::MouseActivateRaiseAndUnrestrictedMove:
-        workspace()->raiseClient(this);
-        workspace()->requestFocus(this);
-        screens()->setCurrent(globalPos);
-        // fallthrough
-    case Options::MouseMove:
-    case Options::MouseUnrestrictedMove: {
-        if (!isMovableAcrossScreens())
-            break;
-        if (isMoveResize())
-            finishMoveResize(false);
-        setMoveResizePointerMode(PositionCenter);
-        setMoveResizePointerButtonDown(true);
-        setMoveOffset(QPoint(globalPos.x() - x(), globalPos.y() - y()));  // map from global
-        setInvertedMoveOffset(rect().bottomRight() - moveOffset());
-        setUnrestrictedMoveResize((cmd == Options::MouseActivateRaiseAndUnrestrictedMove
-                                  || cmd == Options::MouseUnrestrictedMove));
-        if (!startMoveResize())
-            setMoveResizePointerButtonDown(false);
-        updateCursor();
-        break;
-    }
+//    case Options::MouseActivateRaiseAndMove:
+//    case Options::MouseActivateRaiseAndUnrestrictedMove:
+//        workspace()->raiseClient(this);
+//        workspace()->requestFocus(this);
+//        screens()->setCurrent(globalPos);
+//        // fallthrough
+//    case Options::MouseMove:
+//    case Options::MouseUnrestrictedMove: {
+//        if (!isMovableAcrossScreens())
+//            break;
+//        if (isMoveResize())
+//            finishMoveResize(false);
+//        setMoveResizePointerMode(PositionCenter);
+//        setMoveResizePointerButtonDown(true);
+//        setMoveOffset(QPoint(globalPos.x() - x(), globalPos.y() - y()));  // map from global
+//        setInvertedMoveOffset(rect().bottomRight() - moveOffset());
+//        setUnrestrictedMoveResize((cmd == Options::MouseActivateRaiseAndUnrestrictedMove
+//                                  || cmd == Options::MouseUnrestrictedMove));
+//        if (!startMoveResize())
+//            setMoveResizePointerButtonDown(false);
+//        updateCursor();
+//        break;
+//    }
     case Options::MouseResize:
     case Options::MouseUnrestrictedResize: {
         if (!isResizable() || isShade())
@@ -2473,13 +2553,13 @@ bool AbstractClient::processDecorationButtonPress(QMouseEvent *event, bool ignor
             && com != Options::MouseOperationsMenu // actions where it's not possible to get the matching
             && com != Options::MouseMinimize)  // mouse release event
     {
-        setMoveResizePointerMode(mousePosition());
-        setMoveResizePointerButtonDown(true);
-        setMoveOffset(event->pos());
-        setInvertedMoveOffset(rect().bottomRight() - moveOffset());
-        setUnrestrictedMoveResize(false);
-        startDelayedMoveResize();
-        updateCursor();
+//        setMoveResizePointerMode(mousePosition());
+//        setMoveResizePointerButtonDown(true);
+//        setMoveOffset(event->pos());
+//        setInvertedMoveOffset(rect().bottomRight() - moveOffset());
+//        setUnrestrictedMoveResize(false);
+//        startDelayedMoveResize();
+//        updateCursor();
     }
     // In the new API the decoration may process the menu action to display an inactive tab's menu.
     // If the event is unhandled then the core will create one for the active window in the group.
@@ -2555,14 +2635,14 @@ void AbstractClient::enterEvent(const QPoint &globalPos)
         return;
 
     if (options->isAutoRaise() && !isDesktop() &&
-            !isDock() && workspace()->focusChangeEnabled() &&
+            !isStatusBar() && workspace()->focusChangeEnabled() &&
             globalPos != workspace()->focusMousePosition() &&
             workspace()->topClientOnDesktop(VirtualDesktopManager::self()->current(),
                                             options->isSeparateScreenFocus() ? screen() : -1) != this) {
         startAutoRaise();
     }
 
-    if (isDesktop() || isDock())
+    if (isDesktop() || isStatusBar())
         return;
     // for FocusFollowsMouse, change focus only if the mouse has actually been moved, not if the focus
     // change came because of window changes (e.g. closing a window) - #92290
@@ -2634,8 +2714,35 @@ QRect AbstractClient::virtualKeyboardGeometry() const
     return m_virtualKeyboardGeometry;
 }
 
+void AbstractClient::beginTaskMode()
+{
+    showWidthoutKBG();
+}
+
+void AbstractClient::endTaskMode()
+{
+    if (m_active) {
+        showWidthKBG();
+    }
+}
+
+void AbstractClient::showWidthoutKBG()
+{
+    if (!m_keyboardGeometryRestore.isEmpty()) {
+        setFrameGeometry(m_keyboardGeometryRestore);
+    }
+}
+
+void AbstractClient::showWidthKBG()
+{
+    if (!m_virtualKeyboardGeometry.isEmpty()) {
+        setVirtualKeyboardGeometry(m_virtualKeyboardGeometry);
+    }
+}
+
 void AbstractClient::setVirtualKeyboardGeometry(const QRect &geo)
 {
+    m_virtualKeyboardGeometry = geo;
     // No keyboard anymore
     if (geo.isEmpty() && !m_keyboardGeometryRestore.isEmpty()) {
         setFrameGeometry(m_keyboardGeometryRestore);
@@ -2646,8 +2753,6 @@ void AbstractClient::setVirtualKeyboardGeometry(const QRect &geo)
     } else if (m_keyboardGeometryRestore.isEmpty()) {
         m_keyboardGeometryRestore = frameGeometry();
     }
-
-    m_virtualKeyboardGeometry = geo;
 
     // Don't resize Desktop and fullscreen windows
     if (isFullScreen() || isDesktop()) {
@@ -2663,7 +2768,7 @@ void AbstractClient::setVirtualKeyboardGeometry(const QRect &geo)
     newWindowGeometry.moveBottom(geo.top());
     newWindowGeometry.setTop(qMax(newWindowGeometry.top(), availableArea.top()));
 
-    setFrameGeometry(newWindowGeometry);
+    setFrameGeometry(newWindowGeometry, NormalGeometrySet, true);
 }
 
 QRect AbstractClient::keyboardGeometryRestore() const
@@ -2676,6 +2781,11 @@ void AbstractClient::setKeyboardGeometryRestore(const QRect &geom)
     m_keyboardGeometryRestore = geom;
 }
 
+QRegion AbstractClient::fillBgRegion() const
+{
+    return adjusSizeByInput() ? m_virtualKeyboardGeometry : QRegion();
+}
+
 bool AbstractClient::dockWantsInput() const
 {
     return false;
@@ -2684,16 +2794,16 @@ bool AbstractClient::dockWantsInput() const
 void AbstractClient::setDesktopFileName(QByteArray name)
 {
     name = rules()->checkDesktopFile(name).toUtf8();
-    m_desktopFileName = name;
-
-    setIsScaleApp(!Workspace::self()->isJingOSApp(this) &&
-                  !g_scale_black_list.contains(resourceName()) &&
-                  !g_scale_black_list.contains(resourceClass()) &&
-                  !isLogoutWindow());
-
     if (name == m_desktopFileName) {
         return;
     }
+    m_desktopFileName = name;
+
+    m_isJingOSApp = Workspace::self()->isJingOSApp(this);
+    setIsScaleApp(!m_isJingOSApp &&
+                  !g_scale_black_list.contains(resourceName()) &&
+                  !g_scale_black_list.contains(resourceClass()) &&
+                  !isLogoutWindow());
 
     updateWindowRules(Rules::DesktopFile);
     emit desktopFileNameChanged();
@@ -2724,6 +2834,32 @@ QString AbstractClient::iconFromDesktopFile() const
 
     KDesktopFile df(desktopFilePath);
     return df.readIcon();
+}
+
+QString AbstractClient::nameFromDesktopFile() const
+{
+    if (m_desktopFileName.isEmpty()) {
+        return {};
+    }
+
+    const QString desktopFileName = QString::fromUtf8(m_desktopFileName);
+    QString desktopFilePath;
+
+    if (QDir::isAbsolutePath(desktopFileName)) {
+        desktopFilePath = desktopFileName;
+    }
+
+    if (desktopFilePath.isEmpty()) {
+        desktopFilePath = QStandardPaths::locate(QStandardPaths::ApplicationsLocation,
+                                                 desktopFileName);
+    }
+    if (desktopFilePath.isEmpty()) {
+        desktopFilePath = QStandardPaths::locate(QStandardPaths::ApplicationsLocation,
+                                                 desktopFileName + QLatin1String(".desktop"));
+    }
+
+    KDesktopFile df(desktopFilePath);
+    return df.readName();
 }
 
 bool AbstractClient::hasApplicationMenu() const
@@ -2817,6 +2953,14 @@ QString AbstractClient::caption() const
     return cap;
 }
 
+QString AbstractClient::title() const
+{
+    if (m_title.isEmpty()) {
+        return caption();
+    }
+    return m_title;
+}
+
 void AbstractClient::removeRule(Rules* rule)
 {
     m_rules.remove(rule);
@@ -2886,14 +3030,46 @@ void AbstractClient::setIsBackApp(bool isBack)
     }
 }
 
-bool AbstractClient::visible()
+bool AbstractClient::visible() const
 {
     return requestVisible();
 }
 
 bool AbstractClient::isDefaultMaxApp() const
 {
-    return (isNormalWindow() || isDialog()) && (!transientFor() || pid() != transientFor()->pid()) && isResizable();
+    return (isNormalWindow() || isDialog()) && (!transientFor() || pid() != transientFor()->pid()) && isResizable() && (!isModal() || isMaximizable());
+}
+
+bool AbstractClient::canAcceptEvent() const
+{
+    return m_requestVisible;
+}
+
+bool AbstractClient::isSystemDialog() const
+{
+    return jingWindowType() == JingWindowType::TYPE_SYSTEM_DIALOG;
+}
+
+bool AbstractClient::isSystemUI() const
+{
+    return m_isSystemUI;
+}
+
+bool AbstractClient::adjusSizeByInput() const
+{
+//    if (m_adjusSizeByInput < 0) {
+//        if (!resourceClass().isEmpty()) {
+//            m_adjusSizeByInput = (resourceClass().compare("org.kde.konsole") == 0);
+//        }
+//    }
+//    return m_adjusSizeByInput >= 0 ? m_adjusSizeByInput : 0;
+
+    return !m_isJingOSApp && !isLockScreen() && !isInputMethod();
+}
+
+bool AbstractClient::isApplication() const
+{
+    return jingWindowType() < TYPE_LAST_APPLICATION_WINDOW && jingWindowType() > TYPE_UNKNOW;
 }
 
 QMargins AbstractClient::frameMargins() const
@@ -3138,11 +3314,11 @@ void AbstractClient::sendToScreen(int newScreen)
         // might impact the layer of a fullscreen window
         foreach (AbstractClient *cc, workspace()->allClientList()) {
             if (cc->isFullScreen() && cc->screen() == newScreen) {
-                cc->updateLayer();
+                // TODO LAYER 多屏的栈处理
             }
         }
     }
-    if (screen() == newScreen)   // Don't use isOnScreen(), that's true even when only partially
+    if (screen() == newScreen && !isFullScreen())   // Don't use isOnScreen(), that's true even when only partially
         return;
 
     GeometryUpdatesBlocker blocker(this);
@@ -3185,14 +3361,18 @@ void AbstractClient::sendToScreen(int newScreen)
         keepInArea(screenArea);
     }
 
-    // align geom_restore - checkWorkspacePosition operates on it
-    setGeometryRestore(frameGeometry());
+    if (isFullScreen()) {
+        updateGeometryRestoresForFullscreen();
+        checkWorkspacePosition(oldGeom);
+    } else {
+        // align geom_restore - checkWorkspacePosition operates on it
+        setGeometryRestore(frameGeometry());
 
-    checkWorkspacePosition(oldGeom);
+        checkWorkspacePosition(oldGeom);
 
-    // re-align geom_restore to constrained geometry
-    setGeometryRestore(frameGeometry());
-
+        // re-align geom_restore to constrained geometry
+        setGeometryRestore(frameGeometry());
+    }
     // finally reset special states
     // NOTICE that MaximizeRestore/QuickTileFlag::None checks are required.
     // eg. setting QuickTileFlag::None would break maximization
@@ -3206,9 +3386,31 @@ void AbstractClient::sendToScreen(int newScreen)
         (*it)->sendToScreen(newScreen);
 }
 
+void AbstractClient::updateGeometryRestoresForFullscreen()
+{
+    QRect screenArea = workspace()->clientArea(MaximizeArea, this, screen(), desktop());
+    QRect newFullScreenGeometryRestore = screenArea;
+    if (!(maximizeMode() & MaximizeVertical)) {
+        newFullScreenGeometryRestore.setHeight(geometryRestore().height());
+    }
+    if (!(maximizeMode() & MaximizeHorizontal)) {
+        newFullScreenGeometryRestore.setWidth(geometryRestore().width());
+    }
+    newFullScreenGeometryRestore.setSize(newFullScreenGeometryRestore.size().boundedTo(screenArea.size()));
+    QSize move = (screenArea.size() - newFullScreenGeometryRestore.size()) / 2;
+    newFullScreenGeometryRestore.translate(move.width(), move.height());
+
+    QRect newGeometryRestore = QRect(screenArea.topLeft(), geometryRestore().size().boundedTo(screenArea.size()));
+    move = (screenArea.size() - newGeometryRestore.size()) / 2;
+    newGeometryRestore.translate(move.width(), move.height());
+
+    setFullscreenGeometryRestore(newFullScreenGeometryRestore);
+    setGeometryRestore(newGeometryRestore);
+}
+
 void AbstractClient::checkWorkspacePosition(QRect oldGeometry, int oldDesktop, QRect oldClientGeometry)
 {
-    if (isDock() || isDesktop() || !isPlaceable()) {
+    if (isStatusBar() || isDesktop() || !isPlaceable()) {
         return;
     }
     enum { Left = 0, Top, Right, Bottom };
@@ -3641,4 +3843,24 @@ bool AbstractClient::isPlaceable() const
     return true;
 }
 
+QRect AbstractClient::fullscreenGeometryRestore() const
+{
+    return m_fullscreenGeometryRestore;
+}
+void AbstractClient::setFullscreenGeometryRestore(const QRect &geom)
+{
+    m_fullscreenGeometryRestore = geom;
+}
+
+QRect AbstractClient::taskGeometry() const
+{
+    return m_keyboardGeometryRestore.isEmpty() ? frameGeometry() : m_keyboardGeometryRestore;
+}
+
+void AbstractClient::postUpdateWidnwoType()
+{
+    if (jingWindowType() == JingWindowType::TYPE_SYSTEM_DIALOG) {
+        effects->closeTask(false);
+    }
+}
 }

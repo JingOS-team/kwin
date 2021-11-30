@@ -166,7 +166,6 @@ protected:
     void doFinishMoveResize() override;
     bool acceptsFocus() const override;
     void changeMaximize(bool horizontal, bool vertical, bool adjust) override;
-    Layer layerForDock() const override;
     bool stateCompare() const override;
     void doSetQuickTileMode() override;
 
@@ -192,7 +191,7 @@ private:
     void updateMaximizeMode(MaximizeMode maximizeMode);
     void updateFullScreenMode(bool set);
     void updateShowOnScreenEdge();
-    void updateJintWindowType(KWaylandServer::PlasmaShellSurfaceInterface *surface);
+    void updateJingWindowType(KWaylandServer::PlasmaShellSurfaceInterface *surface);
     void updateClientArea();
     void setupWindowManagementIntegration();
     void setupPlasmaShellIntegration();
@@ -209,7 +208,6 @@ private:
     KWaylandServer::XdgToplevelInterface::States m_acknowledgedStates;
     KWaylandServer::XdgToplevelInterface::States m_initialStates;
     QMap<quint32, PingReason> m_pings;
-    QRect m_fullScreenGeometryRestore;
     NET::WindowType m_windowType = NET::Normal;
     MaximizeMode m_maximizeMode = MaximizeRestore;
     MaximizeMode m_requestedMaximizeMode = MaximizeRestore;
@@ -250,7 +248,10 @@ protected:
 
 private:
     void handleGrabRequested(KWaylandServer::SeatInterface *seat, quint32 serial);
+    void handleRepositionRequested(quint32 token);
     void initialize();
+    void relayout();
+    void updateReactive();
 
     KWaylandServer::XdgPopupInterface *m_shellSurface;
     bool m_haveExplicitGrab = false;

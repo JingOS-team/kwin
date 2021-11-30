@@ -24,7 +24,7 @@
 #include <unistd.h>
 #include <bitset>
 
-Q_LOGGING_CATEGORY(KWIN_XKB, "kwin_xkbcommon", QtCriticalMsg)
+Q_LOGGING_CATEGORY(KWIN_XKB, "kwin_xkbcommon", QtWarningMsg)
 
 namespace KWin
 {
@@ -113,6 +113,14 @@ Xkb::~Xkb()
     xkb_context_unref(m_context);
 }
 
+void Xkb::setConfig(const KSharedConfigPtr &config) {
+    m_configGroup = config->group("Layout");
+}
+
+void Xkb::setNumLockConfig(const KSharedConfigPtr &config) {
+    m_numLockConfig = config;
+}
+
 void Xkb::reconfigure()
 {
     if (!m_context) {
@@ -169,14 +177,13 @@ void Xkb::applyEnvironmentRules(xkb_rule_names &ruleNames)
 xkb_keymap *Xkb::loadKeymapFromConfig()
 {
     // load config
-    if (!m_config) {
+    if (!m_configGroup.isValid()) {
         return nullptr;
     }
-    const KConfigGroup config = m_config->group("Layout");
-    const QByteArray model = config.readEntry("Model", "pc104").toLocal8Bit();
-    const QByteArray layout = config.readEntry("LayoutList", "").toLocal8Bit();
-    const QByteArray variant = config.readEntry("VariantList").toLatin1();
-    const QByteArray options = config.readEntry("Options", "").toLocal8Bit();
+    const QByteArray model = m_configGroup.readEntry("Model", "pc104").toLatin1();
+    const QByteArray layout = m_configGroup.readEntry("LayoutList").toLatin1();
+    const QByteArray variant = m_configGroup.readEntry("VariantList").toLatin1();
+    const QByteArray options = m_configGroup.readEntry("Options").toLatin1();
 
     xkb_rule_names ruleNames = {
         .rules = nullptr,
@@ -186,15 +193,6 @@ xkb_keymap *Xkb::loadKeymapFromConfig()
         .options = options.constData()
     };
     applyEnvironmentRules(ruleNames);
-
-    const QStringList displayNames = config.readEntry("DisplayNames", QStringList());
-    const int range = qMin(m_layoutList.size(), displayNames.size());
-    for (int i = 0; i < range; ++i) {
-        const QString &displayName = displayNames.at(i);
-        if ( !displayName.isEmpty() ) {
-            m_layoutList.replace(i, displayName);
-        }
-    }
 
     return xkb_keymap_new_from_names(m_context, &ruleNames, XKB_KEYMAP_COMPILE_NO_FLAGS);
 }
@@ -375,10 +373,20 @@ void Xkb::updateModifiers()
         emit ledsChanged(m_leds);
     }
 
+    if(m_capsStatus != (xkb_state_led_index_is_active(m_state, m_capsLock)==1)) {
+        m_capsStatus = (xkb_state_led_index_is_active(m_state, m_capsLock)==1);
+        emit capsChanged(m_capsStatus);
+    }
+
     m_currentLayout = xkb_state_serialize_layout(m_state, XKB_STATE_LAYOUT_EFFECTIVE);
     m_modifierState.depressed = xkb_state_serialize_mods(m_state, xkb_state_component(XKB_STATE_MODS_DEPRESSED));
     m_modifierState.latched = xkb_state_serialize_mods(m_state, xkb_state_component(XKB_STATE_MODS_LATCHED));
     m_modifierState.locked = xkb_state_serialize_mods(m_state, xkb_state_component(XKB_STATE_MODS_LOCKED));
+}
+
+bool Xkb::isCapsOn()
+{
+    return xkb_state_led_index_is_active(m_state, m_capsLock) == 1;
 }
 
 void Xkb::forwardModifiers()
@@ -392,32 +400,22 @@ void Xkb::forwardModifiers()
                                         m_currentLayout);
 }
 
+QString Xkb::layoutName(xkb_layout_index_t index) const
+{
+    if (!m_keymap) {
+        return QString{};
+    }
+    return QString::fromLocal8Bit(xkb_keymap_layout_get_name(m_keymap, index));
+}
+
 QString Xkb::layoutName() const
 {
     return layoutName(m_currentLayout);
 }
 
-const QString &Xkb::layoutShortName() const
+const QString &Xkb::layoutShortName(int index) const
 {
-    return m_layoutList.at(m_currentLayout);
-}
-
-QString Xkb::layoutName(xkb_layout_index_t layout) const
-{
-    if (!m_keymap) {
-        return QString{};
-    }
-    return QString::fromLocal8Bit(xkb_keymap_layout_get_name(m_keymap, layout));
-}
-
-QMap<xkb_layout_index_t, QString> Xkb::layoutNames() const
-{
-    QMap<xkb_layout_index_t, QString> layouts;
-    const auto size = m_keymap ? xkb_keymap_num_layouts(m_keymap) : 0u;
-    for (xkb_layout_index_t i = 0; i < size; i++) {
-        layouts.insert(i, layoutName(i));
-    }
-    return layouts;
+    return m_layoutList.at(index);
 }
 
 void Xkb::updateConsumedModifiers(uint32_t key)
@@ -539,13 +537,10 @@ void Xkb::switchToPreviousLayout()
     switchToLayout(previousLayout);
 }
 
-void Xkb::switchToLayout(xkb_layout_index_t layout)
+bool Xkb::switchToLayout(xkb_layout_index_t layout)
 {
-    if (!m_keymap || !m_state) {
-        return;
-    }
-    if (layout >= numberOfLayouts()) {
-        return;
+    if (!m_keymap || !m_state || layout >= numberOfLayouts()) {
+        return false;
     }
     const xkb_mod_mask_t depressed = xkb_state_serialize_mods(m_state, xkb_state_component(XKB_STATE_MODS_DEPRESSED));
     const xkb_mod_mask_t latched = xkb_state_serialize_mods(m_state, xkb_state_component(XKB_STATE_MODS_LATCHED));
@@ -553,6 +548,7 @@ void Xkb::switchToLayout(xkb_layout_index_t layout)
     xkb_state_update_mask(m_state, depressed, latched, locked, 0, 0, layout);
     updateModifiers();
     forwardModifiers();
+    return true;
 }
 
 quint32 Xkb::numberOfLayouts() const

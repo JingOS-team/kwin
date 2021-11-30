@@ -23,19 +23,36 @@ class EglX11Backend : public EglOnXBackend
 public:
     explicit EglX11Backend(X11WindowedBackend *backend);
     ~EglX11Backend() override;
-    bool usesOverlayWindow() const override;
+
+    SceneOpenGLTexturePrivate *createBackendTexture(SceneOpenGLTexture *texture) override;
+    void init() override;
     QRegion beginFrame(int screenId) override;
     void endFrame(int screenId, const QRegion &damage, const QRegion &damagedRegion) override;
+    void screenGeometryChanged(const QSize &size) override;
 
 protected:
-    void present() override;
     void cleanupSurfaces() override;
     bool createSurfaces() override;
 
 private:
     void setupViewport(int screenId);
+    void presentSurface(EGLSurface surface, const QRegion &damage, const QRect &screenGeometry);
+
     QVector<EGLSurface> m_surfaces;
     X11WindowedBackend *m_backend;
+};
+
+/**
+ * @brief Texture using an EGLImageKHR.
+ */
+class EglX11Texture : public AbstractEglTexture
+{
+public:
+    ~EglX11Texture() override;
+
+private:
+    friend class EglX11Backend;
+    EglX11Texture(SceneOpenGLTexture *texture, EglX11Backend *backend);
 };
 
 } // namespace

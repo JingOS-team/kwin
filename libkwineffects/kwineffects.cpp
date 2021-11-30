@@ -708,7 +708,18 @@ bool Effect::touchUp(qint32 id, quint32 time)
     return false;
 }
 
+void Effect::touchCancel()
+{
+
+}
+
 bool Effect::pointerEvent(QMouseEvent *event)
+{
+    Q_UNUSED(event)
+    return false;
+}
+
+bool Effect::tabletToolEvent(TabletEvent *event)
 {
     Q_UNUSED(event)
     return false;
@@ -719,6 +730,11 @@ bool Effect::perform(Feature feature, const QVariantList &arguments)
     Q_UNUSED(feature)
     Q_UNUSED(arguments)
     return false;
+}
+
+bool Effect::blocksDirectScanout() const
+{
+    return true;
 }
 
 //****************************************
@@ -752,6 +768,11 @@ EffectsHandler::EffectsHandler(CompositingType type)
     if (compositing_type == NoCompositing)
         return;
     KWin::effects = this;
+
+    KConfig cfg("jingosThemeGlobals");
+    KConfigGroup scg(&cfg, "General");
+    QString color = scg.readEntry( "ColorScheme", "jingosLight");
+    m_schemeDark = color.compare("jingosDark", Qt::CaseInsensitive) == 0;
 }
 
 EffectsHandler::~EffectsHandler()
@@ -780,7 +801,11 @@ bool EffectsHandler::isOpenGLCompositing() const
 
 QColor EffectsHandler::panelBgColor()
 {
-    return QColor(0xef, 0xf0, 0xf1);
+    if (m_schemeDark) {
+        return QColor(0x00, 0x00, 0x00);
+    } else {
+        return QColor(0xef, 0xf0, 0xf1);
+    }
 }
 
 void EffectsHandler::setPanelGeometry(const QRect &geometry)
@@ -893,12 +918,7 @@ bool EffectWindow::isVisible() const
 
 void EffectWindow::kill()
 {
-    if (pid() > 0) {
-        QString cmd = QString("kill -9 %1").arg(pid());
-        system(cmd.toLocal8Bit().data());
-    } else {
-        closeWindow();
-    }
+    effects->killWindow(this);
 }
 
 //****************************************
@@ -1559,7 +1579,7 @@ void WindowMotionManager::manage(EffectWindow *w, QPointF srcPos)
     motion.scale.setStrength(strength * 1.33);
     motion.scale.setSmoothness(smoothness / 2.0);
 
-    motion.translation.setValue(srcPos);
+    motion.translation.setValue(w->pos());
     motion.scale.setValue(QPointF(1.0, 1.0));
 }
 

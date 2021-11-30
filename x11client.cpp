@@ -186,9 +186,6 @@ X11Client::~X11Client()
     Q_ASSERT(m_wrapper == XCB_WINDOW_NONE);
     Q_ASSERT(m_frame == XCB_WINDOW_NONE);
     Q_ASSERT(!check_active_modal);
-    for (auto it = m_connections.constBegin(); it != m_connections.constEnd(); ++it) {
-        disconnect(*it);
-    }
 }
 
 // Use destroyClient() or releaseWindow(), Client instances cannot be deleted directly
@@ -527,10 +524,10 @@ bool X11Client::manage(xcb_window_t w, bool isMapped)
     workspace()->updateOnAllDesktopsOfTransients(this);   // SELI TODO
     //onAllDesktopsChange(); // Decoration doesn't exist here yet
 
-    QString activitiesList;
+    QStringList activitiesList;
     activitiesList = rules()->checkActivity(activitiesList, !isMapped);
     if (!activitiesList.isEmpty())
-        setOnActivities(activitiesList.split(QStringLiteral(",")));
+        setOnActivities(activitiesList);
 
     QRect geom(windowGeometry.rect());
     bool placementDone = false;
@@ -541,13 +538,11 @@ bool X11Client::manage(xcb_window_t w, bool isMapped)
     QRect area;
     bool partial_keep_in_area = isMapped || session;
     if (isMapped || session) {
-       // yangg for jingos app under panel
         area = workspace()->clientArea(FullArea, this, geom.center(), desktop());
         checkOffscreenPosition(&geom, area);
     } else {
         int screen = asn_data.xinerama() == -1 ? screens()->current() : asn_data.xinerama();
         screen = rules()->checkScreen(screen, !isMapped);
-       // yangg for jingos app under panel
         area = workspace()->clientArea(PlacementArea, this, screens()->geometry(screen).center(), desktop());
     }
 
@@ -757,12 +752,14 @@ bool X11Client::manage(xcb_window_t w, bool isMapped)
         }
         if (session->fullscreen != FullScreenNone) {
             setFullScreen(true, false);
-            geom_fs_restore = session->fsrestore;
+            setFullscreenGeometryRestore(session->fsrestore);
         }
         QRect checkedGeometryRestore = geometryRestore();
         checkOffscreenPosition(&checkedGeometryRestore, area);
-        checkOffscreenPosition(&geom_fs_restore, area);
         setGeometryRestore(checkedGeometryRestore);
+        QRect checkedFullscreenGeometryRestore = fullscreenGeometryRestore();
+        checkOffscreenPosition(&checkedFullscreenGeometryRestore, area);
+        setFullscreenGeometryRestore(checkedFullscreenGeometryRestore);
     } else {
         // Window may want to be maximized
         // done after checking that the window isn't larger than the workarea, so that
@@ -1062,6 +1059,10 @@ void X11Client::createDecoration(const QRect& oldgeom)
     if (decoration) {
         QMetaObject::invokeMethod(decoration, "update", Qt::QueuedConnection);
         connect(decoration, &KDecoration2::Decoration::shadowChanged, this, &Toplevel::updateShadow);
+        connect(decoration, &KDecoration2::Decoration::bordersChanged,
+                this, &X11Client::updateDecorationInputShape);
+        connect(decoration, &KDecoration2::Decoration::resizeOnlyBordersChanged,
+                this, &X11Client::updateDecorationInputShape);
         connect(decoration, &KDecoration2::Decoration::resizeOnlyBordersChanged, this, &X11Client::updateInputWindow);
         connect(decoration, &KDecoration2::Decoration::bordersChanged, this,
             [this]() {
@@ -1080,11 +1081,14 @@ void X11Client::createDecoration(const QRect& oldgeom)
         );
         connect(decoratedClient()->decoratedClient(), &KDecoration2::DecoratedClient::widthChanged, this, &X11Client::updateInputWindow);
         connect(decoratedClient()->decoratedClient(), &KDecoration2::DecoratedClient::heightChanged, this, &X11Client::updateInputWindow);
+        connect(decoratedClient()->decoratedClient(), &KDecoration2::DecoratedClient::sizeChanged,
+                this, &X11Client::updateDecorationInputShape);
     }
     setDecoration(decoration);
 
     move(calculateGravitation(false));
     plainResize(adjustedSize(), ForceGeometrySet);
+    updateDecorationInputShape();
     if (Compositor::compositing()) {
         discardWindowPixmap();
     }
@@ -1406,8 +1410,6 @@ void X11Client::finishCompositing(ReleaseReason releaseReason)
 bool X11Client::isMinimizable() const
 {
     if (isSpecialWindow() && !isTransient())
-        return false;
-    if (hasNETSupport() && !m_motif.minimize())
         return false;
     if (!rules()->checkMinimize(true))
         return false;
@@ -1932,9 +1934,7 @@ void X11Client::setOnActivities(QStringList newActivitiesList)
     if (!Activities::self()) {
         return;
     }
-    QString joinedActivitiesList = newActivitiesList.join(QStringLiteral(","));
-    joinedActivitiesList = rules()->checkActivity(joinedActivitiesList, false);
-    newActivitiesList = joinedActivitiesList.split(u',', Qt::SkipEmptyParts);
+    newActivitiesList = rules()->checkActivity(newActivitiesList);
 
     QStringList allActivities = Activities::self()->all();
 
@@ -1948,7 +1948,7 @@ void X11Client::setOnActivities(QStringList newActivitiesList)
     }
 
     if (// If we got the request to be on all activities explicitly
-        newActivitiesList.isEmpty() || joinedActivitiesList == Activities::nullUuid() ||
+        newActivitiesList.isEmpty() || newActivitiesList.contains(Activities::nullUuid()) ||
         // If we got a list of activities that covers all activities
         (newActivitiesList.count() > 1 && newActivitiesList.count() == allActivities.count())) {
 
@@ -1957,7 +1957,7 @@ void X11Client::setOnActivities(QStringList newActivitiesList)
         m_client.changeProperty(atoms->activities, XCB_ATOM_STRING, 8, nullUuid.length(), nullUuid.constData());
 
     } else {
-        QByteArray joined = joinedActivitiesList.toLatin1();
+        QByteArray joined = newActivitiesList.join(QStringLiteral(",")).toLatin1();
         activityList = newActivitiesList;
         m_client.changeProperty(atoms->activities, XCB_ATOM_STRING, 8, joined.length(), joined.constData());
     }
@@ -4151,18 +4151,14 @@ bool X11Client::isMaximizable() const
 {
     if (!isResizable() || isToolbar())  // SELI isToolbar() ?
         return false;
-    if (hasNETSupport() && !m_motif.maximize())
-        return false;
     if (rules()->checkMaximize(MaximizeRestore) == MaximizeRestore && rules()->checkMaximize(MaximizeFull) != MaximizeRestore)
         return true;
     return false;
 }
-
-
 /**
  * Reimplemented to inform the client about the new window position.
  */
-void X11Client::setFrameGeometry(const QRect &rect, ForceGeometry_t force)
+void X11Client::setFrameGeometry(const QRect &rect, ForceGeometry_t force, bool forInput)
 {
     // this code is also duplicated in X11Client::plainResize()
     // Ok, the shading geometry stuff. Generally, code doesn't care about shaded geometry,
@@ -4177,7 +4173,7 @@ void X11Client::setFrameGeometry(const QRect &rect, ForceGeometry_t force)
     // for example using X11Client::clientSize()
 
     QRect frameGeometry = rect;
-    if (isDefaultMaxApp() && rect.isValid()) {
+    if (isDefaultMaxApp() && rect.isValid() && !forInput) {
         frameGeometry = workspace()->clientArea(MaximizeArea, this, rect.center(), desktop());
         frameGeometry.setSize(frameGeometry.size() / getAppScale());
     }
@@ -4639,7 +4635,7 @@ void X11Client::setFullScreen(bool set, bool user)
     if (wasFullscreen) {
         workspace()->updateFocusMousePosition(Cursors::self()->mouse()->pos()); // may cause leave event
     } else {
-        geom_fs_restore = frameGeometry();
+        setFullscreenGeometryRestore(frameGeometry());
     }
 
     if (set) {
@@ -4668,9 +4664,9 @@ void X11Client::setFullScreen(bool set, bool user)
         rect.setSize(rect.size()/getAppScale());
         setFrameGeometry(rect);
     } else {
-        Q_ASSERT(!geom_fs_restore.isNull());
+        Q_ASSERT(!fullscreenGeometryRestore().isNull());
         const int currentScreen = screen();
-        setFrameGeometry(QRect(geom_fs_restore.topLeft(), constrainFrameSize(geom_fs_restore.size())));
+        setFrameGeometry(QRect(fullscreenGeometryRestore().topLeft(), constrainFrameSize(fullscreenGeometryRestore().size())));
         if(currentScreen != screen()) {
             workspace()->sendClientToScreen(this, currentScreen);
         }

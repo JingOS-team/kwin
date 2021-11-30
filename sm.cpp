@@ -19,6 +19,7 @@
 #include "x11client.h"
 #include <QDebug>
 #include <QSessionManager>
+#include <QTimer>
 
 #include <QDBusConnection>
 #include "sessionadaptor.h"
@@ -133,7 +134,7 @@ void Workspace::storeClient(KConfigGroup &cg, int num, X11Client *c)
     cg.writeEntry(QLatin1String("resourceClass") + n, c->resourceClass().constData());
     cg.writeEntry(QLatin1String("geometry") + n, QRect(c->calculateGravitation(true), c->clientSize()));   // FRAME
     cg.writeEntry(QLatin1String("restore") + n, c->geometryRestore());
-    cg.writeEntry(QLatin1String("fsrestore") + n, c->geometryFSRestore());
+    cg.writeEntry(QLatin1String("fsrestore") + n, c->fullscreenGeometryRestore());
     cg.writeEntry(QLatin1String("maximize") + n, (int) c->maximizeMode());
     cg.writeEntry(QLatin1String("fullscreen") + n, (int) c->fullScreenMode());
     cg.writeEntry(QLatin1String("desktop") + n, c->desktop());
@@ -381,7 +382,10 @@ void SessionManager::finishSaveSession(const QString &name)
 
 void SessionManager::quit()
 {
-    qApp->quit();
+    qDebug() << Q_FUNC_INFO;
+
+    emit aboutToQuit();
+    QTimer::singleShot(50, qApp, SLOT(quit()));
 }
 
 } // namespace

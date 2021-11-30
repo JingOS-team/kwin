@@ -66,6 +66,7 @@ enum class ConfigKey {
     PointerAcceleration,
     PointerAccelerationProfile,
     TapToClick,
+    SingleTapToClick,
     LmrTapButtonMap,
     TapAndDrag,
     TapDragLock,
@@ -122,6 +123,9 @@ static const QMap<ConfigKey, ConfigData> s_configData {
     {ConfigKey::PointerAcceleration, ConfigData(QByteArrayLiteral("PointerAcceleration"), &Device::setPointerAccelerationFromString, &Device::defaultPointerAccelerationToString)},
     {ConfigKey::PointerAccelerationProfile, ConfigData(QByteArrayLiteral("PointerAccelerationProfile"), &Device::setPointerAccelerationProfileFromInt, &Device::defaultPointerAccelerationProfileToInt)},
     {ConfigKey::TapToClick, ConfigData(QByteArrayLiteral("TapToClick"), &Device::setTapToClick, &Device::tapToClickEnabledByDefault)},
+#if defined (__arm64__) || defined (__aarch64__)
+    {ConfigKey::SingleTapToClick, ConfigData(QByteArrayLiteral("SingleTapToClick"), &Device::setSingleTapToClick, &Device::singleTapToClickEnabledByDefault)},
+#endif
     {ConfigKey::TapAndDrag, ConfigData(QByteArrayLiteral("TapAndDrag"), &Device::setTapAndDrag, &Device::tapAndDragEnabledByDefault)},
     {ConfigKey::TapDragLock, ConfigData(QByteArrayLiteral("TapDragLock"), &Device::setTapDragLock, &Device::tapDragLockEnabledByDefault)},
     {ConfigKey::MiddleButtonEmulation, ConfigData(QByteArrayLiteral("MiddleButtonEmulation"), &Device::setMiddleEmulation, &Device::middleEmulationEnabledByDefault)},
@@ -171,6 +175,10 @@ Device::Device(libinput_device *device, QObject *parent)
     , m_defaultTapButtonMap(libinput_device_config_tap_get_default_button_map(m_device))
     , m_tapButtonMap(libinput_device_config_tap_get_button_map(m_device))
     , m_tapToClickEnabledByDefault(libinput_device_config_tap_get_default_enabled(m_device) == LIBINPUT_CONFIG_TAP_ENABLED)
+#if defined (__arm64__) || defined (__aarch64__)
+    , m_singleTapToClickEnabledByDefault(libinput_device_config_single_tap_get_default_enabled(m_device) == LIBINPUT_CONFIG_TAP_ENABLED)
+    , m_singleTapToClick(libinput_device_config_single_tap_get_enabled(m_device))
+#endif
     , m_tapToClick(libinput_device_config_tap_get_enabled(m_device))
     , m_tapAndDragEnabledByDefault(libinput_device_config_tap_get_default_drag_enabled(m_device))
     , m_tapAndDrag(libinput_device_config_tap_get_drag_enabled(m_device))
@@ -433,6 +441,13 @@ int Device::ringsCount() const
     return libinput_device_tablet_pad_get_num_rings(m_device);
 }
 
+void *Device::groupUserData() const
+{
+    auto deviceGroup = libinput_device_get_device_group(m_device);
+    return libinput_device_group_get_user_data(deviceGroup);
+}
+
+
 #define CONFIG(method, condition, function, variable, key) \
 void Device::method(bool set) \
 { \
@@ -471,6 +486,9 @@ void Device::method(bool set) \
 CONFIG(setEnabled, !m_supportsDisableEvents, send_events_set_mode, SEND_EVENTS, enabled, Enabled)
 CONFIG(setDisableWhileTyping, !m_supportsDisableWhileTyping, dwt_set_enabled, DWT, disableWhileTyping, DisableWhileTyping)
 CONFIG(setTapToClick, m_tapFingerCount == 0, tap_set_enabled, TAP, tapToClick, TapToClick)
+#if defined (__arm64__) || defined (__aarch64__)
+CONFIG(setSingleTapToClick, m_tapFingerCount == 0, single_tap_set_enabled, TAP, singleTapToClick, SingleTapToClick)
+#endif
 CONFIG(setTapAndDrag, false, tap_set_drag_enabled, DRAG, tapAndDrag, TapAndDrag)
 CONFIG(setTapDragLock, false, tap_set_drag_lock_enabled, DRAG_LOCK, tapDragLock, TapDragLock)
 CONFIG(setMiddleEmulation, m_supportsMiddleEmulation == false, middle_emulation_set_enabled, MIDDLE_EMULATION, middleEmulation, MiddleButtonEmulation)

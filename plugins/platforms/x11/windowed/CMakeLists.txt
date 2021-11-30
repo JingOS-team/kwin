@@ -6,17 +6,16 @@ set(X11BACKEND_SOURCES
     x11windowed_output.cpp
 )
 
-include_directories(${CMAKE_SOURCE_DIR}/platformsupport/scenes/opengl)
 add_library(KWinWaylandX11Backend MODULE ${X11BACKEND_SOURCES})
 set_target_properties(KWinWaylandX11Backend PROPERTIES LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/org.kde.kwin.waylandbackends/")
-target_link_libraries(KWinWaylandX11Backend eglx11common kwin kwinxrenderutils X11::XCB SceneQPainterBackend SceneOpenGLBackend)
-if (X11_Xinput_FOUND)
-    target_link_libraries(KWinWaylandX11Backend ${X11_Xinput_LIB})
+target_link_libraries(KWinWaylandX11Backend eglx11common kwin kwinxrenderutils X11::XCB SceneQPainterBackend SceneOpenGLBackend VsyncSupport X11::X11)
+if (X11_Xi_FOUND)
+    target_link_libraries(KWinWaylandX11Backend X11::Xi)
 endif()
 
 install(
     TARGETS
         KWinWaylandX11Backend
     DESTINATION
-        ${PLUGIN_INSTALL_DIR}/org.kde.kwin.waylandbackends/
+        ${KDE_INSTALL_PLUGINDIR}/org.kde.kwin.waylandbackends/
 )

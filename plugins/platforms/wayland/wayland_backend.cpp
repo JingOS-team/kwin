@@ -18,6 +18,7 @@
 #endif
 #endif
 #include "logging.h"
+#include "renderloop_p.h"
 #include "scene_qpainter_wayland_backend.h"
 #include "wayland_output.h"
 
@@ -25,9 +26,8 @@
 #include "cursor.h"
 #include "input.h"
 #include "main.h"
-#include "outputscreens.h"
-#include "pointer_input.h"
 #include "screens.h"
+#include "pointer_input.h"
 #include "wayland_server.h"
 
 #include <KWayland/Client/buffer.h>
@@ -718,18 +718,21 @@ void WaylandBackend::createOutputs()
             updateScreenSize(waylandOutput);
             Compositor::self()->addRepaintFull();
         });
-        connect(waylandOutput, &WaylandOutput::frameRendered, this, &WaylandBackend::checkBufferSwap);
+        connect(waylandOutput, &WaylandOutput::frameRendered, this, [waylandOutput]() {
+            waylandOutput->resetRendered();
+
+            // The current time of the monotonic clock is a pretty good estimate when the frame
+            // has been presented, however it will be much better if we check whether the host
+            // compositor supports the wp_presentation protocol.
+            RenderLoopPrivate *renderLoopPrivate = RenderLoopPrivate::get(waylandOutput->renderLoop());
+            renderLoopPrivate->notifyFrameCompleted(std::chrono::steady_clock::now().time_since_epoch());
+        });
 
         logicalWidthSum += logicalWidth;
         m_outputs << waylandOutput;
     }
     setReady(true);
     emit screensQueried();
-}
-
-Screens *WaylandBackend::createScreens(QObject *parent)
-{
-    return new OutputScreens(this, parent);
 }
 
 OpenGLBackend *WaylandBackend::createOpenGLBackend()
@@ -744,23 +747,6 @@ OpenGLBackend *WaylandBackend::createOpenGLBackend()
 QPainterBackend *WaylandBackend::createQPainterBackend()
 {
     return new WaylandQPainterBackend(this);
-}
-
-void WaylandBackend::checkBufferSwap()
-{
-    const bool allRendered = std::all_of(m_outputs.constBegin(), m_outputs.constEnd(), [](WaylandOutput *o) {
-            return o->rendered();
-        });
-    if (!allRendered) {
-        // need to wait more
-        // TODO: what if one does not need to be rendered (no damage)?
-        return;
-    }
-    Compositor::self()->bufferSwapComplete();
-
-    for (auto *output : qAsConst(m_outputs)) {
-        output->resetRendered();
-    }
 }
 
 void WaylandBackend::flush()

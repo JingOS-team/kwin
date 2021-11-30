@@ -7,6 +7,7 @@
 #include "colormanager.h"
 #include "abstract_output.h"
 #include "colordevice.h"
+#include "logind.h"
 #include "main.h"
 #include "platform.h"
 #include "utils.h"
@@ -26,8 +27,12 @@ ColorManager::ColorManager(QObject *parent)
     : QObject(parent)
     , d(new ColorManagerPrivate)
 {
-    connect(kwinApp()->platform(), &Platform::outputEnabled, this, &ColorManager::handleOutputEnabled);
-    connect(kwinApp()->platform(), &Platform::outputDisabled, this, &ColorManager::handleOutputDisabled);
+    connect(kwinApp()->platform(), &Platform::outputEnabled,
+            this, &ColorManager::handleOutputEnabled);
+    connect(kwinApp()->platform(), &Platform::outputDisabled,
+            this, &ColorManager::handleOutputDisabled);
+    connect(LogindIntegration::self(), &LogindIntegration::sessionActiveChanged,
+            this, &ColorManager::handleSessionActiveChanged);
 }
 
 ColorManager::~ColorManager()
@@ -70,7 +75,17 @@ void ColorManager::handleOutputDisabled(AbstractOutput *output)
     ColorDevice *device = *it;
     d->devices.erase(it);
     emit deviceRemoved(device);
-    delete *it;
+    delete device;
+}
+
+void ColorManager::handleSessionActiveChanged(bool active)
+{
+    if (!active) {
+        return;
+    }
+    for (ColorDevice *device : qAsConst(d->devices)) {
+        device->scheduleUpdate();
+    }
 }
 
 } // namespace KWin

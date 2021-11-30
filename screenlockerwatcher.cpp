@@ -14,7 +14,7 @@
 // dbus generated
 #include "screenlocker_interface.h"
 #include "kscreenlocker_interface.h"
-
+#include <KScreenLocker/KsldApp>
 namespace KWin
 {
 
@@ -36,6 +36,16 @@ ScreenLockerWatcher::ScreenLockerWatcher(QObject *parent)
 
 ScreenLockerWatcher::~ScreenLockerWatcher()
 {
+}
+
+void ScreenLockerWatcher::updateLocked()
+{
+    bool activated = ScreenLocker::KSldApp::self()->lockState() == ScreenLocker::KSldApp::Locked;
+    if (m_locked == activated) {
+        return;
+    }
+    m_locked = activated;
+    emit locked(m_locked);
 }
 
 void ScreenLockerWatcher::initialize()
@@ -76,6 +86,8 @@ void ScreenLockerWatcher::serviceOwnerChanged(const QString &serviceName, const 
                 this, &ScreenLockerWatcher::activeQueried);
         connect(m_kdeInterface, &OrgKdeScreensaverInterface::AboutToLock, this, &ScreenLockerWatcher::aboutToLock);
     }
+
+    connect(ScreenLocker::KSldApp::self(), &ScreenLocker::KSldApp::lockStateChanged, this, &ScreenLockerWatcher::updateLocked);
 }
 
 void ScreenLockerWatcher::serviceRegisteredQueried()

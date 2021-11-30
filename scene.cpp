@@ -56,6 +56,7 @@
 */
 
 #include "scene.h"
+#include "abstract_output.h"
 #include "platform.h"
 
 #include <QQuickWindow>
@@ -65,6 +66,7 @@
 #include "deleted.h"
 #include "effects.h"
 #include "overlaywindow.h"
+#include "renderloop.h"
 #include "screens.h"
 #include "shadow.h"
 #include "subsurfacemonitor.h"
@@ -86,6 +88,11 @@ namespace KWin
 Scene::Scene(QObject *parent)
     : QObject(parent)
 {
+    if (kwinApp()->platform()->isPerScreenRenderingEnabled()) {
+        connect(kwinApp()->platform(), &Platform::outputEnabled, this, &Scene::reallocRepaints);
+        connect(kwinApp()->platform(), &Platform::outputDisabled, this, &Scene::reallocRepaints);
+    }
+    reallocRepaints();
 }
 
 Scene::~Scene()
@@ -93,16 +100,62 @@ Scene::~Scene()
     Q_ASSERT(m_windows.isEmpty());
 }
 
+void Scene::addRepaint(const QRegion &region)
+{
+    if (kwinApp()->platform()->isPerScreenRenderingEnabled()) {
+        const QVector<AbstractOutput *> outputs = kwinApp()->platform()->enabledOutputs();
+        if (m_repaints.count() != outputs.count()) {
+            return; // Repaints haven't been reallocated yet, do nothing.
+        }
+        for (int screenId = 0; screenId < m_repaints.count(); ++screenId) {
+            AbstractOutput *output = outputs[screenId];
+            const QRegion dirtyRegion = region & output->geometry();
+            if (!dirtyRegion.isEmpty()) {
+                m_repaints[screenId] += dirtyRegion;
+                output->renderLoop()->scheduleRepaint();
+            }
+        }
+    } else {
+        m_repaints[0] += region;
+        kwinApp()->platform()->renderLoop()->scheduleRepaint();
+    }
+}
+
+QRegion Scene::repaints(int screenId) const
+{
+    const int index = screenId == -1 ? 0 : screenId;
+    return m_repaints[index];
+}
+
+void Scene::resetRepaints(int screenId)
+{
+    const int index = screenId == -1 ? 0 : screenId;
+    m_repaints[index] = QRegion();
+}
+
+void Scene::reallocRepaints()
+{
+    if (kwinApp()->platform()->isPerScreenRenderingEnabled()) {
+        m_repaints.resize(kwinApp()->platform()->enabledOutputs().count());
+    } else {
+        m_repaints.resize(1);
+    }
+
+    m_repaints.fill(infiniteRegion());
+}
+
 // returns mask and possibly modified region
 void Scene::paintScreen(int* mask, const QRegion &damage, const QRegion &repaint,
-                        QRegion *updateRegion, QRegion *validRegion,
-                        std::chrono::milliseconds presentTime,
+                        QRegion *updateRegion, QRegion *validRegion, RenderLoop *renderLoop,
                         const QMatrix4x4 &projection, const QRect &outputGeometry,
                         qreal screenScale)
 {
     const QSize &screenSize = screens()->size();
     const QRegion displayRegion(0, 0, screenSize.width(), screenSize.height());
     *mask = (damage == displayRegion) ? 0 : PAINT_SCREEN_REGION;
+
+    const std::chrono::milliseconds presentTime =
+            std::chrono::duration_cast<std::chrono::milliseconds>(renderLoop->nextPresentationTimestamp());
 
     if (Q_UNLIKELY(presentTime < m_expectedPresentTimestamp)) {
         qCDebug(KWIN_CORE, "Provided presentation timestamp is invalid: %ld (current: %ld)",
@@ -160,11 +213,6 @@ void Scene::paintScreen(int* mask, const QRegion &damage, const QRegion &repaint
 
     // make sure all clipping is restored
     Q_ASSERT(!PaintClipper::clip());
-}
-
-// Painting pass is optimized away.
-void Scene::idle()
-{
 }
 
 // the function that'll be eventually called by paintScreen() above
@@ -603,9 +651,9 @@ void Scene::finalPaintWindow(EffectWindowImpl* w, int mask, const QRegion &regio
 // will be eventually called from drawWindow()
 void Scene::finalDrawWindow(EffectWindowImpl* w, int mask, const QRegion &region, WindowPaintData& data)
 {
-    if (waylandServer() && waylandServer()->isScreenLocked() && !w->window()->isLockScreen() && !w->window()->isInputMethod()) {
-        return;
-    }
+//    if (waylandServer() && waylandServer()->isScreenLocked() && !w->window()->isLockScreen() && !w->isDesktop() && !w->window()->isInputMethod() && !w->window()->isSystemDialog()) {
+//        return;
+//    }
     w->sceneWindow()->performPaint(mask, region, data);
 }
 
@@ -613,16 +661,6 @@ void Scene::extendPaintRegion(QRegion &region, bool opaqueFullscreen)
 {
     Q_UNUSED(region);
     Q_UNUSED(opaqueFullscreen);
-}
-
-bool Scene::blocksForRetrace() const
-{
-    return false;
-}
-
-bool Scene::syncsToVBlank() const
-{
-    return false;
 }
 
 void Scene::screenGeometryChanged(const QSize &size)
@@ -698,7 +736,8 @@ Scene::Window::Window(Toplevel *client, QObject *parent)
     , cached_quad_list(nullptr)
 {
     if (kwinApp()->platform()->isPerScreenRenderingEnabled()) {
-        connect(screens(), &Screens::countChanged, this, &Window::reallocRepaints);
+        connect(kwinApp()->platform(), &Platform::outputEnabled, this, &Window::reallocRepaints);
+        connect(kwinApp()->platform(), &Platform::outputDisabled, this, &Window::reallocRepaints);
     }
     reallocRepaints();
 
@@ -739,6 +778,13 @@ Scene::Window::Window(Toplevel *client, QObject *parent)
                 this, &Window::discardPixmap);
         connect(surface, &KWaylandServer::SurfaceInterface::surfaceToBufferMatrixChanged,
                 this, &Window::discardQuads);
+
+        connect(m_subsurfaceMonitor, &SubSurfaceMonitor::subSurfaceCommitted, this, [this](KWaylandServer::SubSurfaceInterface *subsurface) {
+            handleSurfaceCommitted(subsurface->surface());
+        });
+        connect(surface, &KWaylandServer::SurfaceInterface::committed, this, [this, surface]() {
+            handleSurfaceCommitted(surface);
+        });
     }
 
     connect(toplevel, &Toplevel::screenScaleChanged, this, &Window::discardQuads);
@@ -913,6 +959,9 @@ bool Scene::Window::isPaintingEnabled() const
 void Scene::Window::resetPaintingEnabled()
 {
     disable_painting = 0;
+    if (ignoreShowDisible) {
+        return;
+    }
     if (toplevel->isDeleted())
         disable_painting |= PAINT_DISABLED_BY_DELETE;
     if (static_cast<EffectsHandlerImpl*>(effects)->isDesktopRendering()) {
@@ -932,6 +981,11 @@ void Scene::Window::resetPaintingEnabled()
             disable_painting |= PAINT_DISABLED;
         }
     }
+}
+
+void Scene::Window::setShowIgnoreDisible(bool ignore)
+{
+    ignoreShowDisible = ignore;
 }
 
 void Scene::Window::enablePainting(int reason)
@@ -1130,63 +1184,74 @@ void Scene::Window::preprocess()
     }
 }
 
-void Scene::Window::addRepaint(const QRegion &region)
-{
-    for (int screen = 0; screen < m_repaints.count(); ++screen) {
-        m_repaints[screen] += region;
-    }
-    Compositor::self()->scheduleRepaint();
-}
-
 void Scene::Window::addLayerRepaint(const QRegion &region)
 {
-    for (int screen = 0; screen < m_layerRepaints.count(); ++screen) {
-        m_layerRepaints[screen] += region;
+    if (kwinApp()->platform()->isPerScreenRenderingEnabled()) {
+        const QVector<AbstractOutput *> outputs = kwinApp()->platform()->enabledOutputs();
+        if (m_repaints.count() != outputs.count()) {
+            return; // Repaints haven't been reallocated yet, do nothing.
+        }
+        for (int screenId = 0; screenId < m_repaints.count(); ++screenId) {
+            AbstractOutput *output = outputs[screenId];
+            const QRegion dirtyRegion = region & output->geometry();
+            if (!dirtyRegion.isEmpty()) {
+                m_repaints[screenId] += dirtyRegion;
+                output->renderLoop()->scheduleRepaint();
+            }
+        }
+    } else {
+        m_repaints[0] += region;
+        kwinApp()->platform()->renderLoop()->scheduleRepaint();
     }
-    Compositor::self()->scheduleRepaint();
 }
 
 QRegion Scene::Window::repaints(int screen) const
 {
-    Q_ASSERT(!m_repaints.isEmpty() && !m_layerRepaints.isEmpty());
+    Q_ASSERT(!m_repaints.isEmpty());
     const int index = screen != -1 ? screen : 0;
-    if (m_repaints[index] == infiniteRegion() || m_layerRepaints[index] == infiniteRegion()) {
+    if (m_repaints[index] == infiniteRegion()) {
         return QRect(QPoint(0, 0), screens()->size());
     }
-    return m_repaints[index].translated(pos()) + m_layerRepaints[index];
+    return m_repaints[index];
 }
 
 void Scene::Window::resetRepaints(int screen)
 {
-    Q_ASSERT(!m_repaints.isEmpty() && !m_layerRepaints.isEmpty());
+    Q_ASSERT(!m_repaints.isEmpty());
     const int index = screen != -1 ? screen : 0;
     m_repaints[index] = QRegion();
-    m_layerRepaints[index] = QRegion();
 }
 
 void Scene::Window::reallocRepaints()
 {
     if (kwinApp()->platform()->isPerScreenRenderingEnabled()) {
-        m_repaints.resize(screens()->count());
-        m_layerRepaints.resize(screens()->count());
+        m_repaints.resize(kwinApp()->platform()->enabledOutputs().count());
     } else {
         m_repaints.resize(1);
-        m_layerRepaints.resize(1);
     }
 
     m_repaints.fill(infiniteRegion());
-    m_layerRepaints.fill(infiniteRegion());
 }
 
-static bool wantsRepaint_test(const QRegion &region)
+void Scene::Window::scheduleRepaint()
 {
-    return !region.isEmpty();
+    if (kwinApp()->platform()->isPerScreenRenderingEnabled()) {
+        const QVector<AbstractOutput *> outputs = kwinApp()->platform()->enabledOutputs();
+        for (AbstractOutput *output : outputs) {
+            if (window()->isOnOutput(output)) {
+                output->renderLoop()->scheduleRepaint();
+            }
+        }
+    } else {
+        kwinApp()->platform()->renderLoop()->scheduleRepaint();
+    }
 }
 
-bool Scene::Window::wantsRepaint() const
+void Scene::Window::handleSurfaceCommitted(KWaylandServer::SurfaceInterface *surface)
 {
-    return std::any_of(m_repaints.begin(), m_repaints.end(), wantsRepaint_test) ||
-            std::any_of(m_layerRepaints.begin(), m_layerRepaints.end(), wantsRepaint_test);
+    if (surface->hasFrameCallbacks()) {
+        scheduleRepaint();
+    }
 }
 
 //****************************************
@@ -1357,6 +1422,15 @@ KWaylandServer::SurfaceInterface *WindowPixmap::surface() const
         return m_subSurface->surface();
     } else {
         return toplevel()->surface();
+    }
+}
+
+WindowPixmap *WindowPixmap::topMostSurface()
+{
+    if (m_children.count() == 0) {
+        return this;
+    } else {
+        return m_children.last()->topMostSurface();
     }
 }
 

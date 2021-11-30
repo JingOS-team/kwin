@@ -42,12 +42,34 @@ enum XwaylandCrashPolicy {
     Restart,
 };
 
+/**
+ * This enum type specifies the latency level configured by the user.
+ */
+enum LatencyPolicy {
+    LatencyExteremelyLow,
+    LatencyLow,
+    LatencyMedium,
+    LatencyHigh,
+    LatencyExtremelyHigh,
+};
+
+/**
+ * This enum type specifies the method for estimating the expected render time.
+ */
+enum RenderTimeEstimator {
+    RenderTimeEstimatorMinimum,
+    RenderTimeEstimatorMaximum,
+    RenderTimeEstimatorAverage,
+};
+
 class Settings;
 
 class KWIN_EXPORT Options : public QObject
 {
     Q_OBJECT
     Q_ENUMS(XwaylandCrashPolicy)
+    Q_ENUMS(LatencyPolicy)
+    Q_ENUMS(RenderTimeEstimator)
     Q_PROPERTY(FocusPolicy focusPolicy READ focusPolicy WRITE setFocusPolicy NOTIFY focusPolicyChanged)
     Q_PROPERTY(XwaylandCrashPolicy xwaylandCrashPolicy READ xwaylandCrashPolicy WRITE setXwaylandCrashPolicy NOTIFY xwaylandCrashPolicyChanged)
     Q_PROPERTY(int xwaylandMaxCrashCount READ xwaylandMaxCrashCount WRITE setXwaylandMaxCrashCount NOTIFY xwaylandMaxCrashCountChanged)
@@ -164,9 +186,6 @@ class KWIN_EXPORT Options : public QObject
      */
     Q_PROPERTY(int glSmoothScale READ glSmoothScale WRITE setGlSmoothScale NOTIFY glSmoothScaleChanged)
     Q_PROPERTY(bool xrenderSmoothScale READ isXrenderSmoothScale WRITE setXrenderSmoothScale NOTIFY xrenderSmoothScaleChanged)
-    Q_PROPERTY(qint64 maxFpsInterval READ maxFpsInterval WRITE setMaxFpsInterval NOTIFY maxFpsIntervalChanged)
-    Q_PROPERTY(uint refreshRate READ refreshRate WRITE setRefreshRate NOTIFY refreshRateChanged)
-    Q_PROPERTY(qint64 vBlankTime READ vBlankTime WRITE setVBlankTime NOTIFY vBlankTimeChanged)
     Q_PROPERTY(bool glStrictBinding READ isGlStrictBinding WRITE setGlStrictBinding NOTIFY glStrictBindingChanged)
     /**
      * Whether strict binding follows the driver or has been overwritten by a user defined config value.
@@ -178,6 +197,8 @@ class KWIN_EXPORT Options : public QObject
     Q_PROPERTY(GlSwapStrategy glPreferBufferSwap READ glPreferBufferSwap WRITE setGlPreferBufferSwap NOTIFY glPreferBufferSwapChanged)
     Q_PROPERTY(KWin::OpenGLPlatformInterface glPlatformInterface READ glPlatformInterface WRITE setGlPlatformInterface NOTIFY glPlatformInterfaceChanged)
     Q_PROPERTY(bool windowsBlockCompositing READ windowsBlockCompositing WRITE setWindowsBlockCompositing NOTIFY windowsBlockCompositingChanged)
+    Q_PROPERTY(LatencyPolicy latencyPolicy READ latencyPolicy WRITE setLatencyPolicy NOTIFY latencyPolicyChanged)
+    Q_PROPERTY(RenderTimeEstimator renderTimeEstimator READ renderTimeEstimator WRITE setRenderTimeEstimator NOTIFY renderTimeEstimatorChanged)
 public:
 
     explicit Options(QObject *parent = nullptr);
@@ -555,16 +576,7 @@ public:
         return m_xrenderSmoothScale;
     }
 
-    qint64 maxFpsInterval() const {
-        return m_maxFpsInterval;
-    }
     // Settings that should be auto-detected
-    uint refreshRate() const {
-        return m_refreshRate;
-    }
-    qint64 vBlankTime() const {
-        return m_vBlankTime;
-    }
     bool isGlStrictBinding() const {
         return m_glStrictBinding;
     }
@@ -578,7 +590,7 @@ public:
         return m_glPlatformInterface;
     }
 
-    enum GlSwapStrategy { NoSwapEncourage = 0, CopyFrontBuffer = 'c', PaintFullScreen = 'p', ExtendDamage = 'e', AutoSwapStrategy = 'a' };
+    enum GlSwapStrategy { CopyFrontBuffer = 'c', PaintFullScreen = 'p', ExtendDamage = 'e', AutoSwapStrategy = 'a' };
     Q_ENUM(GlSwapStrategy)
     GlSwapStrategy glPreferBufferSwap() const {
         return m_glPreferBufferSwap;
@@ -594,6 +606,8 @@ public:
     }
 
     QStringList modifierOnlyDBusShortcut(Qt::KeyboardModifier mod) const;
+    LatencyPolicy latencyPolicy() const;
+    RenderTimeEstimator renderTimeEstimator() const;
 
     // setters
     void setFocusPolicy(FocusPolicy focusPolicy);
@@ -645,9 +659,6 @@ public:
     void setHiddenPreviews(int hiddenPreviews);
     void setGlSmoothScale(int glSmoothScale);
     void setXrenderSmoothScale(bool xrenderSmoothScale);
-    void setMaxFpsInterval(qint64 maxFpsInterval);
-    void setRefreshRate(uint refreshRate);
-    void setVBlankTime(qint64 vBlankTime);
     void setGlStrictBinding(bool glStrictBinding);
     void setGlStrictBindingFollowsDriver(bool glStrictBindingFollowsDriver);
     void setGLCoreProfile(bool glCoreProfile);
@@ -655,6 +666,8 @@ public:
     void setGlPlatformInterface(OpenGLPlatformInterface interface);
     void setWindowsBlockCompositing(bool set);
     void setMoveMinimizedWindowsToEndOfTabBoxFocusChain(bool set);
+    void setLatencyPolicy(LatencyPolicy policy);
+    void setRenderTimeEstimator(RenderTimeEstimator estimator);
 
     // default values
     static WindowOperation defaultOperationTitlebarDblClick() {
@@ -732,18 +745,6 @@ public:
     static bool defaultXrenderSmoothScale() {
         return false;
     }
-    static qint64 defaultMaxFpsInterval() {
-        return (1 * 1000 * 1000 * 1000) /60.0; // nanoseconds / Hz
-    }
-    static int defaultMaxFps() {
-        return 60;
-    }
-    static uint defaultRefreshRate() {
-        return 0;
-    }
-    static uint defaultVBlankTime() {
-        return 6000; // 6ms
-    }
     static bool defaultGlStrictBinding() {
         return true;
     }
@@ -765,6 +766,12 @@ public:
     static int defaultXwaylandMaxCrashCount() {
         return 3;
     }
+    static LatencyPolicy defaultLatencyPolicy() {
+        return LatencyMedium;
+    }
+    static RenderTimeEstimator defaultRenderTimeEstimator() {
+        return RenderTimeEstimatorMaximum;
+    }
     /**
      * Performs loading all settings except compositing related.
      */
@@ -774,8 +781,6 @@ public:
      */
     bool loadCompositingConfig(bool force);
     void reparseConfiguration();
-
-    static int currentRefreshRate();
 
     //----------------------
 Q_SIGNALS:
@@ -830,9 +835,6 @@ Q_SIGNALS:
     void hiddenPreviewsChanged();
     void glSmoothScaleChanged();
     void xrenderSmoothScaleChanged();
-    void maxFpsIntervalChanged();
-    void refreshRateChanged();
-    void vBlankTimeChanged();
     void glStrictBindingChanged();
     void glStrictBindingFollowsDriverChanged();
     void glCoreProfileChanged();
@@ -840,8 +842,9 @@ Q_SIGNALS:
     void glPlatformInterfaceChanged();
     void windowsBlockCompositingChanged();
     void animationSpeedChanged();
-
+    void latencyPolicyChanged();
     void configChanged();
+    void renderTimeEstimatorChanged();
 
 private:
     void setElectricBorders(int borders);
@@ -869,16 +872,15 @@ private:
     bool m_hideUtilityWindowsForInactive;
     XwaylandCrashPolicy m_xwaylandCrashPolicy;
     int m_xwaylandMaxCrashCount;
+    LatencyPolicy m_latencyPolicy;
+    RenderTimeEstimator m_renderTimeEstimator;
 
     CompositingType m_compositingMode;
     bool m_useCompositing;
     HiddenPreviews m_hiddenPreviews;
     int m_glSmoothScale;
     bool m_xrenderSmoothScale;
-    qint64 m_maxFpsInterval;
     // Settings that should be auto-detected
-    uint m_refreshRate;
-    qint64 m_vBlankTime;
     bool m_glStrictBinding;
     bool m_glStrictBindingFollowsDriver;
     bool m_glCoreProfile;

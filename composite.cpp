@@ -7,15 +7,17 @@
     SPDX-License-Identifier: GPL-2.0-or-later
 */
 #include "composite.h"
-
+#include "abstract_output.h"
 #include "dbusinterface.h"
 #include "x11client.h"
 #include "decorations/decoratedclient.h"
 #include "deleted.h"
 #include "effects.h"
+#include "ftrace.h"
 #include "internal_client.h"
 #include "overlaywindow.h"
 #include "platform.h"
+#include "renderloop.h"
 #include "scene.h"
 #include "screens.h"
 #include "shadow.h"
@@ -25,6 +27,7 @@
 #include "wayland_server.h"
 #include "workspace.h"
 #include "xcbutils.h"
+
 #include <kwingltexture.h>
 
 #include <KWaylandServer/surface_interface.h>
@@ -49,7 +52,7 @@
 #include <xcb/damage.h>
 
 #include <cstdio>
-
+#include "utils.h"
 Q_DECLARE_METATYPE(KWin::X11Compositor::SuspendReason)
 
 namespace KWin
@@ -59,7 +62,6 @@ namespace KWin
 extern int screen_number;
 
 extern bool is_multihead;
-extern int currentRefreshRate();
 
 Compositor *Compositor::s_compositor = nullptr;
 Compositor *Compositor::self()
@@ -103,24 +105,14 @@ private:
     bool m_owning;
 };
 
-static inline qint64 milliToNano(int milli) { return qint64(milli) * 1000 * 1000; }
-static inline qint64 nanoToMilli(int nano) { return nano / (1000*1000); }
-
 Compositor::Compositor(QObject* workspace)
     : QObject(workspace)
     , m_state(State::Off)
     , m_selectionOwner(nullptr)
-    , vBlankInterval(0)
-    , fpsInterval(0)
-    , m_timeSinceLastVBlank(0)
     , m_scene(nullptr)
-    , m_bufferSwapPending(false)
-    , m_composeAtSwapCompletion(false)
 {
     connect(options, &Options::configChanged, this, &Compositor::configChanged);
     connect(options, &Options::animationSpeedChanged, this, &Compositor::configChanged);
-
-    m_monotonicClock.start();
 
     // 2 sec which should be enough to restart the compositor.
     static const int compositorLostMessageDelay = 2000;
@@ -157,6 +149,7 @@ Compositor::Compositor(QObject* workspace)
 
     // register DBus
     new CompositorDBusInterface(this);
+    FTraceLogger::create();
 }
 
 Compositor::~Compositor()
@@ -335,21 +328,23 @@ void Compositor::startupWithWorkspace()
     Workspace::self()->markXStackingOrderAsDirty();
     Q_ASSERT(m_scene);
 
-    connect(workspace(), &Workspace::destroyed, this, [this] { compositeTimer.stop(); });
-    fpsInterval = options->maxFpsInterval();
-
-    if (m_scene->syncsToVBlank()) {
-        // If we do vsync, set the fps to the next multiple of the vblank rate.
-        vBlankInterval = milliToNano(1000) / currentRefreshRate();
-        fpsInterval = qMax((fpsInterval / vBlankInterval) * vBlankInterval, vBlankInterval);
+    const Platform *platform = kwinApp()->platform();
+    kwinApp()->platform()->createTaskManager(this);
+    if (platform->isPerScreenRenderingEnabled()) {
+        const QVector<AbstractOutput *> outputs = platform->enabledOutputs();
+        for (AbstractOutput *output : outputs) {
+            registerRenderLoop(output->renderLoop(), output);
+        }
+        connect(platform, &Platform::outputEnabled,
+                this, &Compositor::handleOutputEnabled);
+        connect(platform, &Platform::outputDisabled,
+                this, &Compositor::handleOutputDisabled);
     } else {
-        // No vsync - DO NOT set "0", would cause div-by-zero segfaults.
-        vBlankInterval = milliToNano(1);
+        registerRenderLoop(platform->renderLoop(), nullptr);
     }
 
     // Sets also the 'effects' pointer.
     kwinApp()->platform()->createEffectsHandler(this, m_scene);
-    kwinApp()->platform()->createTaskManager(this);
     connect(Workspace::self(), &Workspace::deletedRemoved, m_scene, &Scene::removeToplevel);
     connect(effects, &EffectsHandler::screenGeometryChanged, this, &Compositor::addRepaintFull);
 
@@ -383,13 +378,47 @@ void Compositor::startupWithWorkspace()
 
     // Render at least once.
     addRepaintFull();
-    performCompositing();
+}
+
+void Compositor::registerRenderLoop(RenderLoop *renderLoop, AbstractOutput *output)
+{
+    Q_ASSERT(!m_renderLoops.contains(renderLoop));
+    m_renderLoops.insert(renderLoop, output);
+    connect(renderLoop, &RenderLoop::frameRequested, this, &Compositor::handleFrameRequested);
+}
+
+void Compositor::unregisterRenderLoop(RenderLoop *renderLoop)
+{
+    Q_ASSERT(m_renderLoops.contains(renderLoop));
+    m_renderLoops.remove(renderLoop);
+    disconnect(renderLoop, &RenderLoop::frameRequested, this, &Compositor::handleFrameRequested);
+}
+
+void Compositor::handleOutputEnabled(AbstractOutput *output)
+{
+    registerRenderLoop(output->renderLoop(), output);
+}
+
+void Compositor::handleOutputDisabled(AbstractOutput *output)
+{
+    unregisterRenderLoop(output->renderLoop());
+}
+
+int Compositor::screenForRenderLoop(RenderLoop *renderLoop) const
+{
+    Q_ASSERT(m_renderLoops.contains(renderLoop));
+    AbstractOutput *output = m_renderLoops.value(renderLoop);
+    if (!output) {
+        return -1;
+    }
+    return kwinApp()->platform()->enabledOutputs().indexOf(output);
 }
 
 void Compositor::scheduleRepaint()
 {
-    if (!compositeTimer.isActive())
-        setCompositeTimer();
+    for (auto it = m_renderLoops.constBegin(); it != m_renderLoops.constEnd(); ++it) {
+        it.key()->scheduleRepaint();
+    }
 }
 
 void Compositor::stop()
@@ -445,10 +474,17 @@ void Compositor::stop()
         }
     }
 
+    while (!m_renderLoops.isEmpty()) {
+        unregisterRenderLoop(m_renderLoops.firstKey());
+    }
+
+    disconnect(kwinApp()->platform(), &Platform::outputEnabled,
+               this, &Compositor::handleOutputEnabled);
+    disconnect(kwinApp()->platform(), &Platform::outputDisabled,
+               this, &Compositor::handleOutputDisabled);
+
     delete m_scene;
     m_scene = nullptr;
-    compositeTimer.stop();
-    repaints_region = QRegion();
 
     m_state = State::Off;
     emit compositingToggled(false);
@@ -529,87 +565,191 @@ void Compositor::reinitialize()
     }
 }
 
-void Compositor::addRepaint(int x, int y, int w, int h)
+void Compositor::addRepaint(int x, int y, int width, int height)
 {
-    if (m_state != State::On) {
-        return;
-    }
-    repaints_region += QRegion(x, y, w, h);
-    scheduleRepaint();
+    addRepaint(QRegion(x, y, width, height));
 }
 
-void Compositor::addRepaint(const QRect& r)
+void Compositor::addRepaint(const QRect &rect)
 {
-    if (m_state != State::On) {
-        return;
-    }
-    repaints_region += r;
-    scheduleRepaint();
+    addRepaint(QRegion(rect));
 }
 
-void Compositor::addRepaint(const QRegion& r)
+void Compositor::addRepaint(const QRegion &region)
 {
-    if (m_state != State::On) {
-        return;
+    if (m_scene) {
+        m_scene->addRepaint(region);
     }
-    repaints_region += r;
-    scheduleRepaint();
 }
 
 void Compositor::addRepaintFull()
 {
-    if (m_state != State::On) {
+    addRepaint(screens()->geometry());
+}
+
+void Compositor::handleFrameRequested(RenderLoop *renderLoop)
+{
+    // If outputs are disabled, we return to the event loop and
+    // continue processing events until the outputs are enabled again
+    if (!kwinApp()->platform()->areOutputsEnabled()) {
         return;
     }
-    const QSize &s = screens()->size();
-    repaints_region = QRegion(0, 0, s.width(), s.height());
-    scheduleRepaint();
-}
 
-void Compositor::timerEvent(QTimerEvent *te)
-{
-    if (te->timerId() == compositeTimer.timerId()) {
-        performCompositing();
-    } else
-        QObject::timerEvent(te);
-}
+    const int screenId = screenForRenderLoop(renderLoop);
 
-void Compositor::aboutToSwapBuffers()
-{
-    m_bufferSwapPending = true;
-}
+    fTraceDuration("Paint (", screens()->name(screenId), ")");
 
-static int bc = 0;
-void Compositor::bufferSwapComplete()
-{
-    Q_ASSERT(m_bufferSwapPending);
-    m_bufferSwapPending = false;
+    // Create a list of all windows in the stacking order
+    QList<Toplevel *> windows = Workspace::self()->xStackingOrder();
+    QList<Toplevel *> damaged;
 
-    emit bufferSwapCompleted();
+    // Reset the damage state of each window and fetch the damage region
+    // without waiting for a reply
+    effects->setPanel(nullptr);
+    for (Toplevel *win : qAsConst(windows)) {
+        if (win->resetAndFetchDamage()) {
+            damaged << win;
+        }
 
-    if (m_composeAtSwapCompletion) {
-        m_composeAtSwapCompletion = false;
-        performCompositing();
+        if (win->isStatusBar() && win->y() == 0 && win->height() < screens()->size().height() / 3) {
+            effects->setPanelGeometry(win->frameGeometry());
+            effects->setPanel(win->effectWindow());
+        }
+    }
+
+    if (damaged.count() > 0) {
+        m_scene->triggerFence();
+        if (auto c = kwinApp()->x11Connection()) {
+            xcb_flush(c);
+        }
+    }
+
+    // Move elevated windows to the top of the stacking order
+    for (EffectWindow *c : static_cast<EffectsHandlerImpl *>(effects)->elevatedWindows()) {
+        Toplevel *t = static_cast<EffectWindowImpl *>(c)->window();
+        windows.removeAll(t);
+        windows.append(t);
+    }
+
+    // Get the replies
+    for (Toplevel *win : qAsConst(damaged)) {
+        // Discard the cached lanczos texture
+        if (win->effectWindow()) {
+            const QVariant texture = win->effectWindow()->data(LanczosCacheRole);
+            if (texture.isValid()) {
+                delete static_cast<GLTexture *>(texture.value<void*>());
+                win->effectWindow()->setData(LanczosCacheRole, QVariant());
+            }
+        }
+
+        win->getDamageRegionReply();
+    }
+
+    // Skip windows that are not yet ready for being painted and if screen is locked skip windows
+    // that are neither lockscreen nor inputmethod windows.
+    //
+    // TODO? This cannot be used so carelessly - needs protections against broken clients, the
+    // window should not get focus before it's displayed, handle unredirected windows properly and
+    // so on.
+//    Toplevel *systemDialog = nullptr;
+//    Toplevel *lockScreen = nullptr;
+    QList<Toplevel*> toRemove;
+    for (Toplevel *win : windows) {
+        if (!win->readyForPainting() || !win->visible()) {
+            toRemove.append(win);
+        }
+
+//        AbstractClient* ac = dynamic_cast<AbstractClient*>(win);
+//        if (ac &&(ac->jingWindowType() == JingWindowType::TYPE_SYSTEM_DIALOG)) {
+//            systemDialog = win;
+//            continue;
+//        }
+
+//        if (waylandServer() && waylandServer()->isScreenLocked()) {
+//            if(win->isLockScreen()) {
+//                lockScreen = win;
+//                continue;
+//            }
+//        }
+    }
+
+    for (Toplevel *win : toRemove) {
+        windows.removeAll(win);
+    }
+
+//    if (lockScreen) {
+//        windows.removeAll(lockScreen);
+//        windows.append(lockScreen);
+//    }
+
+//    if (systemDialog) {
+//        windows.removeAll(systemDialog);
+//        windows.append(systemDialog);
+//    }
+
+    if (m_framesToTestForSafety > 0 && (m_scene->compositingType() & OpenGLCompositing)) {
+        kwinApp()->platform()->createOpenGLSafePoint(Platform::OpenGLSafePoint::PreFrame);
+    }
+
+    const QRegion repaints = m_scene->repaints(screenId);
+    m_scene->resetRepaints(screenId);
+
+    m_scene->paint(screenId, repaints, windows, renderLoop);
+
+    if (m_framesToTestForSafety > 0) {
+        if (m_scene->compositingType() & OpenGLCompositing) {
+            kwinApp()->platform()->createOpenGLSafePoint(Platform::OpenGLSafePoint::PostFrame);
+        }
+        m_framesToTestForSafety--;
+        if (m_framesToTestForSafety == 0 && (m_scene->compositingType() & OpenGLCompositing)) {
+            kwinApp()->platform()->createOpenGLSafePoint(
+                Platform::OpenGLSafePoint::PostLastGuardedFrame);
+        }
+    }
+
+    if (waylandServer()) {
+        const std::chrono::milliseconds frameTime =
+                std::chrono::duration_cast<std::chrono::milliseconds>(renderLoop->lastPresentationTimestamp());
+
+        for (Toplevel *window : qAsConst(windows)) {
+            if (!window->readyForPainting()) {
+                continue;
+            }
+            AbstractClient* ac = dynamic_cast<AbstractClient*>(window);
+            if (ac && ac->isNormalWindow() && ac->jingWindowType() == JingWindowType::TYPE_APPLICATION && ac != workspace()->foregroundTopLevel() && !(window->isLockScreen() || window->isInputMethod() || window->isSystemUI())) {
+                continue;
+            }
+            if (!window->isOnScreen(screenId)) {
+                continue;
+            }
+            if (auto surface = window->surface()) {
+                surface->frameRendered(frameTime.count());
+            }
+        }
+        if (!kwinApp()->platform()->isCursorHidden()) {
+            Cursors::self()->currentCursor()->markAsRendered();
+        }
     }
 }
 
-static int pc = 0;
-void Compositor::performCompositing()
-{
-    // If a buffer swap is still pending, we return to the event loop and
-    // continue processing events until the swap has completed.
-    if (m_bufferSwapPending) {
-        m_composeAtSwapCompletion = true;
-        compositeTimer.stop();
-        return;
+void Compositor::runPerformCompositing(int flags, RenderLoop *renderLoop) {
+
+    if(flags ==  0){
+#if HAVE_PERFETTO
+         qDebug()<<"[PERFETTO]"<<"[STOP]"<<"flags = 0";
+#endif
+         return;
     }
 
     // If outputs are disabled, we return to the event loop and
     // continue processing events until the outputs are enabled again
     if (!kwinApp()->platform()->areOutputsEnabled()) {
-        compositeTimer.stop();
         return;
     }
+
+    const int screenId = screenForRenderLoop(renderLoop);
+
+    fTraceDuration("Paint (", screens()->name(screenId), ")");
 
     // Create a list of all windows in the stacking order
     QList<Toplevel *> windows = Workspace::self()->xStackingOrder();
@@ -618,7 +758,7 @@ void Compositor::performCompositing()
     // Reset the damage state of each window and fetch the damage region
     // without waiting for a reply
     for (Toplevel *win : qAsConst(windows)) {
-        if (win->resetAndFetchDamage() && !win->isBackApp()) {
+        if (win->resetAndFetchDamage()) {
             damaged << win;
         }
     }
@@ -651,17 +791,6 @@ void Compositor::performCompositing()
         win->getDamageRegionReply();
     }
 
-    if (repaints_region.isEmpty() && !windowRepaintsPending()) {
-        m_scene->idle();
-        m_timeSinceLastVBlank = fpsInterval - (options->vBlankTime() + 1); // means "start now"
-        // Note: It would seem here we should undo suspended unredirect, but when scenes need
-        // it for some reason, e.g. transformations or translucency, the next pass that does not
-        // need this anymore and paints normally will also reset the suspended unredirect.
-        // Otherwise the window would not be painted normally anyway.
-        compositeTimer.stop();
-        return;
-    }
-
     // Skip windows that are not yet ready for being painted and if screen is locked skip windows
     // that are neither lockscreen nor inputmethod windows.
     //
@@ -672,34 +801,22 @@ void Compositor::performCompositing()
         if (!win->readyForPainting() || !win->visible()) {
             windows.removeAll(win);
         }
-
-        if (waylandServer() && waylandServer()->isScreenLocked()) {
-            if(!win->isLockScreen() && !win->isInputMethod()) {
-                windows.removeAll(win);
-            }
-        }
+//        if (waylandServer() && waylandServer()->isScreenLocked()) {
+//            if(!win->isLockScreen() && !win->isInputMethod() && !win->isDesktop()) {
+//                windows.removeAll(win);
+//            }
+//        }
     }
-
-    QRegion repaints = repaints_region;
-    // clear all repaints, so that post-pass can add repaints for the next repaint
-    repaints_region = QRegion();
-
-    const std::chrono::nanoseconds now = std::chrono::steady_clock::now().time_since_epoch();
-    const std::chrono::milliseconds presentTime =
-            std::chrono::duration_cast<std::chrono::milliseconds>(now);
 
     if (m_framesToTestForSafety > 0 && (m_scene->compositingType() & OpenGLCompositing)) {
         kwinApp()->platform()->createOpenGLSafePoint(Platform::OpenGLSafePoint::PreFrame);
     }
-    m_renderTimer.start();
-    if (kwinApp()->platform()->isPerScreenRenderingEnabled()) {
-        for (int screenId = 0; screenId < screens()->count(); ++screenId) {
-            m_scene->paint(screenId, repaints, windows, presentTime);
-        }
-    } else {
-        m_scene->paint(-1, repaints, windows, presentTime);
-    }
-    m_timeSinceLastVBlank = m_renderTimer.elapsed();
+
+    const QRegion repaints = m_scene->repaints(screenId);
+    m_scene->resetRepaints(screenId);
+
+    m_scene->paint(screenId, repaints, windows, renderLoop);
+
     if (m_framesToTestForSafety > 0) {
         if (m_scene->compositingType() & OpenGLCompositing) {
             kwinApp()->platform()->createOpenGLSafePoint(Platform::OpenGLSafePoint::PostFrame);
@@ -712,142 +829,28 @@ void Compositor::performCompositing()
     }
 
     if (waylandServer()) {
-        const auto currentTime = static_cast<quint32>(m_monotonicClock.elapsed());
-        for (Toplevel *win : qAsConst(windows)) {
-            if (auto surface = win->surface()) {
-                surface->frameRendered(currentTime);
+        const std::chrono::milliseconds frameTime =
+                std::chrono::duration_cast<std::chrono::milliseconds>(renderLoop->lastPresentationTimestamp());
+
+        for (Toplevel *window : qAsConst(windows)) {
+            if (!window->readyForPainting()) {
+                continue;
+            }
+//            if (waylandServer()->isScreenLocked() &&
+//                    !(window->isLockScreen() || window->isInputMethod() || window->isDesktop())) {
+//                continue;
+//            }
+            if (!window->isOnScreen(screenId)) {
+                continue;
+            }
+            if (auto surface = window->surface()) {
+                surface->frameRendered(frameTime.count());
             }
         }
         if (!kwinApp()->platform()->isCursorHidden()) {
             Cursors::self()->currentCursor()->markAsRendered();
         }
     }
-
-    // Stop here to ensure *we* cause the next repaint schedule - not some effect
-    // through m_scene->paint().
-    compositeTimer.stop();
-
-    // Trigger at least one more pass even if there would be nothing to paint, so that scene->idle()
-    // is called the next time. If there would be nothing pending, it will not restart the timer and
-    // scheduleRepaint() would restart it again somewhen later, called from functions that
-    // would again add something pending.
-    if (m_bufferSwapPending && m_scene->syncsToVBlank()) {
-        m_composeAtSwapCompletion = true;
-    } else {
-        scheduleRepaint();
-    }
-}
-
-template <class T>
-static bool repaintsPending(const QList<T*> &windows)
-{
-    return std::any_of(windows.begin(), windows.end(),
-                       [](const T *t) { return t->wantsRepaint(); });
-}
-
-bool Compositor::windowRepaintsPending() const
-{
-    if (repaintsPending(Workspace::self()->clientList())) {
-        return true;
-    }
-    if (repaintsPending(Workspace::self()->unmanagedList())) {
-        return true;
-    }
-    if (repaintsPending(Workspace::self()->deletedList())) {
-        return true;
-    }
-    if (auto *server = waylandServer()) {
-        const auto &clients = server->clients();
-        auto test = [](const AbstractClient *c) {
-            return c->readyForPainting() && c->wantsRepaint();
-        };
-        if (std::any_of(clients.begin(), clients.end(), test)) {
-            return true;
-        }
-    }
-    const auto &internalClients = workspace()->internalClients();
-    auto internalTest = [] (const InternalClient *client) {
-        return client->isShown(true) && client->wantsRepaint();
-    };
-    if (std::any_of(internalClients.begin(), internalClients.end(), internalTest)) {
-        return true;
-    }
-    return false;
-}
-
-void Compositor::setCompositeTimer()
-{
-    if (m_state != State::On) {
-        return;
-    }
-
-    // Don't start the timer if we're waiting for a swap event
-    if (m_bufferSwapPending && m_composeAtSwapCompletion)
-        return;
-
-    // Don't start the timer if all outputs are disabled
-    if (!kwinApp()->platform()->areOutputsEnabled()) {
-        return;
-    }
-
-    uint waitTime = 1;
-
-    if (m_scene->blocksForRetrace()) {
-
-        // TODO: make vBlankTime dynamic?!
-        // It's required because glXWaitVideoSync will *likely* block a full frame if one enters
-        // a retrace pass which can last a variable amount of time, depending on the actual screen
-        // Now, my ooold 19" CRT can do such retrace so that 2ms are entirely sufficient,
-        // while another ooold 15" TFT requires about 6ms
-
-        qint64 padding = m_timeSinceLastVBlank;
-        if (padding > fpsInterval) {
-            // We're at low repaints or spent more time in painting than the user wanted to wait
-            // for that frame. Align to next vblank:
-            padding = vBlankInterval - (padding % vBlankInterval);
-        } else {
-            // Align to the next maxFps tick:
-            // "remaining time of the first vsync" + "time for the other vsyncs of the frame"
-            padding = ((vBlankInterval - padding % vBlankInterval) +
-                       (fpsInterval / vBlankInterval - 1) * vBlankInterval);
-        }
-
-        if (padding < options->vBlankTime()) {
-            // We'll likely miss this frame so we add one:
-            waitTime = nanoToMilli(padding + vBlankInterval - options->vBlankTime());
-        } else {
-            waitTime = nanoToMilli(padding - options->vBlankTime());
-        }
-    }
-    else { // w/o blocking vsync we just jump to the next demanded tick
-        if (fpsInterval > m_timeSinceLastVBlank) {
-            waitTime = nanoToMilli(fpsInterval - m_timeSinceLastVBlank);
-            if (!waitTime) {
-                // Will ensure we don't block out the eventloop - the system's just not faster ...
-                waitTime = 1;
-            }
-        }
-        /* else if (m_scene->syncsToVBlank() && m_timeSinceLastVBlank - fpsInterval < (vBlankInterval<<1)) {
-            // NOTICE - "for later" ------------------------------------------------------------------
-            // It can happen that we push two frames within one refresh cycle.
-            // Swapping will then block even with triple buffering when the GPU does not discard but
-            // queues frames
-            // now here's the mean part: if we take that as "OMG, we're late - next frame ASAP",
-            // there'll immediately be 2 frames in the pipe, swapping will block, we think we're
-            // late ... ewww
-            // so instead we pad to the clock again and add 2ms safety to ensure the pipe is really
-            // free
-            // NOTICE: obviously m_timeSinceLastVBlank can be too big because we're too slow as well
-            // So if this code was enabled, we'd needlessly half the framerate once more (15 instead of 30)
-            waitTime = nanoToMilli(vBlankInterval - (m_timeSinceLastVBlank - fpsInterval)%vBlankInterval) + 2;
-        }*/
-        else {
-            // "0" would be sufficient here, but the compositor isn't the WMs only task.
-            waitTime = 1;
-        }
-    }
-    // Force 4fps minimum:
-    compositeTimer.start(qMin(waitTime, 250u), this);
 }
 
 bool Compositor::isActive()
@@ -882,18 +885,9 @@ void WaylandCompositor::start()
     }
 }
 
-int WaylandCompositor::refreshRate() const
-{
-    // TODO: This makes no sense on Wayland. First step would be to atleast
-    //       set the refresh rate to the highest available one. Second step
-    //       would be to not use a uniform value at all but per screen.
-    return KWin::currentRefreshRate();
-}
-
 X11Compositor::X11Compositor(QObject *parent)
     : Compositor(parent)
     , m_suspended(options->isUseCompositing() ? NoReasonSuspend : UserSuspend)
-    , m_xrrRefreshRate(0)
 {
 }
 
@@ -975,17 +969,15 @@ void X11Compositor::start()
         // Internal setup failed, abort.
         return;
     }
-    m_xrrRefreshRate = KWin::currentRefreshRate();
     startupWithWorkspace();
 }
-
-void X11Compositor::performCompositing()
+void X11Compositor::handleFrameRequested(RenderLoop *renderLoop)
 {
-    if (scene()->usesOverlayWindow() && !isOverlayWindowVisible()) {
+    if (scene()->overlayWindow() && !isOverlayWindowVisible()) {
         // Return since nothing is visible.
         return;
     }
-    Compositor::performCompositing();
+    Compositor::handleFrameRequested(renderLoop);
 }
 
 bool X11Compositor::checkForOverlayWindow(WId w) const
@@ -1011,11 +1003,6 @@ bool X11Compositor::isOverlayWindowVisible() const
         return false;
     }
     return scene()->overlayWindow()->isVisible();
-}
-
-int X11Compositor::refreshRate() const
-{
-    return m_xrrRefreshRate;
 }
 
 void X11Compositor::updateClientCompositeBlocking(X11Client *c)

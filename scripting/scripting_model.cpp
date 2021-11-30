@@ -89,7 +89,7 @@ bool ClientLevel::exclude(AbstractClient *client) const
         }
     }
     if (exclusions & ClientModel::DockWindowsExclusion) {
-        if (client->isDock()) {
+        if (client->isStatusBar()) {
             return true;
         }
     }

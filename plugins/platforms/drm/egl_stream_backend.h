@@ -40,7 +40,6 @@ public:
     void removeOutput(DrmOutput *output) override;
 
 protected:
-    void present() override;
     void cleanupSurfaces() override;
 
 private:
@@ -65,7 +64,7 @@ private:
     };
     bool resetOutput(Output &output, DrmOutput *drmOutput);
     bool makeContextCurrent(const Output &output);
-    void presentOnOutput(Output &output);
+    bool presentOnOutput(Output &output);
     void cleanupOutput(const Output &output);
 
     QVector<Output> m_outputs;

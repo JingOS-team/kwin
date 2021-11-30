@@ -85,7 +85,7 @@ void SlideBackEffect::windowRaised(EffectWindow *w)
 
                 }
             }
-            if (tmp->isDock() || tmp->keepAbove()) {
+            if (tmp->isStatusBar() || tmp->keepAbove()) {
                 effects->setElevatedWindow(tmp, true);
                 elevatedList.append(tmp);
             }
@@ -196,7 +196,7 @@ void SlideBackEffect::postPaintWindow(EffectWindow* w)
                         if (motionManager.isManaging(tmp)) {
                             elevatedGeometry = motionManager.transformedGeometry(tmp).toAlignedRect();
                         }
-                        if (m_upmostWindow && !tmp->isDock() && !tmp->keepAbove() && m_upmostWindow->geometry().intersects(elevatedGeometry)) {
+                        if (m_upmostWindow && !tmp->isStatusBar() && !tmp->keepAbove() && m_upmostWindow->geometry().intersects(elevatedGeometry)) {
                             QRect newDestination;
                             newDestination = getSlideDestination(getModalGroupGeometry(m_upmostWindow), elevatedGeometry);
                             if (!motionManager.isManaging(tmp)) {
@@ -205,7 +205,7 @@ void SlideBackEffect::postPaintWindow(EffectWindow* w)
                             motionManager.moveWindow(tmp, newDestination);
                             destinationList[tmp] = newDestination;
                         } else {
-                            if (!tmp->isDock()) {
+                            if (!tmp->isStatusBar()) {
                                 bool keepElevated = false;
                                 foreach (EffectWindow * elevatedWindow, tmpList) {
                                     if (tmp->geometry().intersects(elevatedWindow->geometry())) {

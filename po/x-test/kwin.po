@@ -1,0 +1,2732 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR This file is copyright:
+# This file is distributed under the same license as the kwin package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: kwin\n"
+"Report-Msgid-Bugs-To: https://bugs.kde.org\n"
+"POT-Creation-Date: 2021-02-03 03:28+0100\n"
+"PO-Revision-Date: 2021-02-03 07:41+0000\n"
+"Last-Translator: transxx.py program <null@kde.org>\n"
+"Language-Team: KDE Test Language <kde-i18n-doc@kde.org>\n"
+"Language: x-test\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+#, kde-format
+msgctxt "NAME OF TRANSLATORS"
+msgid "Your names"
+msgstr "xxYour namesxx"
+
+#, kde-format
+msgctxt "EMAIL OF TRANSLATORS"
+msgid "Your emails"
+msgstr "xxYour emailsxx"
+
+#: abstract_client.cpp:2771
+#, kde-format
+msgctxt "Application is not responding, appended to window title"
+msgid "(Not Responding)"
+msgstr "xx(Not Responding)xx"
+
+#: abstract_wayland_output.cpp:269
+#, kde-format
+msgid "unknown"
+msgstr "xxunknownxx"
+
+#: composite.cpp:780
+#, kde-format
+msgid ""
+"Desktop effects have been suspended by another application.<br/>You can "
+"resume using the '%1' shortcut."
+msgstr ""
+"xxDesktop effects have been suspended by another application.<br/>You can "
+"resume using the '%1' shortcut.xx"
+
+#: debug_console.cpp:65
+#, kde-format
+msgid "Timestamp"
+msgstr "xxTimestampxx"
+
+#: debug_console.cpp:70
+#, kde-format
+msgid "Timestamp (µsec)"
+msgstr "xxTimestamp (µsec)xx"
+
+#: debug_console.cpp:77
+#, kde-format
+msgctxt "A mouse button"
+msgid "Left"
+msgstr "xxLeftxx"
+
+#: debug_console.cpp:79
+#, kde-format
+msgctxt "A mouse button"
+msgid "Right"
+msgstr "xxRightxx"
+
+#: debug_console.cpp:81
+#, kde-format
+msgctxt "A mouse button"
+msgid "Middle"
+msgstr "xxMiddlexx"
+
+#: debug_console.cpp:83
+#, kde-format
+msgctxt "A mouse button"
+msgid "Back"
+msgstr "xxBackxx"
+
+#: debug_console.cpp:85
+#, kde-format
+msgctxt "A mouse button"
+msgid "Forward"
+msgstr "xxForwardxx"
+
+#: debug_console.cpp:87
+#, kde-format
+msgctxt "A mouse button"
+msgid "Task"
+msgstr "xxTaskxx"
+
+#: debug_console.cpp:89
+#, kde-format
+msgctxt "A mouse button"
+msgid "Extra Button 4"
+msgstr "xxExtra Button 4xx"
+
+#: debug_console.cpp:91
+#, kde-format
+msgctxt "A mouse button"
+msgid "Extra Button 5"
+msgstr "xxExtra Button 5xx"
+
+#: debug_console.cpp:93
+#, kde-format
+msgctxt "A mouse button"
+msgid "Extra Button 6"
+msgstr "xxExtra Button 6xx"
+
+#: debug_console.cpp:95
+#, kde-format
+msgctxt "A mouse button"
+msgid "Extra Button 7"
+msgstr "xxExtra Button 7xx"
+
+#: debug_console.cpp:97
+#, kde-format
+msgctxt "A mouse button"
+msgid "Extra Button 8"
+msgstr "xxExtra Button 8xx"
+
+#: debug_console.cpp:99
+#, kde-format
+msgctxt "A mouse button"
+msgid "Extra Button 9"
+msgstr "xxExtra Button 9xx"
+
+#: debug_console.cpp:101
+#, kde-format
+msgctxt "A mouse button"
+msgid "Extra Button 10"
+msgstr "xxExtra Button 10xx"
+
+#: debug_console.cpp:103
+#, kde-format
+msgctxt "A mouse button"
+msgid "Extra Button 11"
+msgstr "xxExtra Button 11xx"
+
+#: debug_console.cpp:105
+#, kde-format
+msgctxt "A mouse button"
+msgid "Extra Button 12"
+msgstr "xxExtra Button 12xx"
+
+#: debug_console.cpp:107
+#, kde-format
+msgctxt "A mouse button"
+msgid "Extra Button 13"
+msgstr "xxExtra Button 13xx"
+
+#: debug_console.cpp:109
+#, kde-format
+msgctxt "A mouse button"
+msgid "Extra Button 14"
+msgstr "xxExtra Button 14xx"
+
+#: debug_console.cpp:111
+#, kde-format
+msgctxt "A mouse button"
+msgid "Extra Button 15"
+msgstr "xxExtra Button 15xx"
+
+#: debug_console.cpp:113
+#, kde-format
+msgctxt "A mouse button"
+msgid "Extra Button 16"
+msgstr "xxExtra Button 16xx"
+
+#: debug_console.cpp:115
+#, kde-format
+msgctxt "A mouse button"
+msgid "Extra Button 17"
+msgstr "xxExtra Button 17xx"
+
+#: debug_console.cpp:117
+#, kde-format
+msgctxt "A mouse button"
+msgid "Extra Button 18"
+msgstr "xxExtra Button 18xx"
+
+#: debug_console.cpp:119
+#, kde-format
+msgctxt "A mouse button"
+msgid "Extra Button 19"
+msgstr "xxExtra Button 19xx"
+
+#: debug_console.cpp:121
+#, kde-format
+msgctxt "A mouse button"
+msgid "Extra Button 20"
+msgstr "xxExtra Button 20xx"
+
+#: debug_console.cpp:123
+#, kde-format
+msgctxt "A mouse button"
+msgid "Extra Button 21"
+msgstr "xxExtra Button 21xx"
+
+#: debug_console.cpp:125
+#, kde-format
+msgctxt "A mouse button"
+msgid "Extra Button 22"
+msgstr "xxExtra Button 22xx"
+
+#: debug_console.cpp:127
+#, kde-format
+msgctxt "A mouse button"
+msgid "Extra Button 23"
+msgstr "xxExtra Button 23xx"
+
+#: debug_console.cpp:129
+#, kde-format
+msgctxt "A mouse button"
+msgid "Extra Button 24"
+msgstr "xxExtra Button 24xx"
+
+#: debug_console.cpp:138 debug_console.cpp:140
+#, kde-format
+msgid "Input Device"
+msgstr "xxInput Devicexx"
+
+#: debug_console.cpp:138
+#, kde-format
+msgctxt "The input device of the event is not known"
+msgid "Unknown"
+msgstr "xxUnknownxx"
+
+#: debug_console.cpp:175
+#, kde-format
+msgctxt "A mouse pointer motion event"
+msgid "Pointer Motion"
+msgstr "xxPointer Motionxx"
+
+#: debug_console.cpp:182
+#, kde-format
+msgctxt "The relative mouse movement"
+msgid "Delta"
+msgstr "xxDeltaxx"
+
+#: debug_console.cpp:186
+#, kde-format
+msgctxt "The relative mouse movement"
+msgid "Delta (not accelerated)"
+msgstr "xxDelta (not accelerated)xx"
+
+#: debug_console.cpp:189
+#, kde-format
+msgctxt "The global mouse pointer position"
+msgid "Global Position"
+msgstr "xxGlobal Positionxx"
+
+#: debug_console.cpp:193
+#, kde-format
+msgctxt "A mouse pointer button press event"
+msgid "Pointer Button Press"
+msgstr "xxPointer Button Pressxx"
+
+#: debug_console.cpp:196 debug_console.cpp:204
+#, kde-format
+msgctxt "A button in a mouse press/release event"
+msgid "Button"
+msgstr "xxButtonxx"
+
+#: debug_console.cpp:197 debug_console.cpp:205
+#, kde-format
+msgctxt "A button in a mouse press/release event"
+msgid "Native Button code"
+msgstr "xxNative Button codexx"
+
+#: debug_console.cpp:198 debug_console.cpp:206
+#, kde-format
+msgctxt "All currently pressed buttons in a mouse press/release event"
+msgid "Pressed Buttons"
+msgstr "xxPressed Buttonsxx"
+
+#: debug_console.cpp:201
+#, kde-format
+msgctxt "A mouse pointer button release event"
+msgid "Pointer Button Release"
+msgstr "xxPointer Button Releasexx"
+
+#: debug_console.cpp:221
+#, kde-format
+msgctxt "A mouse pointer axis (wheel) event"
+msgid "Pointer Axis"
+msgstr "xxPointer Axisxx"
+
+#: debug_console.cpp:225
+#, kde-format
+msgctxt "The orientation of a pointer axis event"
+msgid "Orientation"
+msgstr "xxOrientationxx"
+
+#: debug_console.cpp:226
+#, kde-format
+msgctxt "An orientation of a pointer axis event"
+msgid "Horizontal"
+msgstr "xxHorizontalxx"
+
+#: debug_console.cpp:227
+#, kde-format
+msgctxt "An orientation of a pointer axis event"
+msgid "Vertical"
+msgstr "xxVerticalxx"
+
+#: debug_console.cpp:228
+#, kde-format
+msgctxt "The angle delta of a pointer axis event"
+msgid "Delta"
+msgstr "xxDeltaxx"
+
+#: debug_console.cpp:243
+#, kde-format
+msgctxt "A key press event"
+msgid "Key Press"
+msgstr "xxKey Pressxx"
+
+#: debug_console.cpp:246
+#, kde-format
+msgctxt "A key release event"
+msgid "Key Release"
+msgstr "xxKey Releasexx"
+
+#: debug_console.cpp:255
+#, kde-format
+msgctxt "A keyboard modifier"
+msgid "Shift"
+msgstr "xxShiftxx"
+
+#: debug_console.cpp:259
+#, kde-format
+msgctxt "A keyboard modifier"
+msgid "Control"
+msgstr "xxControlxx"
+
+#: debug_console.cpp:263
+#, kde-format
+msgctxt "A keyboard modifier"
+msgid "Alt"
+msgstr "xxAltxx"
+
+#: debug_console.cpp:267
+#, kde-format
+msgctxt "A keyboard modifier"
+msgid "Meta"
+msgstr "xxMetaxx"
+
+#: debug_console.cpp:271
+#, kde-format
+msgctxt "A keyboard modifier"
+msgid "Keypad"
+msgstr "xxKeypadxx"
+
+#: debug_console.cpp:275
+#, kde-format
+msgctxt "A keyboard modifier"
+msgid "Group-switch"
+msgstr "xxGroup-switchxx"
+
+#: debug_console.cpp:281
+#, kde-format
+msgctxt "Whether the event is an automatic key repeat"
+msgid "Repeat"
+msgstr "xxRepeatxx"
+
+#: debug_console.cpp:285
+#, kde-format
+msgctxt "The code as read from the input device"
+msgid "Scan code"
+msgstr "xxScan codexx"
+
+#: debug_console.cpp:286
+#, kde-format
+msgctxt "Key according to Qt"
+msgid "Qt::Key code"
+msgstr "xxQt::Key codexx"
+
+#: debug_console.cpp:288
+#, kde-format
+msgctxt "The translated code to an Xkb symbol"
+msgid "Xkb symbol"
+msgstr "xxXkb symbolxx"
+
+#: debug_console.cpp:289
+#, kde-format
+msgctxt "The translated code interpreted as text"
+msgid "Utf8"
+msgstr "xxUtf8xx"
+
+#: debug_console.cpp:290
+#, kde-format
+msgctxt "The currently active modifiers"
+msgid "Modifiers"
+msgstr "xxModifiersxx"
+
+#: debug_console.cpp:302
+#, kde-format
+msgctxt "A touch down event"
+msgid "Touch down"
+msgstr "xxTouch downxx"
+
+#: debug_console.cpp:304 debug_console.cpp:319 debug_console.cpp:334
+#, kde-format
+msgctxt "The id of the touch point in the touch event"
+msgid "Point identifier"
+msgstr "xxPoint identifierxx"
+
+#: debug_console.cpp:305 debug_console.cpp:320
+#, kde-format
+msgctxt "The global position of the touch point"
+msgid "Global position"
+msgstr "xxGlobal positionxx"
+
+#: debug_console.cpp:317
+#, kde-format
+msgctxt "A touch motion event"
+msgid "Touch Motion"
+msgstr "xxTouch Motionxx"
+
+#: debug_console.cpp:332
+#, kde-format
+msgctxt "A touch up event"
+msgid "Touch Up"
+msgstr "xxTouch Upxx"
+
+#: debug_console.cpp:345
+#, kde-format
+msgctxt "A pinch gesture is started"
+msgid "Pinch start"
+msgstr "xxPinch startxx"
+
+#: debug_console.cpp:347
+#, kde-format
+msgctxt "Number of fingers in this pinch gesture"
+msgid "Finger count"
+msgstr "xxFinger countxx"
+
+#: debug_console.cpp:358
+#, kde-format
+msgctxt "A pinch gesture is updated"
+msgid "Pinch update"
+msgstr "xxPinch updatexx"
+
+#: debug_console.cpp:360
+#, kde-format
+msgctxt "Current scale in pinch gesture"
+msgid "Scale"
+msgstr "xxScalexx"
+
+#: debug_console.cpp:361
+#, kde-format
+msgctxt "Current angle in pinch gesture"
+msgid "Angle delta"
+msgstr "xxAngle deltaxx"
+
+#: debug_console.cpp:362
+#, kde-format
+msgctxt "Current delta in pinch gesture"
+msgid "Delta x"
+msgstr "xxDelta xxx"
+
+#: debug_console.cpp:363
+#, kde-format
+msgctxt "Current delta in pinch gesture"
+msgid "Delta y"
+msgstr "xxDelta yxx"
+
+#: debug_console.cpp:374
+#, kde-format
+msgctxt "A pinch gesture ended"
+msgid "Pinch end"
+msgstr "xxPinch endxx"
+
+#: debug_console.cpp:386
+#, kde-format
+msgctxt "A pinch gesture got cancelled"
+msgid "Pinch cancelled"
+msgstr "xxPinch cancelledxx"
+
+#: debug_console.cpp:398
+#, kde-format
+msgctxt "A swipe gesture is started"
+msgid "Swipe start"
+msgstr "xxSwipe startxx"
+
+#: debug_console.cpp:400
+#, kde-format
+msgctxt "Number of fingers in this swipe gesture"
+msgid "Finger count"
+msgstr "xxFinger countxx"
+
+#: debug_console.cpp:411
+#, kde-format
+msgctxt "A swipe gesture is updated"
+msgid "Swipe update"
+msgstr "xxSwipe updatexx"
+
+#: debug_console.cpp:413
+#, kde-format
+msgctxt "Current delta in swipe gesture"
+msgid "Delta x"
+msgstr "xxDelta xxx"
+
+#: debug_console.cpp:414
+#, kde-format
+msgctxt "Current delta in swipe gesture"
+msgid "Delta y"
+msgstr "xxDelta yxx"
+
+#: debug_console.cpp:425
+#, kde-format
+msgctxt "A swipe gesture ended"
+msgid "Swipe end"
+msgstr "xxSwipe endxx"
+
+#: debug_console.cpp:437
+#, kde-format
+msgctxt "A swipe gesture got cancelled"
+msgid "Swipe cancelled"
+msgstr "xxSwipe cancelledxx"
+
+#: debug_console.cpp:449
+#, kde-format
+msgctxt "A hardware switch (e.g. notebook lid) got toggled"
+msgid "Switch toggled"
+msgstr "xxSwitch toggledxx"
+
+#: debug_console.cpp:457
+#, kde-format
+msgctxt "Name of a hardware switch"
+msgid "Notebook lid"
+msgstr "xxNotebook lidxx"
+
+#: debug_console.cpp:459
+#, kde-format
+msgctxt "Name of a hardware switch"
+msgid "Tablet mode"
+msgstr "xxTablet modexx"
+
+#: debug_console.cpp:461
+#, kde-format
+msgctxt "A hardware switch"
+msgid "Switch"
+msgstr "xxSwitchxx"
+
+#: debug_console.cpp:465
+#, kde-format
+msgctxt "The hardware switch got turned off"
+msgid "Off"
+msgstr "xxOffxx"
+
+#: debug_console.cpp:468
+#, kde-format
+msgctxt "The hardware switch got turned on"
+msgid "On"
+msgstr "xxOnxx"
+
+#: debug_console.cpp:473
+#, kde-format
+msgctxt "State of a hardware switch (on/off)"
+msgid "State"
+msgstr "xxStatexx"
+
+#: debug_console.cpp:488
+#, kde-format
+msgid "Tablet Tool"
+msgstr "xxTablet Toolxx"
+
+#: debug_console.cpp:489
+#, kde-format
+msgid "EventType"
+msgstr "xxEventTypexx"
+
+#: debug_console.cpp:490 debug_console.cpp:533 debug_console.cpp:546
+#, kde-format
+msgid "Position"
+msgstr "xxPositionxx"
+
+#: debug_console.cpp:492
+#, kde-format
+msgid "Tilt"
+msgstr "xxTiltxx"
+
+#: debug_console.cpp:494
+#, kde-format
+msgid "Rotation"
+msgstr "xxRotationxx"
+
+#: debug_console.cpp:495
+#, kde-format
+msgid "Pressure"
+msgstr "xxPressurexx"
+
+#: debug_console.cpp:496
+#, kde-format
+msgid "Buttons"
+msgstr "xxButtonsxx"
+
+#. i18n: ectx: property (title), widget (QGroupBox, modifiersBox)
+#: debug_console.cpp:497 debug_console.ui:356
+#, kde-format
+msgid "Modifiers"
+msgstr "xxModifiersxx"
+
+#: debug_console.cpp:506
+#, kde-format
+msgid "Tablet Tool Button"
+msgstr "xxTablet Tool Buttonxx"
+
+#: debug_console.cpp:507 debug_console.cpp:520
+#, kde-format
+msgid "Button"
+msgstr "xxButtonxx"
+
+#: debug_console.cpp:508 debug_console.cpp:521
+#, kde-format
+msgid "Pressed"
+msgstr "xxPressedxx"
+
+#: debug_console.cpp:509 debug_console.cpp:522 debug_console.cpp:535
+#: debug_console.cpp:548
+#, kde-format
+msgid "Tablet"
+msgstr "xxTabletxx"
+
+#: debug_console.cpp:519
+#, kde-format
+msgid "Tablet Pad Button"
+msgstr "xxTablet Pad Buttonxx"
+
+#: debug_console.cpp:531
+#, kde-format
+msgid "Tablet Pad Strip"
+msgstr "xxTablet Pad Stripxx"
+
+#: debug_console.cpp:532 debug_console.cpp:545
+#, kde-format
+msgid "Number"
+msgstr "xxNumberxx"
+
+#: debug_console.cpp:534 debug_console.cpp:547
+#, kde-format
+msgid "isFinger"
+msgstr "xxisFingerxx"
+
+#: debug_console.cpp:544
+#, kde-format
+msgid "Tablet Pad Ring"
+msgstr "xxTablet Pad Ringxx"
+
+#: debug_console.cpp:733
+#, kde-format
+msgid "No Mouse Buttons"
+msgstr "xxNo Mouse Buttonsxx"
+
+#: debug_console.cpp:737
+#, kde-format
+msgctxt "Mouse Button"
+msgid "left"
+msgstr "xxleftxx"
+
+#: debug_console.cpp:740
+#, kde-format
+msgctxt "Mouse Button"
+msgid "right"
+msgstr "xxrightxx"
+
+#: debug_console.cpp:743
+#, kde-format
+msgctxt "Mouse Button"
+msgid "middle"
+msgstr "xxmiddlexx"
+
+#: debug_console.cpp:746
+#, kde-format
+msgctxt "Mouse Button"
+msgid "back"
+msgstr "xxbackxx"
+
+#: debug_console.cpp:749
+#, kde-format
+msgctxt "Mouse Button"
+msgid "forward"
+msgstr "xxforwardxx"
+
+#: debug_console.cpp:752
+#, kde-format
+msgctxt "Mouse Button"
+msgid "extra 1"
+msgstr "xxextra 1xx"
+
+#: debug_console.cpp:755
+#, kde-format
+msgctxt "Mouse Button"
+msgid "extra 2"
+msgstr "xxextra 2xx"
+
+#: debug_console.cpp:758
+#, kde-format
+msgctxt "Mouse Button"
+msgid "extra 3"
+msgstr "xxextra 3xx"
+
+#: debug_console.cpp:761
+#, kde-format
+msgctxt "Mouse Button"
+msgid "extra 4"
+msgstr "xxextra 4xx"
+
+#: debug_console.cpp:764
+#, kde-format
+msgctxt "Mouse Button"
+msgid "extra 5"
+msgstr "xxextra 5xx"
+
+#: debug_console.cpp:767
+#, kde-format
+msgctxt "Mouse Button"
+msgid "extra 6"
+msgstr "xxextra 6xx"
+
+#: debug_console.cpp:770
+#, kde-format
+msgctxt "Mouse Button"
+msgid "extra 7"
+msgstr "xxextra 7xx"
+
+#: debug_console.cpp:773
+#, kde-format
+msgctxt "Mouse Button"
+msgid "extra 8"
+msgstr "xxextra 8xx"
+
+#: debug_console.cpp:776
+#, kde-format
+msgctxt "Mouse Button"
+msgid "extra 9"
+msgstr "xxextra 9xx"
+
+#: debug_console.cpp:779
+#, kde-format
+msgctxt "Mouse Button"
+msgid "extra 10"
+msgstr "xxextra 10xx"
+
+#: debug_console.cpp:782
+#, kde-format
+msgctxt "Mouse Button"
+msgid "extra 11"
+msgstr "xxextra 11xx"
+
+#: debug_console.cpp:785
+#, kde-format
+msgctxt "Mouse Button"
+msgid "extra 12"
+msgstr "xxextra 12xx"
+
+#: debug_console.cpp:788
+#, kde-format
+msgctxt "Mouse Button"
+msgid "extra 13"
+msgstr "xxextra 13xx"
+
+#: debug_console.cpp:791
+#, kde-format
+msgctxt "Mouse Button"
+msgid "extra 14"
+msgstr "xxextra 14xx"
+
+#: debug_console.cpp:794
+#, kde-format
+msgctxt "Mouse Button"
+msgid "extra 15"
+msgstr "xxextra 15xx"
+
+#: debug_console.cpp:797
+#, kde-format
+msgctxt "Mouse Button"
+msgid "extra 16"
+msgstr "xxextra 16xx"
+
+#: debug_console.cpp:800
+#, kde-format
+msgctxt "Mouse Button"
+msgid "extra 17"
+msgstr "xxextra 17xx"
+
+#: debug_console.cpp:803
+#, kde-format
+msgctxt "Mouse Button"
+msgid "extra 18"
+msgstr "xxextra 18xx"
+
+#: debug_console.cpp:806
+#, kde-format
+msgctxt "Mouse Button"
+msgid "extra 19"
+msgstr "xxextra 19xx"
+
+#: debug_console.cpp:809
+#, kde-format
+msgctxt "Mouse Button"
+msgid "extra 20"
+msgstr "xxextra 20xx"
+
+#: debug_console.cpp:812
+#, kde-format
+msgctxt "Mouse Button"
+msgid "extra 21"
+msgstr "xxextra 21xx"
+
+#: debug_console.cpp:815
+#, kde-format
+msgctxt "Mouse Button"
+msgid "extra 22"
+msgstr "xxextra 22xx"
+
+#: debug_console.cpp:818
+#, kde-format
+msgctxt "Mouse Button"
+msgid "extra 23"
+msgstr "xxextra 23xx"
+
+#: debug_console.cpp:821
+#, kde-format
+msgctxt "Mouse Button"
+msgid "extra 24"
+msgstr "xxextra 24xx"
+
+#: debug_console.cpp:824
+#, kde-format
+msgctxt "Mouse Button"
+msgid "task"
+msgstr "xxtaskxx"
+
+#: debug_console.cpp:1168
+#, kde-format
+msgid "X11 Client Windows"
+msgstr "xxX11 Client Windowsxx"
+
+#: debug_console.cpp:1170
+#, kde-format
+msgid "X11 Unmanaged Windows"
+msgstr "xxX11 Unmanaged Windowsxx"
+
+#: debug_console.cpp:1172
+#, kde-format
+msgid "Wayland Windows"
+msgstr "xxWayland Windowsxx"
+
+#: debug_console.cpp:1174
+#, kde-format
+msgid "Internal Windows"
+msgstr "xxInternal Windowsxx"
+
+#. i18n: ectx: property (text), widget (QPushButton, quitButton)
+#: debug_console.ui:32
+#, kde-format
+msgid "Quit Debug Console"
+msgstr "xxQuit Debug Consolexx"
+
+#. i18n: ectx: attribute (title), widget (QWidget, windows)
+#: debug_console.ui:45
+#, kde-format
+msgid "Windows"
+msgstr "xxWindowsxx"
+
+#. i18n: ectx: attribute (title), widget (QWidget, surfaces)
+#: debug_console.ui:59
+#, kde-format
+msgid "Surfaces"
+msgstr "xxSurfacesxx"
+
+#. i18n: ectx: attribute (title), widget (QWidget, input)
+#: debug_console.ui:69
+#, kde-format
+msgid "Input Events"
+msgstr "xxInput Eventsxx"
+
+#. i18n: ectx: attribute (title), widget (QWidget, inputDevices)
+#: debug_console.ui:86
+#, kde-format
+msgid "Input Devices"
+msgstr "xxInput Devicesxx"
+
+#. i18n: ectx: attribute (title), widget (QWidget, tab)
+#: debug_console.ui:96
+#, kde-format
+msgid "OpenGL"
+msgstr "xxOpenGLxx"
+
+#. i18n: ectx: property (text), widget (QLabel, noOpenGLLabel)
+#: debug_console.ui:102
+#, kde-format
+msgid "No OpenGL compositor running"
+msgstr "xxNo OpenGL compositor runningxx"
+
+#. i18n: ectx: property (title), widget (QGroupBox, driverInfoBox)
+#: debug_console.ui:130
+#, kde-format
+msgid "OpenGL (ES) driver information"
+msgstr "xxOpenGL (ES) driver informationxx"
+
+#. i18n: ectx: property (text), widget (QLabel, label)
+#: debug_console.ui:136
+#, kde-format
+msgid "Vendor:"
+msgstr "xxVendor:xx"
+
+#. i18n: ectx: property (text), widget (QLabel, label_2)
+#: debug_console.ui:143
+#, kde-format
+msgid "Renderer:"
+msgstr "xxRenderer:xx"
+
+#. i18n: ectx: property (text), widget (QLabel, label_3)
+#: debug_console.ui:150
+#, kde-format
+msgid "Version:"
+msgstr "xxVersion:xx"
+
+#. i18n: ectx: property (text), widget (QLabel, label_4)
+#: debug_console.ui:157
+#, kde-format
+msgid "Shading Language Version:"
+msgstr "xxShading Language Version:xx"
+
+#. i18n: ectx: property (text), widget (QLabel, label_5)
+#: debug_console.ui:164
+#, kde-format
+msgid "Driver:"
+msgstr "xxDriver:xx"
+
+#. i18n: ectx: property (text), widget (QLabel, label_6)
+#: debug_console.ui:171
+#, kde-format
+msgid "GPU class:"
+msgstr "xxGPU class:xx"
+
+#. i18n: ectx: property (text), widget (QLabel, label_7)
+#: debug_console.ui:178
+#, kde-format
+msgid "OpenGL Version:"
+msgstr "xxOpenGL Version:xx"
+
+#. i18n: ectx: property (text), widget (QLabel, label_8)
+#: debug_console.ui:185
+#, kde-format
+msgid "GLSL Version:"
+msgstr "xxGLSL Version:xx"
+
+#. i18n: ectx: property (title), widget (QGroupBox, platformExtensionsBox)
+#: debug_console.ui:251
+#, kde-format
+msgid "Platform Extensions"
+msgstr "xxPlatform Extensionsxx"
+
+#. i18n: ectx: property (title), widget (QGroupBox, glExtensionsBox)
+#: debug_console.ui:267
+#, kde-format
+msgid "OpenGL (ES) Extensions"
+msgstr "xxOpenGL (ES) Extensionsxx"
+
+#. i18n: ectx: attribute (title), widget (QWidget, keyboard)
+#: debug_console.ui:288
+#, kde-format
+msgid "Keyboard"
+msgstr "xxKeyboardxx"
+
+#. i18n: ectx: property (title), widget (QGroupBox, layoutBox)
+#: debug_console.ui:315
+#, kde-format
+msgid "Keymap Layouts"
+msgstr "xxKeymap Layoutsxx"
+
+#. i18n: ectx: property (text), widget (QLabel, label_9)
+#: debug_console.ui:337
+#, kde-format
+msgid "Current Layout:"
+msgstr "xxCurrent Layout:xx"
+
+#. i18n: ectx: property (title), widget (QGroupBox, activeModifiersBox)
+#: debug_console.ui:372
+#, kde-format
+msgid "Active Modifiers"
+msgstr "xxActive Modifiersxx"
+
+#. i18n: ectx: property (title), widget (QGroupBox, ledsBox)
+#: debug_console.ui:388
+#, kde-format
+msgid "LEDs"
+msgstr "xxLEDsxx"
+
+#. i18n: ectx: property (title), widget (QGroupBox, activeLedsBox)
+#: debug_console.ui:404
+#, kde-format
+msgid "Active LEDs"
+msgstr "xxActive LEDsxx"
+
+#: helpers/killer/killer.cpp:30
+#, kde-format
+msgid "Window Manager"
+msgstr "xxWindow Managerxx"
+
+#: helpers/killer/killer.cpp:35
+#, kde-format
+msgid "PID of the application to terminate"
+msgstr "xxPID of the application to terminatexx"
+
+#: helpers/killer/killer.cpp:35
+#, kde-format
+msgid "pid"
+msgstr "xxpidxx"
+
+#: helpers/killer/killer.cpp:37
+#, kde-format
+msgid "Hostname on which the application is running"
+msgstr "xxHostname on which the application is runningxx"
+
+#: helpers/killer/killer.cpp:37
+#, kde-format
+msgid "hostname"
+msgstr "xxhostnamexx"
+
+#: helpers/killer/killer.cpp:39
+#, kde-format
+msgid "Caption of the window to be terminated"
+msgstr "xxCaption of the window to be terminatedxx"
+
+#: helpers/killer/killer.cpp:39
+#, kde-format
+msgid "caption"
+msgstr "xxcaptionxx"
+
+#: helpers/killer/killer.cpp:41
+#, kde-format
+msgid "Name of the application to be terminated"
+msgstr "xxName of the application to be terminatedxx"
+
+#: helpers/killer/killer.cpp:41
+#, kde-format
+msgid "name"
+msgstr "xxnamexx"
+
+#: helpers/killer/killer.cpp:43
+#, kde-format
+msgid "ID of resource belonging to the application"
+msgstr "xxID of resource belonging to the applicationxx"
+
+#: helpers/killer/killer.cpp:43
+#, kde-format
+msgid "id"
+msgstr "xxidxx"
+
+#: helpers/killer/killer.cpp:45
+#, kde-format
+msgid "Time of user action causing termination"
+msgstr "xxTime of user action causing terminationxx"
+
+#: helpers/killer/killer.cpp:45
+#, kde-format
+msgid "time"
+msgstr "xxtimexx"
+
+#: helpers/killer/killer.cpp:47
+#, kde-format
+msgid "KWin helper utility"
+msgstr "xxKWin helper utilityxx"
+
+#: helpers/killer/killer.cpp:71
+#, kde-format
+msgid "This helper utility is not supposed to be called directly."
+msgstr "xxThis helper utility is not supposed to be called directly.xx"
+
+#: helpers/killer/killer.cpp:81
+#, kde-format
+msgctxt "@info"
+msgid "<b>Application \"%1\" is not responding</b>"
+msgstr "xx<b>Application \"%1\" is not responding</b>xx"
+
+#: helpers/killer/killer.cpp:83
+#, kde-kuit-format
+msgctxt "@info"
+msgid ""
+"<p>You tried to close window \"%1\" from application \"%2\" (Process ID: %3) "
+"but the application is not responding.</p>"
+msgstr ""
+"xx<p>You tried to close window \"%1\" from application \"%2\" (Process ID: "
+"%3) but the application is not responding.</p>xx"
+
+#: helpers/killer/killer.cpp:85
+#, kde-kuit-format
+msgctxt "@info"
+msgid ""
+"<p>You tried to close window \"%1\" from application \"%2\" (Process ID: "
+"%3), running on host \"%4\", but the application is not responding.</p>"
+msgstr ""
+"xx<p>You tried to close window \"%1\" from application \"%2\" (Process ID: "
+"%3), running on host \"%4\", but the application is not responding.</p>xx"
+
+#: helpers/killer/killer.cpp:88
+#, kde-kuit-format
+msgctxt "@info"
+msgid ""
+"<p>Do you want to terminate this application?</p><p><warning>Terminating the "
+"application will close all of its child windows. Any unsaved data will be "
+"lost.</warning></p>"
+msgstr ""
+"xx<p>Do you want to terminate this application?</p><p><warning>Terminating "
+"the application will close all of its child windows. Any unsaved data will "
+"be lost.</warning></p>xx"
+
+#: helpers/killer/killer.cpp:92
+#, kde-format
+msgid "&Terminate Application %1"
+msgstr "xx&Terminate Application %1xx"
+
+#: helpers/killer/killer.cpp:93
+#, kde-format
+msgid "Wait Longer"
+msgstr "xxWait Longerxx"
+
+#: inputmethod.cpp:73
+#, kde-format
+msgid "Virtual Keyboard"
+msgstr "xxVirtual Keyboardxx"
+
+#: inputmethod.cpp:451
+#, kde-format
+msgid "Virtual Keyboard: enabled"
+msgstr "xxVirtual Keyboard: enabledxx"
+
+#: inputmethod.cpp:454
+#, kde-format
+msgid "Virtual Keyboard: disabled"
+msgstr "xxVirtual Keyboard: disabledxx"
+
+#: inputmethod.cpp:456
+#, kde-format
+msgid "Whether to show the virtual keyboard on demand."
+msgstr "xxWhether to show the virtual keyboard on demand.xx"
+
+#: killwindow.cpp:33
+#, kde-format
+msgid ""
+"Select window to force close with left click or enter.\n"
+"Escape or right click to cancel."
+msgstr ""
+"xxSelect window to force close with left click or enter.\n"
+"Escape or right click to cancel.xx"
+
+#: kwinbindings.cpp:38
+#, kde-format
+msgid "Window Operations Menu"
+msgstr "xxWindow Operations Menuxx"
+
+#: kwinbindings.cpp:40
+#, kde-format
+msgid "Close Window"
+msgstr "xxClose Windowxx"
+
+#: kwinbindings.cpp:42
+#, kde-format
+msgid "Maximize Window"
+msgstr "xxMaximize Windowxx"
+
+#: kwinbindings.cpp:44
+#, kde-format
+msgid "Maximize Window Vertically"
+msgstr "xxMaximize Window Verticallyxx"
+
+#: kwinbindings.cpp:46
+#, kde-format
+msgid "Maximize Window Horizontally"
+msgstr "xxMaximize Window Horizontallyxx"
+
+#: kwinbindings.cpp:48
+#, kde-format
+msgid "Minimize Window"
+msgstr "xxMinimize Windowxx"
+
+#: kwinbindings.cpp:50
+#, kde-format
+msgid "Shade Window"
+msgstr "xxShade Windowxx"
+
+#: kwinbindings.cpp:52
+#, kde-format
+msgid "Move Window"
+msgstr "xxMove Windowxx"
+
+#: kwinbindings.cpp:54
+#, kde-format
+msgid "Resize Window"
+msgstr "xxResize Windowxx"
+
+#: kwinbindings.cpp:56
+#, kde-format
+msgid "Raise Window"
+msgstr "xxRaise Windowxx"
+
+#: kwinbindings.cpp:58
+#, kde-format
+msgid "Lower Window"
+msgstr "xxLower Windowxx"
+
+#: kwinbindings.cpp:60
+#, kde-format
+msgid "Toggle Window Raise/Lower"
+msgstr "xxToggle Window Raise/Lowerxx"
+
+#: kwinbindings.cpp:62
+#, kde-format
+msgid "Make Window Fullscreen"
+msgstr "xxMake Window Fullscreenxx"
+
+#: kwinbindings.cpp:64
+#, kde-format
+msgid "Hide Window Border"
+msgstr "xxHide Window Borderxx"
+
+#: kwinbindings.cpp:66
+#, kde-format
+msgid "Keep Window Above Others"
+msgstr "xxKeep Window Above Othersxx"
+
+#: kwinbindings.cpp:68
+#, kde-format
+msgid "Keep Window Below Others"
+msgstr "xxKeep Window Below Othersxx"
+
+#: kwinbindings.cpp:70
+#, kde-format
+msgid "Activate Window Demanding Attention"
+msgstr "xxActivate Window Demanding Attentionxx"
+
+#: kwinbindings.cpp:72
+#, kde-format
+msgid "Setup Window Shortcut"
+msgstr "xxSetup Window Shortcutxx"
+
+#: kwinbindings.cpp:74
+#, kde-format
+msgid "Pack Window to the Right"
+msgstr "xxPack Window to the Rightxx"
+
+#: kwinbindings.cpp:76
+#, kde-format
+msgid "Pack Window to the Left"
+msgstr "xxPack Window to the Leftxx"
+
+#: kwinbindings.cpp:78
+#, kde-format
+msgid "Pack Window Up"
+msgstr "xxPack Window Upxx"
+
+#: kwinbindings.cpp:80
+#, kde-format
+msgid "Pack Window Down"
+msgstr "xxPack Window Downxx"
+
+#: kwinbindings.cpp:82
+#, kde-format
+msgid "Pack Grow Window Horizontally"
+msgstr "xxPack Grow Window Horizontallyxx"
+
+#: kwinbindings.cpp:84
+#, kde-format
+msgid "Pack Grow Window Vertically"
+msgstr "xxPack Grow Window Verticallyxx"
+
+#: kwinbindings.cpp:86
+#, kde-format
+msgid "Pack Shrink Window Horizontally"
+msgstr "xxPack Shrink Window Horizontallyxx"
+
+#: kwinbindings.cpp:88
+#, kde-format
+msgid "Pack Shrink Window Vertically"
+msgstr "xxPack Shrink Window Verticallyxx"
+
+#: kwinbindings.cpp:90
+#, kde-format
+msgid "Quick Tile Window to the Left"
+msgstr "xxQuick Tile Window to the Leftxx"
+
+#: kwinbindings.cpp:92
+#, kde-format
+msgid "Quick Tile Window to the Right"
+msgstr "xxQuick Tile Window to the Rightxx"
+
+#: kwinbindings.cpp:94
+#, kde-format
+msgid "Quick Tile Window to the Top"
+msgstr "xxQuick Tile Window to the Topxx"
+
+#: kwinbindings.cpp:96
+#, kde-format
+msgid "Quick Tile Window to the Bottom"
+msgstr "xxQuick Tile Window to the Bottomxx"
+
+#: kwinbindings.cpp:98
+#, kde-format
+msgid "Quick Tile Window to the Top Left"
+msgstr "xxQuick Tile Window to the Top Leftxx"
+
+#: kwinbindings.cpp:100
+#, kde-format
+msgid "Quick Tile Window to the Bottom Left"
+msgstr "xxQuick Tile Window to the Bottom Leftxx"
+
+#: kwinbindings.cpp:102
+#, kde-format
+msgid "Quick Tile Window to the Top Right"
+msgstr "xxQuick Tile Window to the Top Rightxx"
+
+#: kwinbindings.cpp:104
+#, kde-format
+msgid "Quick Tile Window to the Bottom Right"
+msgstr "xxQuick Tile Window to the Bottom Rightxx"
+
+#: kwinbindings.cpp:106
+#, kde-format
+msgid "Switch to Window Above"
+msgstr "xxSwitch to Window Abovexx"
+
+#: kwinbindings.cpp:108
+#, kde-format
+msgid "Switch to Window Below"
+msgstr "xxSwitch to Window Belowxx"
+
+#: kwinbindings.cpp:110
+#, kde-format
+msgid "Switch to Window to the Right"
+msgstr "xxSwitch to Window to the Rightxx"
+
+#: kwinbindings.cpp:112
+#, kde-format
+msgid "Switch to Window to the Left"
+msgstr "xxSwitch to Window to the Leftxx"
+
+#: kwinbindings.cpp:114
+#, kde-format
+msgid "Increase Opacity of Active Window by 5 %"
+msgstr "xxIncrease Opacity of Active Window by 5 %xx"
+
+#: kwinbindings.cpp:116
+#, kde-format
+msgid "Decrease Opacity of Active Window by 5 %"
+msgstr "xxDecrease Opacity of Active Window by 5 %xx"
+
+#: kwinbindings.cpp:119
+#, kde-format
+msgid "Keep Window on All Desktops"
+msgstr "xxKeep Window on All Desktopsxx"
+
+#: kwinbindings.cpp:123
+#, kde-format
+msgid "Window to Desktop %1"
+msgstr "xxWindow to Desktop %1xx"
+
+#: kwinbindings.cpp:125
+#, kde-format
+msgid "Window to Next Desktop"
+msgstr "xxWindow to Next Desktopxx"
+
+#: kwinbindings.cpp:126
+#, kde-format
+msgid "Window to Previous Desktop"
+msgstr "xxWindow to Previous Desktopxx"
+
+#: kwinbindings.cpp:127
+#, kde-format
+msgid "Window One Desktop to the Right"
+msgstr "xxWindow One Desktop to the Rightxx"
+
+#: kwinbindings.cpp:128
+#, kde-format
+msgid "Window One Desktop to the Left"
+msgstr "xxWindow One Desktop to the Leftxx"
+
+#: kwinbindings.cpp:129
+#, kde-format
+msgid "Window One Desktop Up"
+msgstr "xxWindow One Desktop Upxx"
+
+#: kwinbindings.cpp:130
+#, kde-format
+msgid "Window One Desktop Down"
+msgstr "xxWindow One Desktop Downxx"
+
+#: kwinbindings.cpp:133
+#, kde-format
+msgid "Window to Screen %1"
+msgstr "xxWindow to Screen %1xx"
+
+#: kwinbindings.cpp:135
+#, kde-format
+msgid "Window to Next Screen"
+msgstr "xxWindow to Next Screenxx"
+
+#: kwinbindings.cpp:136
+#, kde-format
+msgid "Window to Previous Screen"
+msgstr "xxWindow to Previous Screenxx"
+
+#: kwinbindings.cpp:137
+#, kde-format
+msgid "Show Desktop"
+msgstr "xxShow Desktopxx"
+
+#: kwinbindings.cpp:140
+#, kde-format
+msgid "Switch to Screen %1"
+msgstr "xxSwitch to Screen %1xx"
+
+#: kwinbindings.cpp:143
+#, kde-format
+msgid "Switch to Next Screen"
+msgstr "xxSwitch to Next Screenxx"
+
+#: kwinbindings.cpp:144
+#, kde-format
+msgid "Switch to Previous Screen"
+msgstr "xxSwitch to Previous Screenxx"
+
+#: kwinbindings.cpp:146
+#, kde-format
+msgid "Kill Window"
+msgstr "xxKill Windowxx"
+
+#: kwinbindings.cpp:147
+#, kde-format
+msgid "Suspend Compositing"
+msgstr "xxSuspend Compositingxx"
+
+#: kwinbindings.cpp:148
+#, kde-format
+msgid "Invert Screen Colors"
+msgstr "xxInvert Screen Colorsxx"
+
+#: main.cpp:187 main.cpp:217
+#, kde-format
+msgid "KDE window manager"
+msgstr "xxKDE window managerxx"
+
+#: main.cpp:192
+#, kde-format
+msgid "KWin"
+msgstr "xxKWinxx"
+
+#: main.cpp:196
+#, kde-format
+msgid "(c) 1999-2019, The KDE Developers"
+msgstr "xx(c) 1999-2019, The KDE Developersxx"
+
+#: main.cpp:198
+#, kde-format
+msgid "Matthias Ettrich"
+msgstr "xxMatthias Ettrichxx"
+
+#: main.cpp:199
+#, kde-format
+msgid "Cristian Tibirna"
+msgstr "xxCristian Tibirnaxx"
+
+#: main.cpp:200
+#, kde-format
+msgid "Daniel M. Duley"
+msgstr "xxDaniel M. Duleyxx"
+
+#: main.cpp:201
+#, kde-format
+msgid "Luboš Luňák"
+msgstr "xxLuboš Luňákxx"
+
+#: main.cpp:202
+#, kde-format
+msgid "Martin Flöser"
+msgstr "xxMartin Flöserxx"
+
+#: main.cpp:203
+#, kde-format
+msgid "David Edmundson"
+msgstr "xxDavid Edmundsonxx"
+
+#: main.cpp:204
+#, kde-format
+msgid "Roman Gilg"
+msgstr "xxRoman Gilgxx"
+
+#: main.cpp:205
+#, kde-format
+msgid "Vlad Zahorodnii"
+msgstr "xxVlad Zahorodniixx"
+
+#: main.cpp:214
+#, kde-format
+msgid "Disable configuration options"
+msgstr "xxDisable configuration optionsxx"
+
+#: main.cpp:215
+#, kde-format
+msgid "Indicate that KWin has recently crashed n times"
+msgstr "xxIndicate that KWin has recently crashed n timesxx"
+
+#: main_wayland.cpp:527
+#, kde-format
+msgid "Start a rootless Xwayland server."
+msgstr "xxStart a rootless Xwayland server.xx"
+
+#: main_wayland.cpp:529
+#, kde-format
+msgid ""
+"Name of the Wayland socket to listen on. If not set \"wayland-0\" is used."
+msgstr ""
+"xxName of the Wayland socket to listen on. If not set \"wayland-0\" is used."
+"xx"
+
+#: main_wayland.cpp:532
+#, kde-format
+msgid "Render to framebuffer."
+msgstr "xxRender to framebuffer.xx"
+
+#: main_wayland.cpp:534
+#, kde-format
+msgid "The framebuffer device to render to."
+msgstr "xxThe framebuffer device to render to.xx"
+
+#: main_wayland.cpp:537
+#, kde-format
+msgid "The X11 Display to use in windowed mode on platform X11."
+msgstr "xxThe X11 Display to use in windowed mode on platform X11.xx"
+
+#: main_wayland.cpp:540
+#, kde-format
+msgid "The Wayland Display to use in windowed mode on platform Wayland."
+msgstr "xxThe Wayland Display to use in windowed mode on platform Wayland.xx"
+
+#: main_wayland.cpp:542
+#, kde-format
+msgid "Render to a virtual framebuffer."
+msgstr "xxRender to a virtual framebuffer.xx"
+
+#: main_wayland.cpp:544
+#, kde-format
+msgid "The width for windowed mode. Default width is 1024."
+msgstr "xxThe width for windowed mode. Default width is 1024.xx"
+
+#: main_wayland.cpp:548
+#, kde-format
+msgid "The height for windowed mode. Default height is 768."
+msgstr "xxThe height for windowed mode. Default height is 768.xx"
+
+#: main_wayland.cpp:553
+#, kde-format
+msgid "The scale for windowed mode. Default value is 1."
+msgstr "xxThe scale for windowed mode. Default value is 1.xx"
+
+#: main_wayland.cpp:558
+#, kde-format
+msgid ""
+"The number of windows to open as outputs in windowed mode. Default value is 1"
+msgstr ""
+"xxThe number of windows to open as outputs in windowed mode. Default value "
+"is 1xx"
+
+#: main_wayland.cpp:563
+#, kde-format
+msgid "Wayland socket to use for incoming connections."
+msgstr "xxWayland socket to use for incoming connections.xx"
+
+#: main_wayland.cpp:567
+#, kde-format
+msgid "Exits this instance so it can be restarted by kwin_wayland_wrapper."
+msgstr ""
+"xxExits this instance so it can be restarted by kwin_wayland_wrapper.xx"
+
+#: main_wayland.cpp:598
+#, kde-format
+msgid ""
+"Enable libinput support for input events processing. Note: never use in a "
+"nested session.\t(deprecated)"
+msgstr ""
+"xxEnable libinput support for input events processing. Note: never use in a "
+"nested session.\t(deprecated)xx"
+
+#: main_wayland.cpp:601
+#, kde-format
+msgid "Render through drm node."
+msgstr "xxRender through drm node.xx"
+
+#: main_wayland.cpp:608
+#, kde-format
+msgid "Input method that KWin starts."
+msgstr "xxInput method that KWin starts.xx"
+
+#: main_wayland.cpp:613
+#, kde-format
+msgid "List all available backends and quit."
+msgstr "xxList all available backends and quit.xx"
+
+#: main_wayland.cpp:617
+#, kde-format
+msgid "Starts the session in locked mode."
+msgstr "xxStarts the session in locked mode.xx"
+
+#: main_wayland.cpp:621
+#, kde-format
+msgid "Starts the session without lock screen support."
+msgstr "xxStarts the session without lock screen support.xx"
+
+#: main_wayland.cpp:625
+#, kde-format
+msgid "Starts the session without global shortcuts support."
+msgstr "xxStarts the session without global shortcuts support.xx"
+
+#: main_wayland.cpp:629
+#, kde-format
+msgid "Exit after the session application, which is started by KWin, closed."
+msgstr ""
+"xxExit after the session application, which is started by KWin, closed.xx"
+
+#: main_wayland.cpp:634
+#, kde-format
+msgid "Applications to start once Wayland and Xwayland server are started"
+msgstr "xxApplications to start once Wayland and Xwayland server are startedxx"
+
+#: main_x11.cpp:65
+#, kde-format
+msgid ""
+"KWin is unstable.\n"
+"It seems to have crashed several times in a row.\n"
+"You can select another window manager to run:"
+msgstr ""
+"xxKWin is unstable.\n"
+"It seems to have crashed several times in a row.\n"
+"You can select another window manager to run:xx"
+
+#: main_x11.cpp:226
+#, kde-format
+msgid ""
+"kwin: unable to claim manager selection, another wm running? (try using --"
+"replace)\n"
+msgstr ""
+"xxkwin: unable to claim manager selection, another wm running? (try using --"
+"replace)\n"
+"xx\n"
+
+#: main_x11.cpp:245
+#, kde-format
+msgid "kwin: another window manager is running (try using --replace)\n"
+msgstr ""
+"xxkwin: another window manager is running (try using --replace)\n"
+"xx\n"
+
+#: main_x11.cpp:444
+#, kde-format
+msgid "Replace already-running ICCCM2.0-compliant window manager"
+msgstr "xxReplace already-running ICCCM2.0-compliant window managerxx"
+
+#: main_x11.cpp:451
+#, kde-format
+msgid "Disable KActivities integration."
+msgstr "xxDisable KActivities integration.xx"
+
+#: plugins/krunner-integration/windowsrunnerinterface.cpp:60
+#: plugins/krunner-integration/windowsrunnerinterface.cpp:62
+#, kde-format
+msgctxt "Note this is a KRunner keyword"
+msgid "activate"
+msgstr "xxactivatexx"
+
+#: plugins/krunner-integration/windowsrunnerinterface.cpp:63
+#: plugins/krunner-integration/windowsrunnerinterface.cpp:65
+#, kde-format
+msgctxt "Note this is a KRunner keyword"
+msgid "close"
+msgstr "xxclosexx"
+
+#: plugins/krunner-integration/windowsrunnerinterface.cpp:66
+#: plugins/krunner-integration/windowsrunnerinterface.cpp:68
+#, kde-format
+msgctxt "Note this is a KRunner keyword"
+msgid "min"
+msgstr "xxminxx"
+
+#: plugins/krunner-integration/windowsrunnerinterface.cpp:69
+#: plugins/krunner-integration/windowsrunnerinterface.cpp:71
+#, kde-format
+msgctxt "Note this is a KRunner keyword"
+msgid "minimize"
+msgstr "xxminimizexx"
+
+#: plugins/krunner-integration/windowsrunnerinterface.cpp:72
+#: plugins/krunner-integration/windowsrunnerinterface.cpp:74
+#, kde-format
+msgctxt "Note this is a KRunner keyword"
+msgid "max"
+msgstr "xxmaxxx"
+
+#: plugins/krunner-integration/windowsrunnerinterface.cpp:75
+#: plugins/krunner-integration/windowsrunnerinterface.cpp:77
+#, kde-format
+msgctxt "Note this is a KRunner keyword"
+msgid "maximize"
+msgstr "xxmaximizexx"
+
+#: plugins/krunner-integration/windowsrunnerinterface.cpp:78
+#: plugins/krunner-integration/windowsrunnerinterface.cpp:80
+#, kde-format
+msgctxt "Note this is a KRunner keyword"
+msgid "fullscreen"
+msgstr "xxfullscreenxx"
+
+#: plugins/krunner-integration/windowsrunnerinterface.cpp:81
+#: plugins/krunner-integration/windowsrunnerinterface.cpp:83
+#, kde-format
+msgctxt "Note this is a KRunner keyword"
+msgid "shade"
+msgstr "xxshadexx"
+
+#: plugins/krunner-integration/windowsrunnerinterface.cpp:84
+#: plugins/krunner-integration/windowsrunnerinterface.cpp:86
+#, kde-format
+msgctxt "Note this is a KRunner keyword"
+msgid "keep above"
+msgstr "xxkeep abovexx"
+
+#: plugins/krunner-integration/windowsrunnerinterface.cpp:87
+#: plugins/krunner-integration/windowsrunnerinterface.cpp:89
+#, kde-format
+msgctxt "Note this is a KRunner keyword"
+msgid "keep below"
+msgstr "xxkeep belowxx"
+
+#: plugins/krunner-integration/windowsrunnerinterface.cpp:94
+#, kde-format
+msgctxt "Note this is a KRunner keyword"
+msgid "window"
+msgstr "xxwindowxx"
+
+#: plugins/krunner-integration/windowsrunnerinterface.cpp:104
+#, kde-format
+msgctxt "Note this is a KRunner keyword"
+msgid "name"
+msgstr "xxnamexx"
+
+#: plugins/krunner-integration/windowsrunnerinterface.cpp:106
+#, kde-format
+msgctxt "Note this is a KRunner keyword"
+msgid "appname"
+msgstr "xxappnamexx"
+
+#: plugins/krunner-integration/windowsrunnerinterface.cpp:108
+#: plugins/krunner-integration/windowsrunnerinterface.cpp:161
+#, kde-format
+msgctxt "Note this is a KRunner keyword"
+msgid "desktop"
+msgstr "xxdesktopxx"
+
+#: plugins/krunner-integration/windowsrunnerinterface.cpp:263
+#, kde-format
+msgid "Switch to desktop %1"
+msgstr "xxSwitch to desktop %1xx"
+
+#: plugins/krunner-integration/windowsrunnerinterface.cpp:305
+#, kde-format
+msgid "Close running window on %1"
+msgstr "xxClose running window on %1xx"
+
+#: plugins/krunner-integration/windowsrunnerinterface.cpp:308
+#, kde-format
+msgid "(Un)minimize running window on %1"
+msgstr "xx(Un)minimize running window on %1xx"
+
+#: plugins/krunner-integration/windowsrunnerinterface.cpp:311
+#, kde-format
+msgid "Maximize/restore running window on %1"
+msgstr "xxMaximize/restore running window on %1xx"
+
+#: plugins/krunner-integration/windowsrunnerinterface.cpp:314
+#, kde-format
+msgid "Toggle fullscreen for running window on %1"
+msgstr "xxToggle fullscreen for running window on %1xx"
+
+#: plugins/krunner-integration/windowsrunnerinterface.cpp:317
+#, kde-format
+msgid "(Un)shade running window on %1"
+msgstr "xx(Un)shade running window on %1xx"
+
+#: plugins/krunner-integration/windowsrunnerinterface.cpp:320
+#, kde-format
+msgid "Toggle keep above for running window on %1"
+msgstr "xxToggle keep above for running window on %1xx"
+
+#: plugins/krunner-integration/windowsrunnerinterface.cpp:323
+#, kde-format
+msgid "Toggle keep below running window on %1"
+msgstr "xxToggle keep below running window on %1xx"
+
+#: plugins/krunner-integration/windowsrunnerinterface.cpp:327
+#, kde-format
+msgid "Activate running window on %1"
+msgstr "xxActivate running window on %1xx"
+
+#: plugins/nightcolor/nightcolormanager.cpp:62
+#, kde-format
+msgctxt "Night Color was disabled"
+msgid "Night Color Off"
+msgstr "xxNight Color Offxx"
+
+#: plugins/nightcolor/nightcolormanager.cpp:63
+#, kde-format
+msgctxt "Night Color was enabled"
+msgid "Night Color On"
+msgstr "xxNight Color Onxx"
+
+#: plugins/nightcolor/nightcolormanager.cpp:98
+#: plugins/nightcolor/nightcolormanager.cpp:101
+#: plugins/nightcolor/nightcolormanager.cpp:108
+#, kde-format
+msgid "Toggle Night Color"
+msgstr "xxToggle Night Colorxx"
+
+#: plugins/scenes/opengl/scene_opengl.cpp:517
+#, kde-format
+msgid "Desktop effects were restarted due to a graphics reset"
+msgstr "xxDesktop effects were restarted due to a graphics resetxx"
+
+#. i18n: ectx: label, entry (count), group (General)
+#: rulebooksettingsbase.kcfg:9
+#, kde-format
+msgid "Total rules count"
+msgstr "xxTotal rules countxx"
+
+#. i18n: ectx: label, entry (description), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:10
+#, kde-format
+msgid "Rule description"
+msgstr "xxRule descriptionxx"
+
+#. i18n: ectx: label, entry (descriptionLegacy), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:13
+#, kde-format
+msgid "Rule description (legacy)"
+msgstr "xxRule description (legacy)xx"
+
+#. i18n: ectx: label, entry (DeleteRule), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:16
+#, kde-format
+msgid "Delete this rule (for use in imports)"
+msgstr "xxDelete this rule (for use in imports)xx"
+
+#. i18n: ectx: label, entry (wmclass), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:20
+#, kde-format
+msgid "Window class (application)"
+msgstr "xxWindow class (application)xx"
+
+#. i18n: ectx: label, entry (wmclassmatch), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:23
+#, kde-format
+msgid "Window class string match type"
+msgstr "xxWindow class string match typexx"
+
+#. i18n: ectx: label, entry (wmclasscomplete), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:29
+#, kde-format
+msgid "Match whole window class"
+msgstr "xxMatch whole window classxx"
+
+#. i18n: ectx: label, entry (windowrole), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:34
+#, kde-format
+msgid "Window role"
+msgstr "xxWindow rolexx"
+
+#. i18n: ectx: label, entry (windowrolematch), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:37
+#, kde-format
+msgid "Window role string match type"
+msgstr "xxWindow role string match typexx"
+
+#. i18n: ectx: label, entry (title), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:44
+#, kde-format
+msgid "Window title"
+msgstr "xxWindow titlexx"
+
+#. i18n: ectx: label, entry (titlematch), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:47
+#, kde-format
+msgid "Window title string match type"
+msgstr "xxWindow title string match typexx"
+
+#. i18n: ectx: label, entry (clientmachine), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:54
+#, kde-format
+msgid "Machine (hostname)"
+msgstr "xxMachine (hostname)xx"
+
+#. i18n: ectx: label, entry (clientmachinematch), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:57
+#, kde-format
+msgid "Machine string match type"
+msgstr "xxMachine string match typexx"
+
+#. i18n: ectx: label, entry (types), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:64
+#, kde-format
+msgid "Window types that match"
+msgstr "xxWindow types that matchxx"
+
+#. i18n: ectx: label, entry (placement), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:69
+#, kde-format
+msgid "Initial placement"
+msgstr "xxInitial placementxx"
+
+#. i18n: ectx: label, entry (placementrule), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:74
+#, kde-format
+msgid "Initial placement rule type"
+msgstr "xxInitial placement rule typexx"
+
+#. i18n: ectx: label, entry (position), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:79
+#, kde-format
+msgid "Window position"
+msgstr "xxWindow positionxx"
+
+#. i18n: ectx: label, entry (positionrule), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:83
+#, kde-format
+msgid "Window position rule type"
+msgstr "xxWindow position rule typexx"
+
+#. i18n: ectx: label, entry (size), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:90
+#, kde-format
+msgid "Window size"
+msgstr "xxWindow sizexx"
+
+#. i18n: ectx: label, entry (sizerule), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:93
+#, kde-format
+msgid "Window size rule type"
+msgstr "xxWindow size rule typexx"
+
+#. i18n: ectx: label, entry (minsize), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:100
+#, kde-format
+msgid "Window minimum size"
+msgstr "xxWindow minimum sizexx"
+
+#. i18n: ectx: label, entry (minsizerule), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:104
+#, kde-format
+msgid "Window minimum size rule type"
+msgstr "xxWindow minimum size rule typexx"
+
+#. i18n: ectx: label, entry (maxsize), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:109
+#, kde-format
+msgid "Window maximum size"
+msgstr "xxWindow maximum sizexx"
+
+#. i18n: ectx: label, entry (maxsizerule), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:113
+#, kde-format
+msgid "Window maximum size rule type"
+msgstr "xxWindow maximum size rule typexx"
+
+#. i18n: ectx: label, entry (opacityactive), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:118
+#, kde-format
+msgid "Active opacity"
+msgstr "xxActive opacityxx"
+
+#. i18n: ectx: label, entry (opacityactiverule), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:124
+#, kde-format
+msgid "Active opacity rule type"
+msgstr "xxActive opacity rule typexx"
+
+#. i18n: ectx: label, entry (opacityinactive), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:129
+#, kde-format
+msgid "Inactive opacity"
+msgstr "xxInactive opacityxx"
+
+#. i18n: ectx: label, entry (opacityinactiverule), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:135
+#, kde-format
+msgid "Inactive opacity rule type"
+msgstr "xxInactive opacity rule typexx"
+
+#. i18n: ectx: label, entry (ignoregeometry), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:140
+#, kde-format
+msgid "Ignore requested geometry"
+msgstr "xxIgnore requested geometryxx"
+
+#. i18n: ectx: label, entry (ignoregeometryrule), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:144
+#, kde-format
+msgid "Ignore requested geometry rule type"
+msgstr "xxIgnore requested geometry rule typexx"
+
+#. i18n: ectx: label, entry (desktop), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:151
+#, kde-format
+msgid "Desktop number"
+msgstr "xxDesktop numberxx"
+
+#. i18n: ectx: label, entry (desktoprule), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:155
+#, kde-format
+msgid "Desktop number rule type"
+msgstr "xxDesktop number rule typexx"
+
+#. i18n: ectx: label, entry (screen), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:162
+#, kde-format
+msgid "Screen number"
+msgstr "xxScreen numberxx"
+
+#. i18n: ectx: label, entry (screenrule), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:166
+#, kde-format
+msgid "Screen number rule type"
+msgstr "xxScreen number rule typexx"
+
+#. i18n: ectx: label, entry (activity), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:173
+#, kde-format
+msgid "Activity"
+msgstr "xxActivityxx"
+
+#. i18n: ectx: label, entry (activityrule), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:176
+#, kde-format
+msgid "Activity rule type"
+msgstr "xxActivity rule typexx"
+
+#. i18n: ectx: label, entry (type), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:183
+#, kde-format
+msgid "Set window type to"
+msgstr "xxSet window type toxx"
+
+#. i18n: ectx: label, entry (typerule), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:189
+#, kde-format
+msgid "Set window type rule type"
+msgstr "xxSet window type rule typexx"
+
+#. i18n: ectx: label, entry (maximizevert), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:194
+#, kde-format
+msgid "Maximized vertically"
+msgstr "xxMaximized verticallyxx"
+
+#. i18n: ectx: label, entry (maximizevertrule), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:198
+#, kde-format
+msgid "Maximized vertically rule type"
+msgstr "xxMaximized vertically rule typexx"
+
+#. i18n: ectx: label, entry (maximizehoriz), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:205
+#, kde-format
+msgid "Maximized horizontally"
+msgstr "xxMaximized horizontallyxx"
+
+#. i18n: ectx: label, entry (maximizehorizrule), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:209
+#, kde-format
+msgid "Maximized horizontally rule type"
+msgstr "xxMaximized horizontally rule typexx"
+
+#. i18n: ectx: label, entry (minimize), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:216
+#, kde-format
+msgid "Minimized"
+msgstr "xxMinimizedxx"
+
+#. i18n: ectx: label, entry (minimizerule), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:220
+#, kde-format
+msgid "Minimized rule type"
+msgstr "xxMinimized rule typexx"
+
+#. i18n: ectx: label, entry (shade), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:227
+#, kde-format
+msgid "Shaded"
+msgstr "xxShadedxx"
+
+#. i18n: ectx: label, entry (shaderule), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:231
+#, kde-format
+msgid "Shaded rule type"
+msgstr "xxShaded rule typexx"
+
+#. i18n: ectx: label, entry (skiptaskbar), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:238
+#, kde-format
+msgid "Skip taskbar"
+msgstr "xxSkip taskbarxx"
+
+#. i18n: ectx: label, entry (skiptaskbarrule), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:242
+#, kde-format
+msgid "Skip taskbar rule type"
+msgstr "xxSkip taskbar rule typexx"
+
+#. i18n: ectx: label, entry (skippager), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:249
+#, kde-format
+msgid "Skip pager"
+msgstr "xxSkip pagerxx"
+
+#. i18n: ectx: label, entry (skippagerrule), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:253
+#, kde-format
+msgid "Skip pager rule type"
+msgstr "xxSkip pager rule typexx"
+
+#. i18n: ectx: label, entry (skipswitcher), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:260
+#, kde-format
+msgid "Skip switcher"
+msgstr "xxSkip switcherxx"
+
+#. i18n: ectx: label, entry (skipswitcherrule), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:264
+#, kde-format
+msgid "Skip switcher rule type"
+msgstr "xxSkip switcher rule typexx"
+
+#. i18n: ectx: label, entry (above), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:271
+#, kde-format
+msgid "Keep above"
+msgstr "xxKeep abovexx"
+
+#. i18n: ectx: label, entry (aboverule), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:275
+#, kde-format
+msgid "Keep above rule type"
+msgstr "xxKeep above rule typexx"
+
+#. i18n: ectx: label, entry (below), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:282
+#, kde-format
+msgid "Keep below"
+msgstr "xxKeep belowxx"
+
+#. i18n: ectx: label, entry (belowrule), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:286
+#, kde-format
+msgid "Keep below rule type"
+msgstr "xxKeep below rule typexx"
+
+#. i18n: ectx: label, entry (fullscreen), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:293
+#, kde-format
+msgid "Fullscreen"
+msgstr "xxFullscreenxx"
+
+#. i18n: ectx: label, entry (fullscreenrule), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:297
+#, kde-format
+msgid "Fullscreen rule type"
+msgstr "xxFullscreen rule typexx"
+
+#. i18n: ectx: label, entry (noborder), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:304
+#, kde-format
+msgid "No titlebar and frame"
+msgstr "xxNo titlebar and framexx"
+
+#. i18n: ectx: label, entry (noborderrule), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:308
+#, kde-format
+msgid "No titlebar rule type"
+msgstr "xxNo titlebar rule typexx"
+
+#. i18n: ectx: label, entry (decocolor), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:315
+#, kde-format
+msgid "Titlebar color and scheme"
+msgstr "xxTitlebar color and schemexx"
+
+#. i18n: ectx: label, entry (decocolorrule), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:318
+#, kde-format
+msgid "Titlebar color rule type"
+msgstr "xxTitlebar color rule typexx"
+
+#. i18n: ectx: label, entry (blockcompositing), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:323
+#, kde-format
+msgid "Block Compositing"
+msgstr "xxBlock Compositingxx"
+
+#. i18n: ectx: label, entry (blockcompositingrule), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:327
+#, kde-format
+msgid "Block Compositing rule type"
+msgstr "xxBlock Compositing rule typexx"
+
+#. i18n: ectx: label, entry (fsplevel), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:332
+#, kde-format
+msgid "Focus stealing prevention"
+msgstr "xxFocus stealing preventionxx"
+
+#. i18n: ectx: label, entry (fsplevelrule), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:338
+#, kde-format
+msgid "Focus stealing prevention rule type"
+msgstr "xxFocus stealing prevention rule typexx"
+
+#. i18n: ectx: label, entry (fpplevel), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:343
+#, kde-format
+msgid "Focus protection"
+msgstr "xxFocus protectionxx"
+
+#. i18n: ectx: label, entry (fpplevelrule), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:349
+#, kde-format
+msgid "Focus protection rule type"
+msgstr "xxFocus protection rule typexx"
+
+#. i18n: ectx: label, entry (acceptfocus), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:354
+#, kde-format
+msgid "Accept Focus"
+msgstr "xxAccept Focusxx"
+
+#. i18n: ectx: label, entry (acceptfocusrule), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:358
+#, kde-format
+msgid "Accept Focus rule type"
+msgstr "xxAccept Focus rule typexx"
+
+#. i18n: ectx: label, entry (closeable), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:363
+#, kde-format
+msgid "Closeable"
+msgstr "xxCloseablexx"
+
+#. i18n: ectx: label, entry (closeablerule), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:367
+#, kde-format
+msgid "Closeable rule type"
+msgstr "xxCloseable rule typexx"
+
+#. i18n: ectx: label, entry (autogroup), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:372
+#, kde-format
+msgid "Autogroup with identical"
+msgstr "xxAutogroup with identicalxx"
+
+#. i18n: ectx: label, entry (autogrouprule), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:376
+#, kde-format
+msgid "Autogroup with identical rule type"
+msgstr "xxAutogroup with identical rule typexx"
+
+#. i18n: ectx: label, entry (autogroupfg), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:381
+#, kde-format
+msgid "Autogroup in foreground"
+msgstr "xxAutogroup in foregroundxx"
+
+#. i18n: ectx: label, entry (autogroupfgrule), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:385
+#, kde-format
+msgid "Autogroup in foreground rule type"
+msgstr "xxAutogroup in foreground rule typexx"
+
+#. i18n: ectx: label, entry (autogroupid), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:390
+#, kde-format
+msgid "Autogroup by ID"
+msgstr "xxAutogroup by IDxx"
+
+#. i18n: ectx: label, entry (autogroupidrule), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:393
+#, kde-format
+msgid "Autogroup by ID rule type"
+msgstr "xxAutogroup by ID rule typexx"
+
+#. i18n: ectx: label, entry (strictgeometry), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:398
+#, kde-format
+msgid "Obey geometry restrictions"
+msgstr "xxObey geometry restrictionsxx"
+
+#. i18n: ectx: label, entry (strictgeometryrule), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:402
+#, kde-format
+msgid "Obey geometry restrictions rule type"
+msgstr "xxObey geometry restrictions rule typexx"
+
+#. i18n: ectx: label, entry (shortcut), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:407
+#, kde-format
+msgid "Shortcut"
+msgstr "xxShortcutxx"
+
+#. i18n: ectx: label, entry (shortcutrule), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:410
+#, kde-format
+msgid "Shortcut rule type"
+msgstr "xxShortcut rule typexx"
+
+#. i18n: ectx: label, entry (disableglobalshortcuts), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:417
+#, kde-format
+msgid "Ignore global shortcuts"
+msgstr "xxIgnore global shortcutsxx"
+
+#. i18n: ectx: label, entry (disableglobalshortcutsrule), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:421
+#, kde-format
+msgid "Ignore global shortcuts rule type"
+msgstr "xxIgnore global shortcuts rule typexx"
+
+#. i18n: ectx: label, entry (desktopfile), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:426
+#, kde-format
+msgid "Desktop file name"
+msgstr "xxDesktop file namexx"
+
+#. i18n: ectx: label, entry (desktopfilerule), group ($(ruleDescriptionOrNumber))
+#: rulesettings.kcfg:429
+#, kde-format
+msgid "Desktop file name rule type"
+msgstr "xxDesktop file name rule typexx"
+
+#: scripting/genericscriptedconfig.cpp:70
+#, kde-format
+msgctxt "Error message"
+msgid "Plugin does not provide configuration file in expected location"
+msgstr "xxPlugin does not provide configuration file in expected locationxx"
+
+#: scripting/scripting.cpp:116
+#, kde-format
+msgctxt "Assertion failed in KWin script with given value"
+msgid "Assertion failed: %1 is not null"
+msgstr "xxAssertion failed: %1 is not nullxx"
+
+#: scripting/scripting.cpp:134
+#, kde-format
+msgctxt "Assertion failed in KWin script"
+msgid "Assertion failed: argument is null"
+msgstr "xxAssertion failed: argument is nullxx"
+
+#: scripting/scripting.cpp:176
+#, kde-format
+msgctxt "Error in KWin Script"
+msgid ""
+"Invalid number of arguments. At least service, path, interface and method "
+"need to be provided"
+msgstr ""
+"xxInvalid number of arguments. At least service, path, interface and method "
+"need to be providedxx"
+
+#: scripting/scripting.cpp:182
+#, kde-format
+msgctxt "Error in KWin Script"
+msgid ""
+"Invalid type. Service, path, interface and method need to be string values"
+msgstr ""
+"xxInvalid type. Service, path, interface and method need to be string "
+"valuesxx"
+
+#: scripting/scriptingutils.cpp:17
+#, kde-format
+msgctxt "syntax error in KWin script"
+msgid "Invalid number of arguments"
+msgstr "xxInvalid number of argumentsxx"
+
+#: scripting/scriptingutils.cpp:30
+#, kde-format
+msgctxt "KWin Scripting function received incorrect value for an expected type"
+msgid "%1 is not a variant type"
+msgstr "xx%1 is not a variant typexx"
+
+#. i18n: ectx: property (windowTitle), widget (QDialog, ShortcutDialog)
+#: shortcutdialog.ui:14
+#, kde-format
+msgid "Dialog"
+msgstr "xxDialogxx"
+
+#. i18n: ectx: property (text), widget (QToolButton, clearButton)
+#: shortcutdialog.ui:25
+#, kde-format
+msgid "..."
+msgstr "xx...xx"
+
+#: tabbox/tabbox.cpp:372
+#, kde-format
+msgctxt "Special entry in alt+tab list for minimizing all windows"
+msgid "Show Desktop"
+msgstr "xxShow Desktopxx"
+
+#: tabbox/tabbox.cpp:521
+#, kde-format
+msgid "Walk Through Windows"
+msgstr "xxWalk Through Windowsxx"
+
+#: tabbox/tabbox.cpp:522
+#, kde-format
+msgid "Walk Through Windows (Reverse)"
+msgstr "xxWalk Through Windows (Reverse)xx"
+
+#: tabbox/tabbox.cpp:523
+#, kde-format
+msgid "Walk Through Windows Alternative"
+msgstr "xxWalk Through Windows Alternativexx"
+
+#: tabbox/tabbox.cpp:524
+#, kde-format
+msgid "Walk Through Windows Alternative (Reverse)"
+msgstr "xxWalk Through Windows Alternative (Reverse)xx"
+
+#: tabbox/tabbox.cpp:525
+#, kde-format
+msgid "Walk Through Windows of Current Application"
+msgstr "xxWalk Through Windows of Current Applicationxx"
+
+#: tabbox/tabbox.cpp:526
+#, kde-format
+msgid "Walk Through Windows of Current Application (Reverse)"
+msgstr "xxWalk Through Windows of Current Application (Reverse)xx"
+
+#: tabbox/tabbox.cpp:527
+#, kde-format
+msgid "Walk Through Windows of Current Application Alternative"
+msgstr "xxWalk Through Windows of Current Application Alternativexx"
+
+#: tabbox/tabbox.cpp:528
+#, kde-format
+msgid "Walk Through Windows of Current Application Alternative (Reverse)"
+msgstr "xxWalk Through Windows of Current Application Alternative (Reverse)xx"
+
+#: tabbox/tabbox.cpp:529
+#, kde-format
+msgid "Walk Through Desktops"
+msgstr "xxWalk Through Desktopsxx"
+
+#: tabbox/tabbox.cpp:530
+#, kde-format
+msgid "Walk Through Desktops (Reverse)"
+msgstr "xxWalk Through Desktops (Reverse)xx"
+
+#: tabbox/tabbox.cpp:531
+#, kde-format
+msgid "Walk Through Desktop List"
+msgstr "xxWalk Through Desktop Listxx"
+
+#: tabbox/tabbox.cpp:532
+#, kde-format
+msgid "Walk Through Desktop List (Reverse)"
+msgstr "xxWalk Through Desktop List (Reverse)xx"
+
+#: tabbox/tabboxhandler.cpp:270
+#, kde-format
+msgid ""
+"The Window Switcher installation is broken, resources are missing.\n"
+"Contact your distribution about this."
+msgstr ""
+"xxThe Window Switcher installation is broken, resources are missing.\n"
+"Contact your distribution about this.xx"
+
+#: useractions.cpp:167
+#, kde-format
+msgid ""
+"You have selected to show a window without its border.\n"
+"Without the border, you will not be able to enable the border again using "
+"the mouse: use the window operations menu instead, activated using the %1 "
+"keyboard shortcut."
+msgstr ""
+"xxYou have selected to show a window without its border.\n"
+"Without the border, you will not be able to enable the border again using "
+"the mouse: use the window operations menu instead, activated using the %1 "
+"keyboard shortcut.xx"
+
+#: useractions.cpp:175
+#, kde-format
+msgid ""
+"You have selected to show a window in fullscreen mode.\n"
+"If the application itself does not have an option to turn the fullscreen "
+"mode off you will not be able to disable it again using the mouse: use the "
+"window operations menu instead, activated using the %1 keyboard shortcut."
+msgstr ""
+"xxYou have selected to show a window in fullscreen mode.\n"
+"If the application itself does not have an option to turn the fullscreen "
+"mode off you will not be able to disable it again using the mouse: use the "
+"window operations menu instead, activated using the %1 keyboard shortcut.xx"
+
+#: useractions.cpp:240
+#, kde-format
+msgid "&Move"
+msgstr "xx&Movexx"
+
+#: useractions.cpp:245
+#, kde-format
+msgid "&Resize"
+msgstr "xx&Resizexx"
+
+#: useractions.cpp:250
+#, kde-format
+msgid "Keep &Above Others"
+msgstr "xxKeep &Above Othersxx"
+
+#: useractions.cpp:256
+#, kde-format
+msgid "Keep &Below Others"
+msgstr "xxKeep &Below Othersxx"
+
+#: useractions.cpp:262
+#, kde-format
+msgid "&Fullscreen"
+msgstr "xx&Fullscreenxx"
+
+#: useractions.cpp:268
+#, kde-format
+msgid "&Shade"
+msgstr "xx&Shadexx"
+
+#: useractions.cpp:274
+#, kde-format
+msgid "&No Border"
+msgstr "xx&No Borderxx"
+
+#: useractions.cpp:282
+#, kde-format
+msgid "Set Window Short&cut..."
+msgstr "xxSet Window Short&cut...xx"
+
+#: useractions.cpp:287
+#, kde-format
+msgid "Configure Special &Window Settings..."
+msgstr "xxConfigure Special &Window Settings...xx"
+
+#: useractions.cpp:292
+#, kde-format
+msgid "Configure S&pecial Application Settings..."
+msgstr "xxConfigure S&pecial Application Settings...xx"
+
+#: useractions.cpp:300
+#, kde-format
+msgctxt ""
+"Entry in context menu of window decoration to open the configuration module "
+"of KWin"
+msgid "Configure W&indow Manager..."
+msgstr "xxConfigure W&indow Manager...xx"
+
+#: useractions.cpp:328
+#, kde-format
+msgid "Ma&ximize"
+msgstr "xxMa&ximizexx"
+
+#: useractions.cpp:334
+#, kde-format
+msgid "Mi&nimize"
+msgstr "xxMi&nimizexx"
+
+#: useractions.cpp:340
+#, kde-format
+msgid "&More Actions"
+msgstr "xx&More Actionsxx"
+
+#: useractions.cpp:343
+#, kde-format
+msgid "&Close"
+msgstr "xx&Closexx"
+
+#: useractions.cpp:410
+#, kde-format
+msgid "&Extensions"
+msgstr "xx&Extensionsxx"
+
+#: useractions.cpp:451
+#, kde-format
+msgid "&Desktops"
+msgstr "xx&Desktopsxx"
+
+#: useractions.cpp:465
+#, kde-format
+msgid "Move to &Desktop"
+msgstr "xxMove to &Desktopxx"
+
+#: useractions.cpp:483
+#, kde-format
+msgid "Move to &Screen"
+msgstr "xxMove to &Screenxx"
+
+#: useractions.cpp:499
+#, kde-format
+msgid "Show in &Activities"
+msgstr "xxShow in &Activitiesxx"
+
+#: useractions.cpp:514 useractions.cpp:559
+#, kde-format
+msgid "&All Desktops"
+msgstr "xx&All Desktopsxx"
+
+#: useractions.cpp:542 useractions.cpp:595
+#, kde-format
+msgctxt "Create a new desktop and move there the window"
+msgid "&New Desktop"
+msgstr "xx&New Desktopxx"
+
+#: useractions.cpp:618
+#, kde-format
+msgctxt ""
+"@item:inmenu List of all Screens to send a window to. First argument is a "
+"number, second the output identifier. E.g. Screen 1 (HDMI1)"
+msgid "Screen &%1 (%2)"
+msgstr "xxScreen &%1 (%2)xx"
+
+#: useractions.cpp:641
+#, kde-format
+msgid "&All Activities"
+msgstr "xx&All Activitiesxx"
+
+#: useractions.cpp:887
+#, kde-format
+msgctxt "'%1' is a keyboard shortcut like 'ctrl+w'"
+msgid "<b>%1</b> is already in use"
+msgstr "xx<b>%1</b> is already in usexx"
+
+#: useractions.cpp:889
+#, kde-format
+msgctxt "keyboard shortcut '%1' is used by action '%2' in application '%3'"
+msgid "<b>%1</b> is used by %2 in %3"
+msgstr "xx<b>%1</b> is used by %2 in %3xx"
+
+#: useractions.cpp:1020
+#, kde-format
+msgid "Activate Window (%1)"
+msgstr "xxActivate Window (%1)xx"
+
+#: useractions.cpp:1162
+#, kde-format
+msgid ""
+"The window manager is configured to consider the screen with the mouse on it "
+"as active one.\n"
+"Therefore it is not possible to switch to a screen explicitly."
+msgstr ""
+"xxThe window manager is configured to consider the screen with the mouse on "
+"it as active one.\n"
+"Therefore it is not possible to switch to a screen explicitly.xx"
+
+#: virtualdesktops.cpp:698 virtualdesktops.cpp:767
+#, kde-format
+msgid "Desktop %1"
+msgstr "xxDesktop %1xx"
+
+#: virtualdesktops.cpp:802
+#, kde-format
+msgid "Switch to Next Desktop"
+msgstr "xxSwitch to Next Desktopxx"
+
+#: virtualdesktops.cpp:804
+#, kde-format
+msgid "Switch to Previous Desktop"
+msgstr "xxSwitch to Previous Desktopxx"
+
+#: virtualdesktops.cpp:806
+#, kde-format
+msgid "Switch One Desktop to the Right"
+msgstr "xxSwitch One Desktop to the Rightxx"
+
+#: virtualdesktops.cpp:808
+#, kde-format
+msgid "Switch One Desktop to the Left"
+msgstr "xxSwitch One Desktop to the Leftxx"
+
+#: virtualdesktops.cpp:810
+#, kde-format
+msgid "Switch One Desktop Up"
+msgstr "xxSwitch One Desktop Upxx"
+
+#: virtualdesktops.cpp:812
+#, kde-format
+msgid "Switch One Desktop Down"
+msgstr "xxSwitch One Desktop Downxx"
+
+#: virtualdesktops.cpp:825
+#, kde-format
+msgid "Switch to Desktop %1"
+msgstr "xxSwitch to Desktop %1xx"
+
+#: workspace.cpp:1355
+#, kde-format
+msgctxt "Introductory text shown in the support information."
+msgid ""
+"KWin Support Information:\n"
+"The following information should be used when requesting support on e.g. "
+"https://forum.kde.org.\n"
+"It provides information about the currently running instance, which options "
+"are used,\n"
+"what OpenGL driver and which effects are running.\n"
+"Please post the information provided underneath this introductory text to a "
+"paste bin service\n"
+"like https://paste.kde.org instead of pasting into support threads.\n"
+msgstr ""
+"xxKWin Support Information:\n"
+"The following information should be used when requesting support on e.g. "
+"https://forum.kde.org.\n"
+"It provides information about the currently running instance, which options "
+"are used,\n"
+"what OpenGL driver and which effects are running.\n"
+"Please post the information provided underneath this introductory text to a "
+"paste bin service\n"
+"like https://paste.kde.org instead of pasting into support threads.\n"
+"xx\n"

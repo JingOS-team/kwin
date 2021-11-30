@@ -171,7 +171,7 @@ void Window::map()
         return;
     }
 
-    m_handle = new InternalClient(window());
+//    m_handle = new InternalClient(window());
 }
 
 void Window::unmap()

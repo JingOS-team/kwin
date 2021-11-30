@@ -1,0 +1,5 @@
+# Whitelisted arguments to setcap.
+# Being whitelisted means they will pass the build without problems.
+# A whitelisted call needs to have a corresponding setcap/setuid call in
+# postinst so it actually gets applied.
+- ["CAP_SYS_NICE=+ep", "*/usr/bin/kwin_wayland"]
